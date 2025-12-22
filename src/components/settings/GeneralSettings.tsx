@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { useExchangeRate, useUpdateExchangeRate } from '@/hooks/useExchangerate';
+import { useExchangeRate, useUpdateExchangeRate } from '@/hooks/useExchangeRate';
 import { toast } from 'sonner';
 import { DollarSign, Building, Clock, Calendar, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 

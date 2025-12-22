@@ -232,7 +232,6 @@ const Dashboard = () => {
                     fill: 'hsl(var(--muted-foreground))'
                   }}
                   orientation="left"
-                  yAxisId="revenue"
                 />
                 <YAxis yAxisId="right"
                   tick={{
@@ -240,7 +239,6 @@ const Dashboard = () => {
                     fill: 'hsl(var(--muted-foreground))'
                   }}
                   orientation="right"
-                  yAxisId="bookings"
                 />
                 <Tooltip
                   formatter={(value, name) => {
@@ -257,8 +255,8 @@ const Dashboard = () => {
                   }}
                 />
                 <Legend />
-                <Bar yAxisId="bookings" dataKey="bookings" name="Nombre de locations" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                {role === 'ADMIN' && <Line yAxisId="revenue" type="monotone" dataKey="revenue" name="Revenus (USD)" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />}
+                <Bar yAxisId="right" dataKey="bookings" name="Nombre de locations" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                {role === 'ADMIN' && <Line yAxisId="left" type="monotone" dataKey="revenue" name="Revenus (USD)" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
