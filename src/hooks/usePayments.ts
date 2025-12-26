@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 export interface Payment {
   id: string;
   booking_id: string;
+  invoice_id: string | null;
   montant: number;
   date_paiement: string;
   methode: 'CB' | 'CASH' | 'TRANSFERT' | 'CHEQUE';
@@ -29,9 +30,25 @@ export function usePaymentsByBooking(bookingId: string) {
   });
 }
 
+export function usePaymentsForBookings(bookingIds: string[]) {
+  return useQuery({
+    queryKey: ['payments', 'forBookings', bookingIds],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .in('booking_id', bookingIds);
+
+      if (error) throw error;
+      return data as Payment[];
+    },
+    enabled: bookingIds && bookingIds.length > 0,
+  });
+}
+
 export function useAllPayments() {
   return useQuery({
-    queryKey: ['payments'],
+    queryKey: ['allPayments'], // Clé plus spécifique
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payments')
@@ -60,8 +77,9 @@ export function useCreatePayment() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['payments', variables.booking_id] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] }); // Invalidate all payments query
+      queryClient.invalidateQueries({ queryKey: ['allPayments'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast({ title: 'Paiement enregistré', description: 'Le paiement a été ajouté avec succès' });
     },
     onError: (error) => {
@@ -88,8 +106,10 @@ export function useUpdatePayment() {
     },
     onSuccess: ({ booking_id }) => {
       queryClient.invalidateQueries({ queryKey: ['payments', booking_id] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['allPayments'] });
+
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast({ title: 'Paiement mis à jour', description: 'Le paiement a été modifié avec succès.' });
     },
     onError: (error) => {
@@ -114,8 +134,9 @@ export function useDeletePayment() {
     },
     onSuccess: ({ booking_id }) => {
       queryClient.invalidateQueries({ queryKey: ['payments', booking_id] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      queryClient.invalidateQueries({ queryKey: ['allPayments'] });
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast({ title: 'Paiement supprimé', description: 'Le paiement a été supprimé avec succès.' });
     },
     onError: (error) => {

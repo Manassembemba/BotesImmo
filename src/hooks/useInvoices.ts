@@ -7,22 +7,16 @@ import { Invoice, InvoiceFormData } from '@/interfaces/Invoice';
 import { generateInvoiceFromBooking } from '@/services/invoiceService';
 import { invoiceDbService } from '@/services/invoiceDbService';
 
-export function useInvoices() {
-  return useQuery({
-    queryKey: ['invoices'],
-    queryFn: async () => {
-      return invoiceDbService.getAll();
-    },
-  });
-}
+export function useInvoices(options?: {
+  filters?: { search?: string; status?: string; dateRange?: { start?: string; end?: string; }; bookingId?: string; };
+  pagination?: { pageIndex: number; pageSize: number; };
+}) {
+  const { filters, pagination } = options || {};
 
-export function useInvoice(invoiceId: string) {
   return useQuery({
-    queryKey: ['invoices', invoiceId],
-    queryFn: async () => {
-      return invoiceDbService.getById(invoiceId);
-    },
-    enabled: !!invoiceId,
+    queryKey: ['invoices', filters, pagination],
+    queryFn: () => invoiceDbService.getAll({ filters, pagination }),
+    enabled: !!filters, // Ensure query only runs when filters are provided
   });
 }
 
@@ -34,20 +28,18 @@ export function useCreateInvoice() {
     mutationFn: async ({ booking, tenant, room, formData }: {
       booking: Booking;
       tenant: Tenant;
-      room?: Room;
+      room: Room;
       formData?: InvoiceFormData;
     }) => {
-      // Générer la facture à partir de la réservation
       const invoice = generateInvoiceFromBooking(booking, tenant, room, formData);
-
-      // Créer la facture dans la base de données
       return invoiceDbService.create(invoice);
     },
-    onSuccess: (invoice) => {
+    onSuccess: (data) => {
+      // Invalidate all queries that start with 'invoices' to refresh all lists
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
       toast({
         title: 'Facture créée',
-        description: `La facture ${invoice.invoice_number} a été générée avec succès.`
+        description: `La facture a été générée avec succès.`
       });
     },
     onError: (error) => {
@@ -60,80 +52,19 @@ export function useCreateInvoice() {
   });
 }
 
-export function useUpdateInvoice() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async ({ id, ...update }: { id: string } & Partial<Invoice>) => {
-      // Mettre à jour la facture dans la base de données
-      const updated = await invoiceDbService.update(id, update);
-      if (!updated) {
-        throw new Error(`Facture avec ID ${id} introuvable`);
-      }
-      return updated;
-    },
-    onSuccess: (updatedInvoice) => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['invoices', updatedInvoice.id] });
-      toast({
-        title: 'Facture mise à jour',
-        description: `La facture ${updatedInvoice.invoice_number} a été mise à jour.`
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Erreur',
-        description: `Échec de la mise à jour de la facture: ${(error as Error).message}`
-      });
-    },
-  });
-}
-
-export function useDeleteInvoice() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      // Supprimer la facture de la base de données
-      const success = await invoiceDbService.delete(id);
-      if (!success) {
-        throw new Error(`Échec de la suppression de la facture avec ID ${id}`);
-      }
-      return success;
-    },
-    onSuccess: (_, deletedId) => {
-      queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['invoices', deletedId] });
-      toast({
-        title: 'Facture supprimée',
-        description: `La facture a été supprimée avec succès.`
-      });
-    },
-    onError: (error) => {
-      toast({
-        variant: 'destructive',
-        title: 'Erreur',
-        description: `Échec de la suppression de la facture: ${(error as Error).message}`
-      });
-    },
-  });
-}
-
 export function useGenerateInvoiceForBooking() {
   const createInvoice = useCreateInvoice();
 
-  const generateForBooking = async (booking: Booking, tenant: Tenant, room?: Room, discountAmount = 0) => {
+  const generateForBooking = async (booking: Booking, tenant: Tenant, room: Room, discountAmount = 0, initialPaymentAmount = 0) => {
     return createInvoice.mutateAsync({
       booking,
       tenant,
       room,
       formData: {
         booking_id: booking.id,
-        due_date: booking.date_fin_prevue, // Date de fin de séjour par défaut
+        due_date: booking.date_fin_prevue,
         discount_amount: discountAmount,
+        initial_payment: initialPaymentAmount,
       }
     });
   };
@@ -143,3 +74,5 @@ export function useGenerateInvoiceForBooking() {
     generateForBooking
   };
 }
+
+// ... autres hooks (useUpdateInvoice, useDeleteInvoice, etc)

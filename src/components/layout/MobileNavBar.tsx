@@ -23,7 +23,8 @@ export function MobileNavBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { role, signOut } = useAuth();
-  const { data: bookings = [] } = useBookings();
+        const { data: bookingsResult } = useBookings();
+  const bookings = bookingsResult?.data || [];
   const { data: rooms = [] } = useRooms();
   const [showMoreMenu, setShowMoreMenu] = useState(false);
 

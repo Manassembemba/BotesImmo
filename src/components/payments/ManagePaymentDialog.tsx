@@ -28,26 +28,28 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type Booking } from "@/hooks/useBookings";
 import { usePaymentsByBooking, useCreatePayment, useUpdatePayment, useDeletePayment, type Payment } from "@/hooks/usePayments";
+import { useInvoices } from "@/hooks/useInvoices";
+import { type Invoice } from "@/interfaces/Invoice";
 import { paymentSchema, type PaymentFormData } from "@/lib/validationSchemas";
 import { format } from "date-fns";
 import { Edit, Trash2, PlusCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-// Interface for the main component props for better readability
 interface ManagePaymentDialogProps {
   booking: Booking | null;
   open: boolean;
   onClose: () => void;
 }
 
-// Sub-component for the payment form
 function PaymentForm({
   booking,
   payment,
+  invoices,
   onFinished,
 }: {
   booking: Booking;
   payment?: Payment | null;
+  invoices: Invoice[];
   onFinished: () => void;
 }) {
   const createPayment = useCreatePayment();
@@ -56,6 +58,7 @@ function PaymentForm({
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
+      invoice_id: payment?.invoice_id || invoices.find(inv => inv.status !== 'PAID' && inv.status !== 'CANCELLED')?.id || undefined,
       montant: payment?.montant || undefined,
       date_paiement: payment ? format(new Date(payment.date_paiement), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       methode: payment?.methode || "CASH",
@@ -65,12 +68,13 @@ function PaymentForm({
 
   useEffect(() => {
     form.reset({
+      invoice_id: payment?.invoice_id || invoices.find(inv => inv.status !== 'PAID' && inv.status !== 'CANCELLED')?.id || undefined,
       montant: payment?.montant || undefined,
       date_paiement: payment ? format(new Date(payment.date_paiement), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       methode: payment?.methode || "CASH",
       notes: payment?.notes || "",
     });
-  }, [payment, form]);
+  }, [payment, invoices, form]);
 
   const handleSubmit = async (data: PaymentFormData) => {
     try {
@@ -86,11 +90,36 @@ function PaymentForm({
   };
 
   const isSubmitting = createPayment.isPending || updatePayment.isPending;
+  const payableInvoices = invoices.filter(inv => inv.status !== 'PAID' && inv.status !== 'CANCELLED');
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 p-4 border rounded-lg bg-muted/50">
         <h3 className="font-semibold text-lg">{payment ? "Modifier le paiement" : "Ajouter un paiement"}</h3>
+        
+        <FormField
+          control={form.control}
+          name="invoice_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Facture à payer</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isSubmitting || !!payment || payableInvoices.length === 0}>
+                <FormControl>
+                  <SelectTrigger><SelectValue placeholder="Sélectionner une facture..." /></SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {payableInvoices.map(inv => (
+                    <SelectItem key={inv.id} value={inv.id}>
+                      {inv.invoice_number} - {inv.total.toFixed(2)}$ (Solde: {inv.balance_due?.toFixed(2)}$)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -168,7 +197,9 @@ function PaymentForm({
 
 export function ManagePaymentDialog({ booking, open, onClose }: ManagePaymentDialogProps) {
   const { role } = useAuth();
-  const { data: payments = [], isLoading } = usePaymentsByBooking(booking?.id || "");
+  const { data: payments = [], isLoading: isLoadingPayments } = usePaymentsByBooking(booking?.id || "");
+  const { data: invoicesResult, isLoading: isLoadingInvoices } = useInvoices({ filters: { bookingId: booking?.id }, pagination: { pageIndex: 0, pageSize: 100 }});
+  const invoices = invoicesResult?.data || [];
   const deletePayment = useDeletePayment();
 
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
@@ -191,6 +222,7 @@ export function ManagePaymentDialog({ booking, open, onClose }: ManagePaymentDia
   }
 
   if (!booking) return null;
+  const isLoading = isLoadingPayments || isLoadingInvoices;
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -238,29 +270,34 @@ export function ManagePaymentDialog({ booking, open, onClose }: ManagePaymentDia
                       <TableHead>Montant</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Méthode</TableHead>
+                      <TableHead>Facture</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payments.map(p => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">${p.montant.toLocaleString('fr-FR')}</TableCell>
-                        <TableCell>{format(new Date(p.date_paiement), "dd/MM/yyyy")}</TableCell>
-                        <TableCell>{p.methode}</TableCell>
-                        <TableCell className="space-x-2">
-                          {(role === 'ADMIN' || role === 'AGENT_RES') && (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingPayment(p); setIsAdding(false); }}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {payments.map(p => {
+                      const relatedInvoice = invoices.find(inv => inv.id === p.invoice_id);
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-medium">${p.montant.toLocaleString('fr-FR')}</TableCell>
+                          <TableCell>{format(new Date(p.date_paiement), "dd/MM/yyyy")}</TableCell>
+                          <TableCell>{p.methode}</TableCell>
+                          <TableCell>{relatedInvoice?.invoice_number || '-'}</TableCell>
+                          <TableCell className="space-x-2">
+                            {(role === 'ADMIN' || role === 'AGENT_RES') && (
+                              <>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingPayment(p); setIsAdding(false); }}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(p.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -271,6 +308,7 @@ export function ManagePaymentDialog({ booking, open, onClose }: ManagePaymentDia
             <PaymentForm
               booking={booking}
               payment={editingPayment}
+              invoices={invoices}
               onFinished={handleFinishEditing}
             />
           )}

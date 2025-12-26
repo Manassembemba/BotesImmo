@@ -39,16 +39,14 @@ import { cn } from '@/lib/utils';
 import { useGlobalFilters } from '@/hooks/useGlobalFilters';
 import { GlobalFilters } from '@/components/filters/GlobalFilters';
 
-const getStatusBadge = (status: string) => {
-  const config: Record<string, { label: string; className: string }> = {
-    AVAILABLE: { label: 'NON OCCUPÉ', className: 'status-available' },
-    OCCUPIED: { label: 'OCCUPÉ', className: 'status-occupied' },
-    BOOKED: { label: 'RÉSERVÉ', className: 'status-occupied' },
-    PENDING_CHECKOUT: { label: 'DÉPART EN ATTENTE', className: 'status-pending-checkout' },
-    PENDING_CLEANING: { label: 'NETTOYAGE', className: 'status-pending-cleaning' },
-    MAINTENANCE: { label: 'MAINTENANCE', className: 'status-out-of-service' },
+const getStatusBadge = (status: RoomStatus) => {
+  const config: Record<RoomStatus, { label: string; className: string }> = {
+    Libre: { label: 'DISPONIBLE', className: 'status-available' },
+    Occupé: { label: 'OCCUPÉ', className: 'status-occupied' },
+    Nettoyage: { label: 'NETTOYAGE', className: 'status-pending-cleaning' },
+    Maintenance: { label: 'MAINTENANCE', className: 'status-out-of-service' },
   };
-  const { label, className } = config[status] || config.AVAILABLE;
+  const { label, className } = config[status] || config.Libre;
   return (
     <Badge className={cn('font-medium text-xs px-3 py-1', className)}>
       {label}
@@ -209,12 +207,10 @@ const Rooms = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous statuts</SelectItem>
-                    <SelectItem value="AVAILABLE">Disponible</SelectItem>
-                    <SelectItem value="OCCUPIED">Occupé</SelectItem>
-                    <SelectItem value="BOOKED">Réservé</SelectItem>
-                    <SelectItem value="PENDING_CHECKOUT">Départ en attente</SelectItem>
-                    <SelectItem value="PENDING_CLEANING">Nettoyage</SelectItem>
-                    <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                    <SelectItem value="Libre">Disponible</SelectItem>
+                    <SelectItem value="Occupé">Occupé</SelectItem>
+                    <SelectItem value="Nettoyage">Nettoyage</SelectItem>
+                    <SelectItem value="Maintenance">Maintenance</SelectItem>
                   </SelectContent>
                 </Select>
 

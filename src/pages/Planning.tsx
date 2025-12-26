@@ -64,12 +64,13 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 
 // High-contrast colors
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  PENDING: { bg: 'bg-gradient-to-r from-amber-400 to-orange-500', text: 'text-white' },
-  CONFIRMED: { bg: 'bg-gradient-to-r from-blue-500 to-indigo-600', text: 'text-white' },
-  IN_PROGRESS: { bg: 'bg-gradient-to-r from-emerald-500 to-teal-600', text: 'text-white' },
-  COMPLETED: { bg: 'bg-gradient-to-r from-slate-400 to-slate-600', text: 'text-white' },
-  CANCELLED: { bg: 'bg-gradient-to-r from-rose-500 to-red-600', text: 'text-white' },
+const STATUS_COLORS: Record<string, { label: string; bg: string; text: string }> = {
+  PENDING: { label: 'En attente', bg: 'bg-gradient-to-r from-amber-400 to-orange-500', text: 'text-white' },
+  CONFIRMED: { label: 'Confirmé', bg: 'bg-gradient-to-r from-blue-500 to-indigo-600', text: 'text-white' },
+  IN_PROGRESS: { label: 'En cours', bg: 'bg-gradient-to-r from-emerald-500 to-teal-600', text: 'text-white' },
+  PENDING_CHECKOUT: { label: 'Départ imminent', bg: 'bg-gradient-to-r from-yellow-500 to-amber-600', text: 'text-white' },
+  COMPLETED: { label: 'Terminé', bg: 'bg-gradient-to-r from-slate-400 to-slate-600', text: 'text-white' },
+  CANCELLED: { label: 'Annulé', bg: 'bg-gradient-to-r from-rose-500 to-red-600', text: 'text-white' },
 };
 
 const VIEW_OPTIONS = [
@@ -87,7 +88,6 @@ type Selection = {
 const Planning = () => {
   const { role } = useAuth();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-  const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
   const { toast } = useToast();
 
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -96,14 +96,6 @@ const Planning = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [roomTypeFilter, setRoomTypeFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
-
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [checkInBooking, setCheckInBooking] = useState<Booking | null>(null);
-  const [checkOutBooking, setCheckOutBooking] = useState<Booking | null>(null);
-
-  // State for creating a booking from the calendar
-  const [selection, setSelection] = useState<Selection>({ start: null, end: null, roomId: null });
-  const [bookingDialog, setBookingDialog] = useState<{ open: boolean; initialData?: any }>({ open: false });
 
   const days = useMemo(() => {
     const numDays = parseInt(viewDays);
@@ -114,6 +106,32 @@ const Planning = () => {
     }
     return Array.from({ length: numDays }, (_, i) => addDays(currentDate, i));
   }, [currentDate, viewDays]);
+
+  // Déterminer la plage de dates pour la requête SQL
+  const { queryStartDate, queryEndDate } = useMemo(() => {
+    if (days.length === 0) return { queryStartDate: null, queryEndDate: null };
+    return {
+      queryStartDate: days[0],
+      queryEndDate: days[days.length - 1],
+    };
+  }, [days]);
+
+  // Charger uniquement les réservations nécessaires pour la période visible
+        const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({
+    startDate: queryStartDate?.toISOString(),
+    endDate: queryEndDate?.toISOString(),
+  });
+  const bookings = bookingsResult?.data || [];
+
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [checkInBooking, setCheckInBooking] = useState<Booking | null>(null);
+  const [checkOutBooking, setCheckOutBooking] = useState<Booking | null>(null);
+
+  // State for creating a booking from the calendar
+  const [selection, setSelection] = useState<Selection>({ start: null, end: null, roomId: null });
+  const [bookingDialog, setBookingDialog] = useState<{ open: boolean; initialData?: any }>({ open: false });
+
+
 
   // Extraire les types uniques et localités
   const uniqueRoomTypes = useMemo(() => {
@@ -260,10 +278,10 @@ const Planning = () => {
       <div className="space-y-6 bg-slate-50 -m-6 p-6 min-h-screen">
         <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-300">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 w-full">
-            {Object.entries(STATUS_COLORS).map(([status, { bg }]) => (
+            {Object.entries(STATUS_COLORS).map(([status, { label, bg }]) => (
               <div key={status} className="flex items-center gap-2 text-sm py-1">
                 <div className={cn('w-4 h-4 rounded-sm', bg)} />
-                <span className="text-slate-600 capitalize font-medium">{status.replace('_', ' ').toLowerCase()}</span>
+                <span className="text-slate-600 capitalize font-medium">{label}</span>
               </div>
             ))}
           </div>

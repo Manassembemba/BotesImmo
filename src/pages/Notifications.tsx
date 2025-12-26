@@ -20,7 +20,8 @@ interface NotificationItem {
 }
 
 const Notifications = () => {
-  const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
+        const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const bookings = bookingsResult?.data || [];
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
   const { data: tasks = [], isLoading: tasksLoading } = useTasks();
   const navigate = useNavigate();

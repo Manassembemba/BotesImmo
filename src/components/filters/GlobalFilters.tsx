@@ -37,13 +37,10 @@ export const GlobalFilters = ({
   ];
 
   const statusOptions = [
-    { value: 'available', label: 'Disponible', color: 'success' },
-    { value: 'occupied', label: 'Occupé', color: 'primary' },
-    { value: 'booked', label: 'Réservé', color: 'primary' },
-    { value: 'pending_checkout', label: 'Départ en attente', color: 'warning' },
-    { value: 'pending_cleaning', label: 'Nettoyage', color: 'warning' },
-    { value: 'out_of_service', label: 'Hors service', color: 'destructive' },
-  ];
+      { value: 'Libre', label: 'Disponible', color: 'success' },
+      { value: 'Occupé', label: 'Occupé', color: 'primary' },
+      { value: 'Nettoyage', label: 'Nettoyage', color: 'warning' },
+      { value: 'Maintenance', label: 'Maintenance', color: 'destructive' },  ];
 
   const handleDateRangeSubmit = () => {
     if (dateRange.start && dateRange.end) {

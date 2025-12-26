@@ -46,7 +46,8 @@ export type RoomFormData = z.infer<typeof roomSchema>;
 export type BookingFormData = z.infer<typeof bookingSchema>;
 
 export const paymentSchema = z.object({
-  montant: z.number({invalid_error: "Le montant doit être un nombre."}).positive("Le montant doit être positif.").max(1000000, "Le montant doit être inférieur à 1 000 000€"),
+  invoice_id: z.string().uuid("Facture invalile").optional().nullable(),
+  montant: z.number({ invalid_type_error: "Le montant doit être un nombre." }).positive("Le montant doit être positif.").max(1000000, "Le montant doit être inférieur à 1 000 000$"),
   date_paiement: z.string().min(1, "La date de paiement est requise"),
   methode: z.enum(['CB', 'CASH', 'TRANSFERT', 'CHEQUE'], { required_error: "La méthode est requise" }),
   notes: z.string().trim().max(500, "Les notes doivent faire moins de 500 caractères").optional().or(z.literal('')),

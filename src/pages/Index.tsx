@@ -39,15 +39,16 @@ import { cn } from '@/lib/utils';
 const Dashboard = () => {
   const { role } = useAuth();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-  const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
+      const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const bookings = bookingsResult?.data || [];
   const { data: payments = [], isLoading: paymentsLoading } = useAllPayments();
   const { data: exchangeRate } = useExchangeRate();
   const rate = exchangeRate?.usd_to_cdf || 2800;
   const isMobile = useIsMobile();
 
   // Calcul des indicateurs de base
-  const availableRooms = rooms.filter(r => r.status === 'AVAILABLE').length;
-  const occupiedRooms = rooms.filter(r => r.status === 'OCCUPIED').length;
+  const availableRooms = rooms.filter(r => r.status === 'Libre').length;
+  const occupiedRooms = rooms.filter(r => r.status === 'Occupé').length;
   const bookedRooms = rooms.filter(r => r.status === 'BOOKED').length;
   const totalRooms = rooms.length;
 

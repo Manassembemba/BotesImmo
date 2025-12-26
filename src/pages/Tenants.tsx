@@ -20,7 +20,8 @@ import { useAuth } from '@/hooks/useAuth';
 const Tenants = () => {
   const { role } = useAuth();
   const { data: tenants = [], isLoading } = useTenants();
-  const { data: bookings = [] } = useBookings();
+        const { data: bookingsResult } = useBookings();
+  const bookings = bookingsResult?.data || [];
   const [search, setSearch] = useState(''); // Re-added search state
   const [blacklistFilter, setBlacklistFilter] = useState('all'); // New state for blacklist filter
 

@@ -47,7 +47,7 @@ export default function Tasks() {
     if (taskType === 'NETTOYAGE') {
       const room = rooms.find(r => r.id === roomId);
       if (room && room.status === 'PENDING_CLEANING') {
-        await updateRoomStatus.mutateAsync({ id: roomId, status: 'AVAILABLE' });
+        await updateRoomStatus.mutateAsync({ id: roomId, status: 'Libre' });
       }
     }
   };

@@ -13,7 +13,7 @@ export interface Invoice {
   due_date?: string; // ISO date string
   booking_id: string;
   tenant_id: string;
-  status: 'DRAFT' | 'ISSUED' | 'PAID' | 'CANCELLED';
+  status: 'DRAFT' | 'ISSUED' | 'PAID' | 'CANCELLED' | 'PARTIALLY_PAID';
   items: InvoiceItem[];
   subtotal: number;
   discount_amount?: number; // Discount amount in currency
@@ -34,6 +34,8 @@ export interface Invoice {
   booking_dates?: { start: string; end: string };
   room_number?: string;
   room_type?: string;
+  amount_paid?: number;
+  balance_due?: number;
 }
 
 export interface InvoiceFormData {
@@ -43,6 +45,7 @@ export interface InvoiceFormData {
   tax_rate?: number;
   discount_amount?: number;
   discount_percentage?: number;
+  status?: 'DRAFT' | 'ISSUED' | 'PAID' | 'CANCELLED' | 'PARTIALLY_PAID';
 }
 
 export interface InvoiceLineItem {

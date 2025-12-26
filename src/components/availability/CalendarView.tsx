@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Booking } from '@/hooks/useBookings';
 import { Room } from '@/hooks/useRooms';
+import { cn } from '@/lib/utils';
 
 interface CalendarViewProps {
   rooms: Room[];

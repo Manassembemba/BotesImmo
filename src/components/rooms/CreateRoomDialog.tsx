@@ -77,7 +77,7 @@ export function CreateRoomDialog() {
       equipements: data.equipements,
       description: data.description || null,
       location_id: data.location_id || undefined, // Utilisation de location_id au lieu des champs d'adresse
-      status: 'AVAILABLE',
+      status: 'Libre',
     });
 
     form.reset();

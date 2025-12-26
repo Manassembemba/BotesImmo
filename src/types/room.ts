@@ -1,10 +1,4 @@
-export type RoomStatus = 
-  | 'AVAILABLE' 
-  | 'OCCUPIED' 
-  | 'PENDING_CHECKOUT' 
-  | 'PENDING_CLEANING' 
-  | 'OUT_OF_SERVICE';
-
+export type RoomStatus = 'Libre' | 'Occupé' | 'Nettoyage' | 'Maintenance';
 export type RoomType = 'SINGLE' | 'DOUBLE' | 'SUITE' | 'STUDIO';
 
 export interface Room {

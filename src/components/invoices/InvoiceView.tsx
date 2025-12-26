@@ -19,6 +19,8 @@ export function InvoiceView({ invoice }: InvoiceViewProps) {
     switch (invoice.status) {
       case 'PAID':
         return <Badge className="bg-green-500">Payée</Badge>;
+      case 'PARTIALLY_PAID':
+        return <Badge className="bg-orange-500">Partiellement payée</Badge>;
       case 'ISSUED':
         return <Badge className="bg-yellow-500">Émise</Badge>;
       case 'CANCELLED':
@@ -130,8 +132,14 @@ export function InvoiceView({ invoice }: InvoiceViewProps) {
         )}
         <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
           <span>Montant payé:</span>
-          <span>{invoice.net_total?.toFixed(2) || (invoice.total - (invoice.discount_amount || 0)).toFixed(2)} {invoice.currency}</span>
+          <span>{invoice.amount_paid.toFixed(2)} {invoice.currency}</span>
         </div>
+        {invoice.balance_due > 0 && (
+          <div className="flex justify-between font-bold text-lg text-red-600 border-t pt-2 mt-2">
+            <span>Reste à payer:</span>
+            <span>{invoice.balance_due.toFixed(2)} {invoice.currency}</span>
+          </div>
+        )}
       </div>
 
       {/* Notes */}

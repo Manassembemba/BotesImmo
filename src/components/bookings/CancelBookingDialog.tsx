@@ -36,7 +36,7 @@ export function CancelBookingDialog({ booking, open, onOpenChange }: CancelBooki
       if (booking.status === 'CONFIRMED' || booking.status === 'PENDING') {
         await updateRoomStatus.mutateAsync({
           id: booking.room_id,
-          status: 'AVAILABLE',
+          status: 'Libre',
         });
       }
 

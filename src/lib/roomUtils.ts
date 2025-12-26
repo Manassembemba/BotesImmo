@@ -2,28 +2,28 @@ import { Room } from '@/hooks/useRooms';
 
 export type RoomStatus = Room['status'];
 
+import { RoomStatus } from '@/types/room';
+
+export const statusTranslations: { [key in RoomStatus]: string } = {
+  Libre: 'Disponible',
+  Occupé: 'Occupé',
+  Nettoyage: 'Nettoyage',
+  Maintenance: 'En maintenance',
+};
+
+export const statusColors: { [key in RoomStatus]: string } = {
+  Libre: 'status-available',
+  Occupé: 'status-occupied',
+  Nettoyage: 'status-pending-cleaning',
+  Maintenance: 'status-out-of-service',
+};
+
 export const getStatusLabel = (status: RoomStatus): string => {
-  const labels: Record<RoomStatus, string> = {
-    AVAILABLE: 'Disponible',
-    BOOKED: 'Réservée',
-    OCCUPIED: 'Occupée',
-    PENDING_CHECKOUT: 'Départ en attente',
-    PENDING_CLEANING: 'Nettoyage en attente',
-    MAINTENANCE: 'Hors service',
-  };
-  return labels[status];
+  return statusTranslations[status] || status;
 };
 
 export const getStatusColor = (status: RoomStatus): string => {
-  const colors: Record<RoomStatus, string> = {
-    AVAILABLE: 'status-available',
-    BOOKED: 'status-occupied',
-    OCCUPIED: 'status-occupied',
-    PENDING_CHECKOUT: 'status-pending-checkout',
-    PENDING_CLEANING: 'status-pending-cleaning',
-    MAINTENANCE: 'status-out-of-service',
-  };
-  return colors[status];
+  return statusColors[status] || 'status-available';
 };
 
 export const getRoomTypeLabel = (type: string): string => {

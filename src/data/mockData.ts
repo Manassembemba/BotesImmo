@@ -6,7 +6,7 @@ export const mockRooms: Room[] = [
     number: '101',
     type: 'SINGLE',
     capacity: 1,
-    status: 'AVAILABLE',
+    status: 'Libre',
     pricePerNight: 45,
     pricePerWeek: 280,
     pricePerMonth: 1000,
@@ -18,7 +18,7 @@ export const mockRooms: Room[] = [
     number: '102',
     type: 'DOUBLE',
     capacity: 2,
-    status: 'OCCUPIED',
+    status: 'Occupé',
     pricePerNight: 65,
     pricePerWeek: 400,
     pricePerMonth: 1400,
@@ -30,7 +30,7 @@ export const mockRooms: Room[] = [
     number: '103',
     type: 'DOUBLE',
     capacity: 2,
-    status: 'PENDING_CHECKOUT',
+    status: 'Occupé',
     pricePerNight: 65,
     pricePerWeek: 400,
     pricePerMonth: 1400,
@@ -42,7 +42,7 @@ export const mockRooms: Room[] = [
     number: '201',
     type: 'SUITE',
     capacity: 4,
-    status: 'PENDING_CLEANING',
+    status: 'Nettoyage',
     pricePerNight: 120,
     pricePerWeek: 750,
     pricePerMonth: 2800,
@@ -54,7 +54,7 @@ export const mockRooms: Room[] = [
     number: '202',
     type: 'STUDIO',
     capacity: 2,
-    status: 'AVAILABLE',
+    status: 'Libre',
     pricePerNight: 85,
     pricePerWeek: 520,
     pricePerMonth: 1900,
@@ -66,7 +66,7 @@ export const mockRooms: Room[] = [
     number: '203',
     type: 'SINGLE',
     capacity: 1,
-    status: 'OUT_OF_SERVICE',
+    status: 'Maintenance',
     pricePerNight: 45,
     pricePerWeek: 280,
     pricePerMonth: 1000,
@@ -78,7 +78,7 @@ export const mockRooms: Room[] = [
     number: '301',
     type: 'SUITE',
     capacity: 4,
-    status: 'OCCUPIED',
+    status: 'Occupé',
     pricePerNight: 150,
     pricePerWeek: 900,
     pricePerMonth: 3200,
@@ -90,7 +90,7 @@ export const mockRooms: Room[] = [
     number: '302',
     type: 'DOUBLE',
     capacity: 2,
-    status: 'AVAILABLE',
+    status: 'Libre',
     pricePerNight: 70,
     pricePerWeek: 430,
     pricePerMonth: 1500,
@@ -189,22 +189,20 @@ export const mockCleaningTasks: CleaningTask[] = [
 
 export const getStatusLabel = (status: RoomStatus): string => {
   const labels: Record<RoomStatus, string> = {
-    AVAILABLE: 'Disponible',
-    OCCUPIED: 'Occupée',
-    PENDING_CHECKOUT: 'Départ en attente',
-    PENDING_CLEANING: 'Nettoyage en attente',
-    OUT_OF_SERVICE: 'Hors service',
+    Libre: 'Disponible',
+    Occupé: 'Occupée',
+    Nettoyage: 'Nettoyage',
+    Maintenance: 'En maintenance',
   };
   return labels[status];
 };
 
 export const getStatusColor = (status: RoomStatus): string => {
   const colors: Record<RoomStatus, string> = {
-    AVAILABLE: 'status-available',
-    OCCUPIED: 'status-occupied',
-    PENDING_CHECKOUT: 'status-pending-checkout',
-    PENDING_CLEANING: 'status-pending-cleaning',
-    OUT_OF_SERVICE: 'status-out-of-service',
+    Libre: 'status-available',
+    Occupé: 'status-occupied',
+    Nettoyage: 'status-pending-cleaning',
+    Maintenance: 'status-out-of-service',
   };
   return colors[status];
 };

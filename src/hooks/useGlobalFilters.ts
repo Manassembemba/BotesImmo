@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 
-export type DateFilterType = 'today' | 'week' | 'month' | 'custom';
-export type StatusFilterType = 'all' | 'available' | 'occupied' | 'booked' | 'pending_checkout' | 'pending_cleaning' | 'out_of_service';
+export type DateFilterType = 'all' | 'today' | 'week' | 'month' | 'custom';
+export type StatusFilterType = 'all' | 'Libre' | 'Occupé' | 'Nettoyage' | 'Maintenance';
 
 export interface FilterOptions {
   dateRange: {
@@ -30,7 +30,7 @@ export interface GlobalFilters {
 
 export const useGlobalFilters = (initialData: any[] = []): GlobalFilters => {
   const [options, setOptions] = useState<FilterOptions>({
-    dateRange: { type: 'today' },
+    dateRange: { type: 'all' },
     status: ['all'],
     dateCreated: { type: 'all' },
   });
@@ -59,7 +59,7 @@ export const useGlobalFilters = (initialData: any[] = []): GlobalFilters => {
 
   const resetFilters = () => {
     setOptions({
-      dateRange: { type: 'today' },
+      dateRange: { type: 'all' },
       status: ['all'],
       dateCreated: { type: 'all' },
     });
@@ -96,7 +96,7 @@ export const useGlobalFilters = (initialData: any[] = []): GlobalFilters => {
     }
 
     // Filtre par date
-    if (options.dateRange.type !== 'custom') {
+    if (options.dateRange.type !== 'custom' && options.dateRange.type !== 'all') {
       const now = new Date();
       let startDate: Date, endDate: Date;
 
@@ -126,7 +126,7 @@ export const useGlobalFilters = (initialData: any[] = []): GlobalFilters => {
         const itemDate = new Date(item.dateCreated || item.createdAt || item.created_at || Date.now());
         return itemDate >= startDate && itemDate <= endDate;
       });
-    } else if (options.dateRange.startDate && options.dateRange.endDate) {
+    } else if (options.dateRange.type === 'custom' && options.dateRange.startDate && options.dateRange.endDate) {
       const startDate = new Date(options.dateRange.startDate);
       const endDate = new Date(options.dateRange.endDate);
       result = result.filter(item => {

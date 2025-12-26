@@ -15,7 +15,8 @@ import { DateFilterType } from '@/hooks/useGlobalFilters';
 
 const Availability = () => {
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-  const { data: bookings = [], isLoading: bookingsLoading } = useBookings();
+      const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const bookings = bookingsResult?.data || [];
 
   const [currentView, setCurrentView] = useState<'table' | 'calendar' | 'card'>('table');
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -72,7 +73,7 @@ const Availability = () => {
     const lastBooking = roomBookings[roomBookings.length - 1];
     const endDate = parseISO(lastBooking.date_fin_prevue);
 
-    const isAvailableNow = room.status === 'AVAILABLE';
+    const isAvailableNow = room.status === 'Libre';
     const daysUntilAvailable = isAvailableNow ? 0 : Math.max(0, differenceInDays(endDate, today));
 
     return {
@@ -279,14 +280,7 @@ const Availability = () => {
 
         {currentView === 'card' && (
           <CardView
-            rooms={rooms}
-            bookings={bookings}
-            onBookRoom={(roomId) => {
-              // Fonctionnalité pour réserver une chambre
-            }}
-            onDetails={(roomId) => {
-              // Fonctionnalité pour afficher les détails
-            }}
+            rooms={sortedRooms}
           />
         )}
 

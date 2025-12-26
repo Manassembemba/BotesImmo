@@ -2,7 +2,7 @@ import { Booking } from '@/hooks/useBookings';
 import { Tenant } from '@/hooks/useTenants';
 import { Room } from '@/hooks/useRooms';
 import { Invoice, InvoiceFormData, InvoiceItem, InvoiceLineItem } from '@/interfaces/Invoice';
-import { format, differenceInDays } from 'date-fns';
+import { format, differenceInCalendarDays, startOfDay } from 'date-fns';
 
 // Génère un numéro de facture unique
 export const generateInvoiceNumber = (): string => {
@@ -16,25 +16,21 @@ export const generateInvoiceNumber = (): string => {
 };
 
 // Calcule les détails d'une facture basés sur une réservation
-export const calculateInvoiceItems = (booking: Booking, room?: Room): InvoiceLineItem[] => {
+export const calculateInvoiceItems = (booking: Booking, room: Room): InvoiceLineItem[] => {
   const items: InvoiceLineItem[] = [];
 
-  // Ajouter la location de la chambre
   const startDate = new Date(booking.date_debut_prevue);
   const endDate = new Date(booking.date_fin_prevue);
-  const nights = differenceInDays(endDate, startDate);
+  const nights = differenceInCalendarDays(startOfDay(endDate), startOfDay(startDate));
 
-  // Si pas de room fourni, on utilise les informations de base
-  const roomType = room?.type || booking.rooms?.type || 'Chambre';
-  const roomPricePerNight = room?.prix_base_nuit || booking.prix_total / nights;
-
-  items.push({
-    description: `Location ${roomType} - ${nights} nuits du ${format(startDate, 'dd/MM/yyyy')} au ${format(endDate, 'dd/MM/yyyy')}`,
-    quantity: nights,
-    unit_price: roomPricePerNight
-  });
-
-  // Ajouter la caution si applicable
+  if (nights > 0) {
+    items.push({
+      description: `Location ${room.type} - ${nights} nuits du ${format(startDate, 'dd/MM/yyyy')} au ${format(endDate, 'dd/MM/yyyy')}`,
+      quantity: nights,
+      unit_price: room.prix_base_nuit // Utiliser directement le prix de base de la chambre
+    });
+  }
+  
   if (booking.caution_encaissee && booking.caution_encaissee > 0) {
     items.push({
       description: 'Caution',
@@ -79,63 +75,74 @@ export const calculateInvoiceTotals = (
 export const generateInvoiceFromBooking = (
   booking: Booking,
   tenant: Tenant,
-  room?: Room,
+  room: Room,
   formData?: InvoiceFormData
 ): Invoice => {
-  // 1. Calculer les lignes de la facture (nuitées, caution, etc.)
-  const items = calculateInvoiceItems(booking, room);
+  try {
+    // 1. Calculer les lignes de la facture (nuitées, caution, etc.)
+    const items = calculateInvoiceItems(booking, room);
+    const nights = differenceInCalendarDays(startOfDay(new Date(booking.date_fin_prevue)), startOfDay(new Date(booking.date_debut_prevue)));
 
-  // 2. Extraire la réduction explicite du formulaire, sinon 0
-  const explicitDiscount = formData?.discount_amount || 0;
-  
-  // 3. Calculer tous les totaux en utilisant la fonction d'aide
-  const { 
-    subtotal, 
-    tax_amount, 
-    total, 
-    discount_amount: appliedDiscount, 
-    net_total 
-  } = calculateInvoiceTotals(
-    items, 
-    formData?.tax_rate, 
-    explicitDiscount
-  );
+    // 2. Calculer la réduction totale (réduction par nuit * nombre de nuits)
+    const perNightDiscount = formData?.discount_amount || 0;
+    const totalDiscount = nights * perNightDiscount;
+    
+    // 3. Calculer tous les totaux en utilisant la réduction totale
+    const { 
+      subtotal, 
+      tax_amount, 
+      total, 
+      discount_amount: appliedDiscount, 
+      net_total 
+    } = calculateInvoiceTotals(
+      items, 
+      formData?.tax_rate, 
+      totalDiscount // Utiliser la réduction totale ici
+    );
 
-  const invoice: Invoice = {
-    id: crypto.randomUUID(),
-    invoice_number: generateInvoiceNumber(),
-    date: new Date().toISOString(),
-    due_date: formData?.due_date || booking.date_fin_prevue,
-    booking_id: booking.id,
-    tenant_id: booking.tenant_id,
-    status: 'ISSUED',
-    items: items.map(item => ({
+    // 4. Déterminer le statut de la facture
+    const status: Invoice['status'] = formData?.status || ((formData?.initial_payment ?? 0) >= net_total ? 'PAID' : 'DRAFT');
+
+    const invoice: Invoice = {
       id: crypto.randomUUID(),
-      description: item.description,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      total: item.quantity * item.unit_price
-    })),
-    subtotal,
-    tax_rate: formData?.tax_rate,
-    tax_amount,
-    total, // Total brut avant réduction
-    discount_amount: appliedDiscount, // Réduction appliquée
-    discount_percentage: total > 0 ? (appliedDiscount / total) * 100 : 0,
-    net_total, // Total net après réduction
-    currency: 'USD',
-    notes: formData?.notes,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    tenant_name: `${tenant.prenom} ${tenant.nom}`,
-    tenant_email: tenant.email || undefined,
-    tenant_phone: tenant.telephone || undefined,
-    booking_dates: { start: booking.date_debut_prevue, end: booking.date_fin_prevue },
-    room_number: room?.numero || booking.rooms?.numero,
-    room_type: room?.type || booking.rooms?.type
-  };
+      invoice_number: generateInvoiceNumber(),
+      date: new Date().toISOString(),
+      due_date: formData?.due_date || booking.date_fin_prevue,
+      booking_id: booking.id,
+      tenant_id: booking.tenant_id,
+      status: status, // Utiliser le statut dynamique
+      items: items.map(item => ({
+        id: crypto.randomUUID(),
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total: item.quantity * item.unit_price
+      })),
+      subtotal,
+      tax_rate: formData?.tax_rate,
+      tax_amount,
+      total, // Total brut avant réduction
+      discount_amount: appliedDiscount, // Réduction appliquée
+      discount_percentage: total > 0 ? (appliedDiscount / total) * 100 : 0,
+      net_total, // Total net après réduction
+      amount_paid: formData?.initial_payment || 0, // Initialisation de amount_paid
+      currency: 'USD',
+      notes: formData?.notes,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      tenant_name: `${tenant.prenom} ${tenant.nom}`,
+      tenant_email: tenant.email || undefined,
+      tenant_phone: tenant.telephone || undefined,
+      booking_dates: { start: booking.date_debut_prevue, end: booking.date_fin_prevue },
+      room_number: room?.numero || booking.rooms?.numero,
+      room_type: room?.type || booking.rooms?.type
+    };
 
-  return invoice;
+    return invoice;
+  } catch (error) {
+    console.error("Erreur lors de la construction de l'objet facture:", error);
+    throw error; // Re-jeter l'erreur pour qu'elle soit gérée par le hook d'appel
+  }
 };
 
 // Fonction utilitaire pour formater une facture en objet affichable

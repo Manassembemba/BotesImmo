@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Edit, User, BedDouble, AlertCircle } from 'lucide-react';
-import { useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { differenceInDays } from 'date-fns';
 
 const editBookingSchema = z.object({
   date_debut_prevue: z.string().min(1, 'Date d\'arrivée requise'),
@@ -30,8 +32,14 @@ interface EditBookingDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+import { useRooms } from '@/hooks/useRooms';
+
+// ... (imports)
+
 export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDialogProps) {
   const updateBooking = useUpdateBooking();
+  const [conflictError, setConflictError] = useState<string | null>(null);
+  const { data: rooms = [] } = useRooms(); // Charger les chambres
 
   // Fonction pour formater correctement la date
   const formatDate = (dateString: string) => {
@@ -50,21 +58,34 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
   };
 
   const form = useForm<EditBookingFormData>({
-    resolver: zodResolver(editBookingSchema),
-    defaultValues: {
-      date_debut_prevue: formatDate(booking.date_debut_prevue),
-      date_fin_prevue: formatDate(booking.date_fin_prevue),
-      prix_total: Number(booking.prix_total) || 0,
-      caution_encaissee: Number(booking.caution_encaissee) || 0,
-      notes: booking.notes || '',
-      status: booking.status as 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
-    },
+    // ...
   });
+
+  const { watch, setValue, reset, getValues, setError } = form;
+  const dateDebut = watch('date_debut_prevue');
+  const dateFin = watch('date_fin_prevue');
+
+  // Recalcul automatique du prix
+  useEffect(() => {
+    const { date_debut_prevue, date_fin_prevue } = getValues();
+    const startDate = new Date(date_debut_prevue);
+    const endDate = new Date(date_fin_prevue);
+    
+    // Trouver la chambre associée à la réservation
+    const selectedRoom = rooms.find(r => r.id === booking.room_id);
+    const roomPrice = selectedRoom?.prix_base_nuit || 0;
+
+    if (startDate && endDate && endDate > startDate) {
+      const numNights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      const newPrice = numNights * roomPrice;
+      setValue('prix_total', newPrice > 0 ? newPrice : 0, { shouldValidate: true });
+    }
+  }, [dateDebut, dateFin, booking.room_id, rooms, getValues, setValue]);
 
   // Mettre à jour les valeurs par défaut quand la réservation change
   useEffect(() => {
     if (booking && open) {
-      form.reset({
+      reset({
         date_debut_prevue: formatDate(booking.date_debut_prevue),
         date_fin_prevue: formatDate(booking.date_fin_prevue),
         prix_total: Number(booking.prix_total) || 0,
@@ -73,7 +94,40 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         status: booking.status as 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
       });
     }
-  }, [booking, open, form]);
+  }, [booking, open, reset]);
+
+  // Vérification des conflits
+  useEffect(() => {
+    const { date_debut_prevue, date_fin_prevue } = getValues();
+    if (!booking.room_id || !date_debut_prevue || !date_fin_prevue) {
+      setConflictError(null);
+      return;
+    }
+    const handler = setTimeout(async () => {
+      const startDate = new Date(date_debut_prevue);
+      const endDate = new Date(date_fin_prevue);
+      if (startDate >= endDate) {
+        setConflictError("La date de départ doit être après la date d'arrivée.");
+        return;
+      }
+      const { data, error } = await supabase.rpc('check_booking_conflict', {
+        p_room_id: booking.room_id,
+        p_start_date: startDate.toISOString(),
+        p_end_date: endDate.toISOString(),
+        p_booking_id_to_exclude: booking.id, // Exclure la réservation actuelle
+      });
+
+      if (error) {
+        setConflictError('Erreur lors de la vérification des conflits.');
+      } else if (data) {
+        setConflictError('Conflit détecté ! Une autre réservation existe sur cette période.');
+      } else {
+        setConflictError(null);
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [dateDebut, dateFin, booking.id, booking.room_id, getValues, supabase, setConflictError]);
 
   const onSubmit = async (data: EditBookingFormData) => {
     try {
@@ -129,7 +183,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
             <Edit className="h-5 w-5" />
             Modifier la réservation
           </DialogTitle>
-          <DialogDescription className="sr-only">
+          <DialogDescription>
             Formulaire de modification de la réservation pour {booking.tenants?.prenom} {booking.tenants?.nom}.
           </DialogDescription>
         </DialogHeader>
@@ -176,6 +230,13 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
               />
             </div>
 
+            {conflictError && (
+              <div className="flex items-center gap-2 text-sm text-destructive font-medium">
+                <AlertCircle className="h-4 w-4" />
+                <p>{conflictError}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -189,6 +250,8 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
                         min={0}
                         step="0.01"
                         {...field}
+                        readOnly
+                        className="font-bold bg-muted/50"
                         onChange={(e) => {
                           const value = parseFloat(e.target.value);
                           field.onChange(isNaN(value) ? 0 : value);
@@ -277,7 +340,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
               </Button>
               <Button
                 type="submit"
-                disabled={updateBooking.isPending}
+                disabled={updateBooking.isPending || !!conflictError}
               >
                 {updateBooking.isPending ? 'Enregistrement...' : 'Enregistrer'}
               </Button>

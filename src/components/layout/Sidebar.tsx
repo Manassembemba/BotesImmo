@@ -49,7 +49,8 @@ export function Sidebar() {
   const { user, profile, role, signOut } = useAuth();
   const navigate = useNavigate();
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { data: bookings = [] } = useBookings();
+  const { data: bookingsResult } = useBookings();
+  const bookings = bookingsResult?.data || [];
   const { data: rooms = [] } = useRooms();
   const isMobile = useIsMobile();
 

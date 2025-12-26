@@ -38,7 +38,7 @@ export function CheckInDialog({ booking, open, onOpenChange }: CheckInDialogProp
     // 2. Update room status to OCCUPIED
     await updateRoomStatus.mutateAsync({
       id: booking.room_id,
-      status: 'OCCUPIED',
+      status: 'Occupé',
     });
 
     onOpenChange(false);

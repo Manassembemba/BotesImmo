@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Call the database function to check and update pending checkouts
-    const { error } = await supabase.rpc('check_pending_checkouts');
+    const { error } = await supabase.rpc('process_daily_room_transitions');
 
     if (error) {
       console.error('Error calling check_pending_checkouts:', error);

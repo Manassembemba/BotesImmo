@@ -39,7 +39,7 @@ const exportToCSV = (rooms: Room[], bookings: Booking[], options: ExportOptions)
 
   filteredRooms.forEach(room => {
     // Déterminer si la chambre est disponible
-    const isAvailable = room.status === 'AVAILABLE';
+    const isAvailable = room.status === 'Libre';
     
     // Calculer la prochaine disponibilité
     const nextAvailableDate = getNextAvailableDate(room, bookings);
@@ -102,8 +102,8 @@ const exportToPDF = (rooms: Room[], bookings: Booking[], options: ExportOptions)
         th { background-color: #1e40af; color: white; padding: 10px; text-align: left; }
         td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
         tr:nth-child(even) { background-color: #f9fafb; }
-        .available { color: #16a34a; font-weight: bold; }
-        .unavailable { color: #dc2626; font-weight: bold; }
+        .libre { color: #16a34a; font-weight: bold; }
+        .non-libre { color: #dc2626; font-weight: bold; }
         .footer { margin-top: 30px; text-align: center; font-size: 12px; color: #6b7280; }
       </style>
     </head>
@@ -147,7 +147,7 @@ const exportToPDF = (rooms: Room[], bookings: Booking[], options: ExportOptions)
                   <td>${room.type}</td>
                   <td>${room.etage}</td>
                   <td>${room.capacite_max}</td>
-                  <td class="${roomStatus.status === 'available' ? 'available' : 'unavailable'}">${roomStatus.status === 'available' ? 'Oui' : 'Non'}</td>
+                  <td class="${isAvailable ? 'libre' : 'non-libre'}">${isAvailable ? 'Oui' : 'Non'}</td>
                   <td>${room.prix_base_nuit}</td>
                   <td>${nextAvailableDate}</td>
                   <td>${roomStatus.label}</td>
@@ -179,34 +179,16 @@ const exportToPDF = (rooms: Room[], bookings: Booking[], options: ExportOptions)
 
 // Fonction utilitaire pour déterminer le statut d'une chambre
 const getRoomStatus = (room: Room, bookings: Booking[]) => {
-  // Chercher les réservations actives pour cette chambre
-  const activeBookings = bookings.filter(b => 
-    b.room_id === room.id && 
-    b.status === 'IN_PROGRESS' && 
-    new Date(b.date_debut_prevue) <= new Date() && 
-    new Date(b.date_fin_prevue) >= new Date()
-  );
-
-  if (activeBookings.length > 0) {
+  if (currentBooking) {
     return { status: 'occupied' as const, label: 'Occupée' };
   }
 
-  // Chercher les réservations futures pour cette chambre
-  const futureBookings = bookings.filter(b => 
-    b.room_id === room.id && 
-    b.status === 'CONFIRMED' && 
-    new Date(b.date_debut_prevue) > new Date()
-  );
-
-  if (futureBookings.length > 0) {
-    return { status: 'booked' as const, label: 'Réservée' };
+  // Si la chambre est dans un état autre que 'Libre', elle est considérée comme non disponible pour la réservation.
+  if (room.status !== 'Libre') {
+    return { status: 'occupied' as const, label: room.status };
   }
-
-  // Statut de la chambre dans la base de données
-  if (room.status === 'MAINTENANCE') {
-    return { status: 'maintenance' as const, label: 'En maintenance' };
-  }
-
+  
+  // Par défaut, la chambre est disponible
   return { status: 'available' as const, label: 'Disponible' };
 };
 
