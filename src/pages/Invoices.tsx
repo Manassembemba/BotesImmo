@@ -19,6 +19,7 @@ import { downloadInvoicePDF } from '@/services/invoicePdfService';
 import { useAuth } from '@/hooks/useAuth';
 import { InvoiceFilters } from '@/components/invoices/InvoiceFilters';
 import { InvoiceStats } from '@/components/invoices/InvoiceStats';
+import { CurrencyDisplay } from '@/components/CurrencyDisplay'; // Added import for CurrencyDisplay
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,12 +27,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const getStatusBadge = (status: Invoice['status']) => {
+export const getStatusBadge = (status: Invoice['status']) => {
   const config: Record<Invoice['status'], { label: string; className: string }> = {
     DRAFT: { label: 'Brouillon', className: 'bg-gray-100 text-gray-800' },
     ISSUED: { label: 'Émise', className: 'bg-blue-100 text-blue-800' },
     PAID: { label: 'Payée', className: 'bg-green-100 text-green-800' },
     CANCELLED: { label: 'Annulée', className: 'bg-red-100 text-red-800' },
+    PARTIALLY_PAID: { label: 'Partiellement payée', className: 'bg-orange-100 text-orange-800' }, // Added PARTIALLY_PAID
   };
   const { label, className } = config[status] || {};
   return (
@@ -62,6 +64,17 @@ const Invoices = () => {
   
   const invoices = invoicesResult?.data || [];
   const pageCount = invoicesResult?.count ? Math.ceil(invoicesResult.count / pagination.pageSize) : 0;
+
+  // Calculate aggregates for ADMIN view
+  const { totalBilled, totalPaid, totalBalanceDue } = useMemo(() => {
+    const billed = invoices.reduce((sum, inv) => sum + (inv.net_total || inv.total), 0);
+    const paid = invoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
+    return {
+      totalBilled: billed,
+      totalPaid: paid,
+      totalBalanceDue: billed - paid,
+    };
+  }, [invoices]);
   
   return (
     <MainLayout title="FACTURES">
@@ -72,6 +85,24 @@ const Invoices = () => {
             onFilterChange={setFilters}
           />
         </div>
+
+        {/* Aggregate Statistics - Only for Admin */}
+        {role === 'ADMIN' && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 border rounded-lg bg-card shadow-sm">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total facturé (net)</p>
+              <h3 className="text-lg font-bold"><CurrencyDisplay amountUSD={totalBilled} /></h3>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total payé</p>
+              <h3 className="text-lg font-bold text-green-600"><CurrencyDisplay amountUSD={totalPaid} /></h3>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Solde restant</p>
+              <h3 className="text-lg font-bold text-red-600"><CurrencyDisplay amountUSD={totalBalanceDue} /></h3>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <p className="text-sm text-muted-foreground">

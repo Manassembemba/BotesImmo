@@ -30,8 +30,7 @@ const Reports = () => {
       title: 'Rapport financier complet',
       description: 'Export des données comptables au format PDF/CSV',
       icon: FileText,
-      color: 'text-status-pending-checkout',
-      path: null,
+      path: '/reports/financial-report',
     },
   ];
 
