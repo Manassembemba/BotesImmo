@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter, X, Calendar, DollarSign, User, Building } from 'lucide-react';
+import { Search, Filter, X, Calendar, DollarSign, User, Building, Clock } from 'lucide-react';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format as formatDate } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Invoice } from '@/interfaces/Invoice';
 
@@ -89,7 +90,7 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
     setAmountRange({ min: null, max: null });
     setCustomer('all');
     setRoomNumber('all');
-    
+
     onFilterChange({
       search: '',
       status: 'all',
@@ -98,6 +99,27 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
       customer: 'all',
       roomNumber: 'all'
     });
+  };
+
+  const setTodayFilter = () => {
+    const today = new Date();
+    const start = formatDate(startOfDay(today), 'yyyy-MM-dd');
+    const end = formatDate(endOfDay(today), 'yyyy-MM-dd');
+    setDateRange({ start, end });
+  };
+
+  const setWeekFilter = () => {
+    const today = new Date();
+    const start = formatDate(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    const end = formatDate(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    setDateRange({ start, end });
+  };
+
+  const setMonthFilter = () => {
+    const today = new Date();
+    const start = formatDate(startOfMonth(today), 'yyyy-MM-dd');
+    const end = formatDate(endOfMonth(today), 'yyyy-MM-dd');
+    setDateRange({ start, end });
   };
 
   const applyFilters = () => {
@@ -124,7 +146,7 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
             className="pl-9"
           />
         </div>
-        
+
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger>
             <Filter className="h-4 w-4 mr-2" />
@@ -138,7 +160,7 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
             <SelectItem value="CANCELLED">Annulée</SelectItem>
           </SelectContent>
         </Select>
-        
+
         <Select value={customer} onValueChange={setCustomer}>
           <SelectTrigger>
             <User className="h-4 w-4 mr-2" />
@@ -151,7 +173,7 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
             ))}
           </SelectContent>
         </Select>
-        
+
         <Select value={roomNumber} onValueChange={setRoomNumber}>
           <SelectTrigger>
             <Building className="h-4 w-4 mr-2" />
@@ -164,7 +186,7 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
             ))}
           </SelectContent>
         </Select>
-        
+
         <div className="flex gap-1">
           <div className="w-full">
             <div className="relative">
@@ -191,14 +213,14 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
             </div>
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <Button variant="outline" size="sm" className="w-full">
             <Calendar className="h-4 w-4 mr-2" />
             Date
           </Button>
         </div>
-        
+
         <div>
           <Button onClick={applyFilters} className="w-full">
             <Filter className="h-4 w-4 mr-2" />
@@ -211,22 +233,53 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 p-3 bg-muted/50 rounded-lg">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Date de facturation</label>
-          <div className="flex gap-2">
-            <Input
-              type="date"
-              value={dateRange.start}
-              onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
-              placeholder="Du"
-              className="text-sm"
-            />
-            <span className="self-center text-muted-foreground">à</span>
-            <Input
-              type="date"
-              value={dateRange.end}
-              onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
-              placeholder="Au"
-              className="text-sm"
-            />
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
+                placeholder="Du"
+                className="text-sm"
+              />
+              <span className="self-center text-muted-foreground">à</span>
+              <Input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
+                placeholder="Au"
+                className="text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setTodayFilter}
+                className="text-[10px] h-7 px-2"
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                Aujourd'hui
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setWeekFilter}
+                className="text-[10px] h-7 px-2"
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                Semaine
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setMonthFilter}
+                className="text-[10px] h-7 px-2"
+              >
+                <Clock className="h-3 w-3 mr-1" />
+                Mois
+              </Button>
+            </div>
           </div>
         </div>
       </div>

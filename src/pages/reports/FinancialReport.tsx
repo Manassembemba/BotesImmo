@@ -1,8 +1,19 @@
 import { getStatusBadge } from '@/pages/Invoices'; // Import getStatusBadge from Invoices page
+import { useAuth } from '@/hooks/useAuth'; // Added import for useAuth
+import { useState, useMemo } from 'react';
+import { useInvoices } from '@/hooks/useInvoices';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { InvoiceFilters } from '@/components/invoices/InvoiceFilters';
+import { CurrencyDisplay } from '@/components/CurrencyDisplay';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
+import { Download } from 'lucide-react';
+import { exportFinancialReportToCsv, exportFinancialReportToPdf } from '@/services/financialReportExportService'; // Import export functions
 
 const FinancialReport = () => {
   const { role } = useAuth();
-  
+
   const [filters, setFilters] = useState({
     search: '',
     status: 'all',
@@ -18,7 +29,7 @@ const FinancialReport = () => {
   });
 
   const { data: invoicesResult, isLoading } = useInvoices({ filters, pagination });
-  
+
   const invoices = invoicesResult?.data || [];
 
   // Calculate aggregates
@@ -31,7 +42,7 @@ const FinancialReport = () => {
       totalBalanceDue: billed - paid,
     };
   }, [invoices]);
-  
+
   return (
     <MainLayout title="Rapport Financier Complet" subtitle="Vue d'overview des revenus et gestion financière.">
       <div className="space-y-6">
@@ -61,11 +72,11 @@ const FinancialReport = () => {
         )}
 
         <div className="flex justify-end gap-2">
-           <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => exportFinancialReportToPdf(invoices, filters)}>
             <Download className="h-4 w-4 mr-2" />
             Exporter PDF
           </Button>
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => exportFinancialReportToCsv(invoices, filters)}>
             <Download className="h-4 w-4 mr-2" />
             Exporter CSV
           </Button>
@@ -102,7 +113,7 @@ const FinancialReport = () => {
                     <TableCell><CurrencyDisplay amountUSD={invoice.balance_due || 0} /></TableCell>
                     <TableCell>{getStatusBadge(invoice.status)}</TableCell>
                     <TableCell className="text-right">
-                       {/* Add actions here */}
+                      {/* Add actions here */}
                     </TableCell>
                   </TableRow>
                 ))

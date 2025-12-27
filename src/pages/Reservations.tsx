@@ -20,7 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X } from 'lucide-react';
 import { useBookings, Booking, useDeleteBooking, BookingFilters } from '@/hooks/useBookings';
 import { usePaymentsForBookings } from '@/hooks/usePayments';
-import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday } from 'date-fns';
+import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -42,7 +42,7 @@ const PAYMENT_STATUS_CONFIG: Record<PaymentStatus, { label: string; className: s
 
 const Reservations = () => {
   const { role } = useAuth();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined, to: Date | undefined }>({ from: undefined, to: undefined });
@@ -61,7 +61,7 @@ const Reservations = () => {
 
   const bookingIds = useMemo(() => bookingsData.map(b => b.id), [bookingsData]);
   const { data: paymentsForBookings = [], isLoading: paymentsLoading } = usePaymentsForBookings(bookingIds);
-  
+
   const { data: rooms = [] } = useRooms();
   const deleteBooking = useDeleteBooking();
 
@@ -93,10 +93,25 @@ const Reservations = () => {
     setDateRange({ from: undefined, to: undefined });
   };
 
+  const setTodayFilter = () => {
+    const today = new Date();
+    setDateRange({ from: startOfDay(today), to: endOfDay(today) });
+  };
+
+  const setWeekFilter = () => {
+    const today = new Date();
+    setDateRange({ from: startOfWeek(today, { weekStartsOn: 1 }), to: endOfWeek(today, { weekStartsOn: 1 }) });
+  };
+
+  const setMonthFilter = () => {
+    const today = new Date();
+    setDateRange({ from: startOfMonth(today), to: endOfMonth(today) });
+  };
+
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (searchTerm) count++;
-    if (statusFilter !== 'all') count++; 
+    if (statusFilter !== 'all') count++;
     if (dateRange.from || dateRange.to) count++;
     return count;
   }, [searchTerm, statusFilter, dateRange]);
@@ -151,6 +166,32 @@ const Reservations = () => {
                 <PopoverTrigger asChild><Button variant="outline" className={cn('justify-start text-left font-normal', !dateRange.to && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange.to ? format(dateRange.to, 'dd/MM/yy') : <span>Date de fin</span>}</Button></PopoverTrigger>
                 <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateRange.to} onSelect={(day) => setDateRange(prev => ({ ...prev, to: day as Date }))} initialFocus /></PopoverContent>
               </Popover>
+            </div>
+            <div className="md:col-span-2 lg:col-span-3 flex flex-wrap gap-2 pt-2 border-t mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setTodayFilter}
+                className="text-xs h-8"
+              >
+                Aujourd'hui
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setWeekFilter}
+                className="text-xs h-8"
+              >
+                Cette semaine
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={setMonthFilter}
+                className="text-xs h-8"
+              >
+                Ce mois
+              </Button>
             </div>
           </div>
           <div className="flex justify-between items-center mt-4 pt-2 border-t">

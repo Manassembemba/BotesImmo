@@ -63,6 +63,7 @@ const Reports = () => {
                 <Download className="h-4 w-4" />
                 CSV
               </Button>
+              {console.log(`Report: ${report.title}, Path: ${report.path}, Path truthy: ${!!report.path}`)}
               {report.path ? (
                 <Button asChild variant="secondary" size="sm" className="ml-auto">
                   <Link to={report.path}>Générer</Link>
