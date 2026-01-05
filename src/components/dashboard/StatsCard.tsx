@@ -11,16 +11,18 @@ interface StatsCardProps {
     value: number;
     isPositive: boolean;
   };
-  variant?: 'default' | 'primary' | 'warning' | 'success';
+  variant?: 'default' | 'primary' | 'warning' | 'success' | 'destructive';
+  className?: string;
 }
 
-export function StatsCard({ title, value, subtitle, icon: Icon, trend, variant = 'default' }: StatsCardProps) {
+export function StatsCard({ title, value, subtitle, icon: Icon, trend, variant = 'default', className }: StatsCardProps) {
   const isMobile = useIsMobile();
   const variantStyles = {
     default: 'bg-card',
     primary: 'bg-primary/5 border-primary/20',
     warning: 'bg-status-pending-checkout-bg border-status-pending-checkout/20',
     success: 'bg-status-available-bg border-status-available/20',
+    destructive: 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900',
   };
 
   const iconStyles = {
@@ -28,12 +30,15 @@ export function StatsCard({ title, value, subtitle, icon: Icon, trend, variant =
     primary: 'bg-primary/10 text-primary',
     warning: 'bg-status-pending-checkout/10 text-status-pending-checkout',
     success: 'bg-status-available/10 text-status-available',
+    destructive: 'bg-red-600 text-white',
   };
 
   return (
     <div className={cn(
       'rounded-lg sm:rounded-xl border shadow-soft transition-all hover:shadow-medium animate-fade-in',
-      isMobile ? 'p-3' : 'p-5'
+      variantStyles[variant],
+      isMobile ? 'p-3' : 'p-5',
+      className
     )}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">

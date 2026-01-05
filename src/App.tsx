@@ -21,7 +21,10 @@ import Notifications from "./pages/Notifications";
 import Invoices from "./pages/Invoices";
 import FinancialReport from "./pages/reports/FinancialReport";
 import RevenueReport from "./pages/reports/RevenueReport";
+import OccupancyReport from "./pages/reports/OccupancyReport";
 import NotFound from "./pages/NotFound";
+// Import new accounting components
+import GeneralLedger from "./components/accounting/GeneralLedger";
 
 const queryClient = new QueryClient();
 
@@ -44,7 +47,10 @@ const App = () => (
               <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute allowedRoles={['ADMIN']}><Reports /></ProtectedRoute>} />
               <Route path="/reports/revenue" element={<ProtectedRoute allowedRoles={['ADMIN']}><RevenueReport /></ProtectedRoute>} />
+              <Route path="/reports/occupancy" element={<ProtectedRoute allowedRoles={['ADMIN']}><OccupancyReport /></ProtectedRoute>} />
               <Route path="/reports/financial-report" element={<ProtectedRoute allowedRoles={['ADMIN']}><FinancialReport /></ProtectedRoute>} />
+              {/* New accounting routes */}
+              <Route path="/reports/general-ledger" element={<ProtectedRoute allowedRoles={['ADMIN']}><GeneralLedger /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/availability" element={<ProtectedRoute><Availability /></ProtectedRoute>} />
               <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />

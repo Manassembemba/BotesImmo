@@ -57,9 +57,9 @@ const getStatusBadge = (status: RoomStatus) => {
 const Rooms = () => {
   const { role } = useAuth();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-  const { data: exchangeRate } = useExchangeRate();
+  const { data: exchangeRateData } = useExchangeRate();
   const deleteRoom = useDeleteRoom();
-  const rate = exchangeRate?.usd_to_cdf || 2800;
+  const rate = exchangeRateData?.usd_to_cdf || 2800;
 
   // États pour les filtres additionnels
   const [roomTypeFilter, setRoomTypeFilter] = useState<string>('all');

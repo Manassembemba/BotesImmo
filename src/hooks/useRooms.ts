@@ -13,7 +13,7 @@ export interface Room {
   prix_base_mois: number | null;
   description: string | null;
   location_id?: string; // Référence vers la localisation
-  status: 'AVAILABLE' | 'BOOKED' | 'OCCUPIED' | 'PENDING_CHECKOUT' | 'PENDING_CLEANING' | 'MAINTENANCE';
+  status: 'Libre' | 'Occupé' | 'Nettoyage' | 'Maintenance' | 'BOOKED' | 'MAINTENANCE' | 'PENDING_CLEANING' | 'PENDING_CHECKOUT';
   created_at: string;
   updated_at: string;
   // Joined data from locations table
@@ -30,7 +30,7 @@ export function useRooms() {
         .from('rooms')
         .select('*, locations(nom)')
         .order('numero');
-      
+
       if (error) throw error;
       return data as Room[];
     },
@@ -46,7 +46,7 @@ export function useRoom(id: string) {
         .select('*, locations(nom)')
         .eq('id', id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return data as Room | null;
     },
@@ -62,7 +62,7 @@ export function useCreateRoom() {
     mutationFn: async (room: Omit<Room, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('rooms')
-        .insert(room)
+        .insert(room as any)
         .select()
         .single();
 
@@ -87,7 +87,7 @@ export function useUpdateRoom() {
     mutationFn: async ({ id, ...room }: Partial<Room> & { id: string }) => {
       const { data, error } = await supabase
         .from('rooms')
-        .update(room)
+        .update(room as any)
         .eq('id', id)
         .select()
         .single();
@@ -113,11 +113,11 @@ export function useUpdateRoomStatus() {
     mutationFn: async ({ id, status }: { id: string; status: Room['status'] }) => {
       const { data, error } = await supabase
         .from('rooms')
-        .update({ status })
+        .update({ status: status as any })
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -140,7 +140,7 @@ export function useDeleteRoom() {
         .from('rooms')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {

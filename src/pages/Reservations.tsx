@@ -17,10 +17,11 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvoiceListForBooking } from '@/components/invoices/InvoiceListForBooking';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X } from 'lucide-react';
+import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle } from 'lucide-react';
 import { useBookings, Booking, useDeleteBooking, BookingFilters } from '@/hooks/useBookings';
 import { usePaymentsForBookings } from '@/hooks/usePayments';
-import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { useExchangeRate } from '@/hooks/useExchangeRate'; // Import pour conversion
+import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, isAfter } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -58,7 +59,8 @@ const Reservations = () => {
   const { data: bookingsResult, isLoading: bookingsLoading } = useBookings(bookingFilters, pagination);
   const bookingsData = bookingsResult?.data || [];
   const pageCount = bookingsResult?.count ? Math.ceil(bookingsResult.count / pagination.pageSize) : 0;
-
+  const { data: exchangeRateData } = useExchangeRate(); // Récupérer taux
+  const rate = exchangeRateData?.usd_to_cdf || 2800;
   const bookingIds = useMemo(() => bookingsData.map(b => b.id), [bookingsData]);
   const { data: paymentsForBookings = [], isLoading: paymentsLoading } = usePaymentsForBookings(bookingIds);
 
@@ -77,15 +79,46 @@ const Reservations = () => {
     paymentsForBookings.forEach(p => {
       paymentsByBooking.set(p.booking_id, (paymentsByBooking.get(p.booking_id) || 0) + p.montant);
     });
+
+    const today = startOfToday();
+
     return bookingsData.map(b => {
       const totalPaid = paymentsByBooking.get(b.id) || 0;
+
+      // Late Stay Calculation
+      const startDate = startOfDay(parseISO(b.date_debut_prevue));
+      const endDate = startOfDay(parseISO(b.date_fin_prevue));
+      const plannedNights = differenceInCalendarDays(endDate, startDate);
+
+      let lateStayDebt = 0;
+      let lateNights = 0;
+      const isOverdue = isAfter(today, endDate) && b.status !== 'COMPLETED' && b.status !== 'CANCELLED' && !b.check_out_reel;
+
+      if (isOverdue) {
+        lateNights = differenceInCalendarDays(today, endDate);
+        // Calculate negotiated daily rate
+        const dailyRate = plannedNights > 0 ? b.prix_total / plannedNights : (rooms.find(r => r.id === b.room_id)?.prix_base_nuit || 0);
+        lateStayDebt = lateNights * dailyRate;
+      }
+
+      const currentTotalWithLate = b.prix_total + lateStayDebt;
+
       let paymentStatus: PaymentStatus = 'UNPAID';
       if (totalPaid > 0) {
-        paymentStatus = totalPaid >= b.prix_total ? 'PAID' : 'PARTIAL';
+        paymentStatus = totalPaid >= currentTotalWithLate - 0.01 ? 'PAID' : 'PARTIAL';
       }
-      return { ...b, totalPaid, paymentStatus };
+
+      return {
+        ...b,
+        totalPaid,
+        paymentStatus,
+        lateStayDebt,
+        lateNights,
+        isOverdue,
+        currentTotalWithLate
+      };
     });
-  }, [bookingsData, paymentsForBookings]);
+  }, [bookingsData, paymentsForBookings, rooms]);
 
   const resetFilters = () => {
     setSearchTerm('');
@@ -209,10 +242,7 @@ const Reservations = () => {
           </div>
         ) : (
           <>
-            <div className="md:hidden space-y-3">
-              {/* Mobile View Here */}
-            </div>
-            <div className="hidden md:block bg-card rounded-lg border shadow-soft overflow-hidden">
+            <div className="bg-card rounded-lg border shadow-soft overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-primary hover:bg-primary">
@@ -238,7 +268,57 @@ const Reservations = () => {
                         <TableCell><p className="font-semibold">{booking.tenants?.prenom} {booking.tenants?.nom?.toUpperCase()}</p><p className="text-xs text-muted-foreground">{booking.tenants?.telephone}</p></TableCell>
                         <TableCell><p className="font-medium">App. {booking.rooms?.numero}</p><p className="text-sm text-muted-foreground">{booking.rooms?.type}</p></TableCell>
                         <TableCell><span className={statusConfig.className}>{statusConfig.label}</span></TableCell>
-                        <TableCell><p className="font-medium">${Number(booking.prix_total).toLocaleString('fr-FR')}</p><p className={paymentStatusConfig.className}>{paymentStatusConfig.label} (${booking.totalPaid.toLocaleString('fr-FR')})</p></TableCell>
+                        <TableCell className="p-0">
+                          <div
+                            className="p-4 cursor-pointer hover:bg-slate-50 transition-colors group relative border-l-4 border-transparent hover:border-indigo-500"
+                            onClick={() => setManagePaymentBooking(booking)}
+                            title="Gérer les paiements"
+                          >
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <BadgeCent className="h-4 w-4 text-indigo-500" />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground group-hover:text-indigo-600 transition-colors">Prévu:</span>
+                                <span className="font-bold">${Number(booking.prix_total).toLocaleString('fr-FR')}</span>
+                              </div>
+
+                              {booking.isOverdue && (
+                                <div className="flex justify-between text-sm bg-red-50 p-1 rounded border border-red-100 animate-pulse">
+                                  <span className="text-red-600 font-bold text-[10px] flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    DETTE ({booking.lateNights}j):
+                                  </span>
+                                  <span className="font-bold text-red-700">${Number(booking.lateStayDebt).toFixed(2)}</span>
+                                </div>
+                              )}
+
+                              <div className="flex justify-between text-sm pt-1 border-t border-slate-100">
+                                <span className="text-muted-foreground">Total dû:</span>
+                                <span className="font-extrabold text-indigo-900">${Number(booking.currentTotalWithLate).toLocaleString('fr-FR')}</span>
+                              </div>
+
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground group-hover:text-indigo-600 transition-colors">Payé:</span>
+                                <span className={cn("font-bold", paymentStatusConfig.className)}>
+                                  ${(Number(booking.totalPaid) || 0).toLocaleString('fr-FR')}
+                                </span>
+                              </div>
+
+                              {Number(booking.currentTotalWithLate) - (Number(booking.totalPaid) || 0) > 0.01 && (
+                                <div className="text-xs pt-1 border-t border-slate-100 mt-1">
+                                  <div className="flex justify-between font-bold text-red-600 bg-red-50/50 px-1 rounded">
+                                    <span>Reste:</span>
+                                    <span>${(Number(booking.currentTotalWithLate) - Number(booking.totalPaid)).toLocaleString('fr-FR')}</span>
+                                  </div>
+                                  <div className="text-right text-muted-foreground italic scale-90 origin-right mt-0.5">
+                                    ~ {((Number(booking.currentTotalWithLate) - Number(booking.totalPaid)) * rate).toLocaleString('fr-FR')} FC
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
                         <TableCell><p>Du {format(new Date(booking.date_debut_prevue), 'dd/MM/yyyy')}</p><p>Au {format(new Date(booking.date_fin_prevue), 'dd/MM/yyyy')}</p></TableCell>
                         <TableCell className="text-center font-medium">{numberOfNights}</TableCell>
                         <TableCell><InvoiceListForBooking bookingId={booking.id} /></TableCell>

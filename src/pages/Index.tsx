@@ -1,5 +1,5 @@
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Building2, DollarSign, Users, Calendar, TrendingUp, UserRound } from 'lucide-react';
+import { Building2, DollarSign, Users, Calendar, TrendingUp, UserRound, AlertTriangle } from 'lucide-react';
 import { useRooms } from '@/hooks/useRooms';
 import { useBookings } from '@/hooks/useBookings';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
@@ -35,16 +35,20 @@ import { PendingCheckouts } from '@/components/dashboard/PendingCheckouts';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
+import { useAppNotifications } from '@/hooks/useAppNotifications';
 
 const Dashboard = () => {
   const { role } = useAuth();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-      const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
   const bookings = bookingsResult?.data || [];
   const { data: payments = [], isLoading: paymentsLoading } = useAllPayments();
-  const { data: exchangeRate } = useExchangeRate();
-  const rate = exchangeRate?.usd_to_cdf || 2800;
+  const { data: exchangeRateData } = useExchangeRate();
+  const { notifications } = useAppNotifications();
+  const rate = exchangeRateData?.usd_to_cdf || 2800;
   const isMobile = useIsMobile();
+
+  const overdueCount = notifications.filter(n => n.type === 'checkout_overdue').length;
 
   // Calcul des indicateurs de base
   const availableRooms = rooms.filter(r => r.status === 'Libre').length;
@@ -170,6 +174,14 @@ const Dashboard = () => {
           subtitle={`${monthlyBookings.length} locations ce mois`}
           icon={TrendingUp}
           variant="primary"
+        />
+        <StatsCard
+          title="Retards libération"
+          value={overdueCount}
+          subtitle={overdueCount > 0 ? "Action requise immédiate" : "Aucun retard détecté"}
+          icon={AlertTriangle}
+          variant={overdueCount > 0 ? "destructive" : "default"}
+          className={cn(overdueCount > 0 && "animate-pulse shadow-md shadow-red-200")}
         />
       </div>
 

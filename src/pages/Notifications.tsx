@@ -1,197 +1,105 @@
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useBookings } from '@/hooks/useBookings';
-import { useRooms } from '@/hooks/useRooms';
-import { useTasks } from '@/hooks/useTasks';
-import { format, differenceInDays, parseISO, isToday, isTomorrow, isPast } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { AlertTriangle, Clock, CheckCircle, Home } from 'lucide-react';
+import { useAppNotifications } from '@/hooks/useAppNotifications';
+import { AlertTriangle, Clock, CheckCircle, Home, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
-interface NotificationItem {
-  id: string;
-  type: 'checkout_today' | 'checkout_tomorrow' | 'checkout_overdue' | 'pending_cleaning' | 'pending_checkout';
-  title: string;
-  description: string;
-  date: Date;
-  roomNumber: string;
-  tenantName?: string;
-  severity: 'warning' | 'error' | 'info';
-}
-
 const Notifications = () => {
-        const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
-  const bookings = bookingsResult?.data || [];
-  const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-  const { data: tasks = [], isLoading: tasksLoading } = useTasks();
+  const { notifications, isLoading } = useAppNotifications();
   const navigate = useNavigate();
-
-  const isLoading = bookingsLoading || roomsLoading || tasksLoading;
-
-  // Generate notifications
-  const notifications: NotificationItem[] = [];
-
-  // Check for checkout notifications from bookings
-  bookings.forEach(booking => {
-    if (!['CONFIRMED', 'IN_PROGRESS'].includes(booking.status)) return;
-    
-    const room = rooms.find(r => r.id === booking.room_id);
-    if (!room) return;
-
-    const endDate = parseISO(booking.date_fin_prevue);
-    const today = new Date();
-    const daysUntil = differenceInDays(endDate, today);
-
-    const tenantName = booking.tenants 
-      ? `${booking.tenants.prenom} ${booking.tenants.nom}`
-      : 'Client';
-
-    if (isPast(endDate) && daysUntil < 0) {
-      notifications.push({
-        id: `checkout-overdue-${booking.id}`,
-        type: 'checkout_overdue',
-        title: `Départ en retard - ${room.numero}`,
-        description: `${tenantName} devait partir le ${format(endDate, 'dd/MM/yyyy', { locale: fr })}`,
-        date: endDate,
-        roomNumber: room.numero,
-        tenantName,
-        severity: 'error'
-      });
-    } else if (isToday(endDate)) {
-      notifications.push({
-        id: `checkout-today-${booking.id}`,
-        type: 'checkout_today',
-        title: `Départ aujourd'hui - ${room.numero}`,
-        description: `${tenantName} doit partir aujourd'hui`,
-        date: endDate,
-        roomNumber: room.numero,
-        tenantName,
-        severity: 'warning'
-      });
-    } else if (isTomorrow(endDate)) {
-      notifications.push({
-        id: `checkout-tomorrow-${booking.id}`,
-        type: 'checkout_tomorrow',
-        title: `Départ demain - ${room.numero}`,
-        description: `${tenantName} part demain ${format(endDate, 'dd/MM', { locale: fr })}`,
-        date: endDate,
-        roomNumber: room.numero,
-        tenantName,
-        severity: 'info'
-      });
-    }
-  });
-
-  // Check for rooms pending checkout or cleaning
-  rooms.forEach(room => {
-    if (room.status === 'PENDING_CHECKOUT') {
-      notifications.push({
-        id: `pending-checkout-${room.id}`,
-        type: 'pending_checkout',
-        title: `En attente de départ - ${room.numero}`,
-        description: `L'appartement ${room.numero} attend la confirmation du départ`,
-        date: new Date(),
-        roomNumber: room.numero,
-        severity: 'warning'
-      });
-    } else if (room.status === 'PENDING_CLEANING') {
-      notifications.push({
-        id: `pending-cleaning-${room.id}`,
-        type: 'pending_cleaning',
-        title: `Nettoyage requis - ${room.numero}`,
-        description: `L'appartement ${room.numero} doit être nettoyé`,
-        date: new Date(),
-        roomNumber: room.numero,
-        severity: 'info'
-      });
-    }
-  });
-
-  // Sort notifications by severity (error first) then by date
-  notifications.sort((a, b) => {
-    const severityOrder = { error: 0, warning: 1, info: 2 };
-    if (severityOrder[a.severity] !== severityOrder[b.severity]) {
-      return severityOrder[a.severity] - severityOrder[b.severity];
-    }
-    return a.date.getTime() - b.date.getTime();
-  });
 
   const getNotificationStyle = (severity: string) => {
     switch (severity) {
       case 'error':
-        return 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900';
+        return 'bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-900 shadow-red-100/50';
       case 'warning':
-        return 'bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-900';
+        return 'bg-orange-50 border-orange-200 dark:bg-orange-950/30 dark:border-orange-900 shadow-orange-100/50';
       default:
-        return 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900';
+        return 'bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900 shadow-blue-100/50';
     }
   };
 
-  const getNotificationIcon = (type: string, severity: string) => {
+  const getNotificationIcon = (severity: string) => {
     switch (severity) {
       case 'error':
-        return <AlertTriangle className="h-5 w-5 text-red-500" />;
+        return <AlertTriangle className="h-6 w-6 text-red-500 animate-bounce" />;
       case 'warning':
-        return <Clock className="h-5 w-5 text-orange-500" />;
+        return <Clock className="h-6 w-6 text-orange-500" />;
       default:
-        return <Home className="h-5 w-5 text-blue-500" />;
+        return <Home className="h-6 w-6 text-blue-500" />;
     }
   };
 
   if (isLoading) {
     return (
-      <MainLayout title="Notifications" subtitle="Chargement...">
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground animate-pulse">Chargement...</p>
+      <MainLayout title="Notifications" subtitle="Analyse du système...">
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-muted-foreground animate-pulse font-medium">Récupération des alertes en cours...</p>
         </div>
       </MainLayout>
     );
   }
 
   return (
-    <MainLayout title="Notifications" subtitle={`${notifications.length} notification${notifications.length > 1 ? 's' : ''} active${notifications.length > 1 ? 's' : ''}`}>
-      <div className="space-y-4">
+    <MainLayout
+      title="Centre de Notifications"
+      subtitle={`${notifications.length} alerte${notifications.length > 1 ? 's' : ''} nécessitant votre attention`}
+    >
+      <div className="max-w-4xl mx-auto space-y-6">
         {notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
-              <CheckCircle className="h-8 w-8 text-green-500" />
+          <div className="flex flex-col items-center justify-center py-20 text-center bg-card rounded-2xl border border-dashed border-slate-300">
+            <div className="h-20 w-20 rounded-full bg-green-50 flex items-center justify-center mb-6 shadow-inner">
+              <CheckCircle className="h-10 w-10 text-green-500" />
             </div>
-            <p className="text-lg font-medium text-foreground mb-2">Aucune notification</p>
-            <p className="text-sm text-muted-foreground">Tout est en ordre pour le moment</p>
+            <h3 className="text-xl font-bold text-foreground mb-2">Système au vert</h3>
+            <p className="text-muted-foreground max-w-xs mx-auto">Toutes les chambres sont à jour et aucun départ n'est en retard.</p>
           </div>
         ) : (
           <div className="grid gap-4">
             {notifications.map((notification, index) => (
               <div
                 key={notification.id}
-                className={`rounded-xl border p-5 ${getNotificationStyle(notification.severity)} animate-fade-in transition-all hover:shadow-md`}
-                style={{ animationDelay: `${index * 50}ms` }}
+                className={`group relative overflow-hidden rounded-2xl border-2 p-6 ${getNotificationStyle(notification.severity)} animate-fade-in transition-all hover:scale-[1.01] hover:shadow-xl`}
+                style={{ animationDelay: `${index * 80}ms` }}
               >
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 mt-0.5">
-                    {getNotificationIcon(notification.type, notification.severity)}
+                <div className="flex items-center gap-6">
+                  <div className="flex-shrink-0 p-3 bg-white rounded-xl shadow-sm group-hover:rotate-12 transition-transform">
+                    {getNotificationIcon(notification.severity)}
                   </div>
+
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground">{notification.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{notification.description}</p>
-                    <div className="flex items-center gap-4 mt-3">
-                      <span className="text-xs text-muted-foreground">
-                        Appartement: <span className="font-medium">{notification.roomNumber}</span>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={notification.severity === 'error' ? 'text-red-600 font-black' : 'font-bold'}>
+                        {notification.title}
                       </span>
+                      {notification.severity === 'error' && (
+                        <span className="px-2 py-0.5 bg-red-600 text-[10px] text-white rounded-full font-bold animate-pulse uppercase">Urgent</span>
+                      )}
+                    </div>
+                    <p className="text-slate-600 font-medium">{notification.description}</p>
+
+                    <div className="flex items-center gap-4 mt-4 py-2 border-t border-black/5">
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-black/5 rounded-full">
+                        <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Logement</span>
+                        <span className="text-xs font-black">{notification.roomNumber}</span>
+                      </div>
                       {notification.tenantName && (
-                        <span className="text-xs text-muted-foreground">
-                          Client: <span className="font-medium">{notification.tenantName}</span>
-                        </span>
+                        <div className="flex items-center gap-1.5 px-3 py-1 bg-black/5 rounded-full">
+                          <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Client</span>
+                          <span className="text-xs font-black">{notification.tenantName}</span>
+                        </div>
                       )}
                     </div>
                   </div>
+
                   <div className="flex-shrink-0">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
+                    <Button
+                      className="rounded-full h-12 w-12 p-0 bg-white hover:bg-indigo-600 hover:text-white border-slate-200 shadow-sm transition-all group-hover:translate-x-1"
+                      variant="outline"
                       onClick={() => navigate('/reservations')}
                     >
-                      Voir
+                      <ChevronRight className="h-6 w-6" />
                     </Button>
                   </div>
                 </div>

@@ -27,11 +27,11 @@ export const bookingSchema = z.object({
   tenant_id: z.string().uuid("Locataire invalide"),
   date_debut_prevue: z.string().min(1, "La date d'arrivée est requise"),
   date_fin_prevue: z.string().min(1, "La date de départ est requise"),
-  prix_total: z.number().positive("Le prix total doit être positif").max(1000000, "Le prix total doit être inférieur à 1 000 000€"),
+  prix_total: z.number().min(0, "Le prix total doit être positif").max(1000000, "Le prix total doit être inférieur à 1 000 000€"),
   notes: z.string().trim().max(500, "Les notes doivent faire moins de 500 caractères").optional().or(z.literal('')),
   status: z.enum(['PENDING', 'CONFIRMED']),
   discount_amount: z.number().min(0, "La réduction ne peut être négative").optional(),
-  initial_payment: z.number().min(0, "Le paiement ne peut être négatif").optional(),
+  initial_payment: z.number().min(0, "Le paiement ne peut être négatif"),
 }).refine(data => {
   const start = new Date(data.date_debut_prevue);
   const end = new Date(data.date_fin_prevue);
@@ -48,6 +48,8 @@ export type BookingFormData = z.infer<typeof bookingSchema>;
 export const paymentSchema = z.object({
   invoice_id: z.string().uuid("Facture invalile").optional().nullable(),
   montant: z.number({ invalid_type_error: "Le montant doit être un nombre." }).positive("Le montant doit être positif.").max(1000000, "Le montant doit être inférieur à 1 000 000$"),
+  montant_usd: z.number().min(0).optional(), // 🔥 Physique USD
+  montant_cdf: z.number().min(0).optional(), // 🔥 Physique CDF
   date_paiement: z.string().min(1, "La date de paiement est requise"),
   methode: z.enum(['CB', 'CASH', 'TRANSFERT', 'CHEQUE'], { required_error: "La méthode est requise" }),
   notes: z.string().trim().max(500, "Les notes doivent faire moins de 500 caractères").optional().or(z.literal('')),

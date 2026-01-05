@@ -9,7 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CalendarPlus, Calculator, Loader2, LogOut } from 'lucide-react';
+import { CalendarPlus, Loader2, LogOut, AlertTriangle } from 'lucide-react';
+import { CurrencyInput } from '@/components/ui/currency-input';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
+import { cn } from '@/lib/utils';
 
 interface CheckoutDecisionDialogProps {
   open: boolean;
@@ -18,14 +21,14 @@ interface CheckoutDecisionDialogProps {
   room: Room;
 }
 
-type DecisionMode = 'choice' | 'extend';
+type DecisionMode = 'choice' | 'extend' | 'overdue_settle';
 
 export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: CheckoutDecisionDialogProps) {
   const [mode, setMode] = useState<DecisionMode>('choice');
   const [newEndDate, setNewEndDate] = useState(format(new Date(booking.date_fin_prevue), 'yyyy-MM-dd'));
-  const [manualPriceOverride, setManualPriceOverride] = useState(false);
-  const [manualPrice, setManualPrice] = useState(booking.prix_total.toString());
   const [discountPerNight, setDiscountPerNight] = useState(0); // Réduction par nuit
+
+  const { data: exchangeRateData } = useExchangeRate(); // Récupérer le taux
 
   const { toast } = useToast();
   const confirmDeparture = useConfirmDeparture();
@@ -67,19 +70,30 @@ export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: Ch
     return { extraNights, extraCost, extraDiscount };
   }, [newEndDate, booking, room, discountPerNight]);
 
-  // Synchroniser le prix manuel avec le calcul automatique
-  useEffect(() => {
-    if (!manualPriceOverride) {
-      setManualPrice(calculatedPrice.toFixed(2));
+  // Suppression useEffect synchro prix manuel
+
+  // Detect if overdue
+  const overdueInfo = useMemo(() => {
+    const today = new Date();
+    const plannedEnd = new Date(booking.date_fin_prevue);
+    if (plannedEnd < today) {
+      const daysOrh = differenceInCalendarDays(today, plannedEnd);
+      if (daysOrh > 0) {
+        const debtAmount = daysOrh * (room.prix_base_nuit - discountPerNight);
+        return { isOverdue: true, days: daysOrh, debtAmount };
+      }
     }
-  }, [calculatedPrice, manualPriceOverride]);
+    return { isOverdue: false, days: 0, debtAmount: 0 };
+  }, [booking.date_fin_prevue, room.prix_base_nuit, discountPerNight]);
 
   // Réinitialiser les états lors de l'ouverture du dialogue
   useEffect(() => {
     if (open) {
       setNewEndDate(format(new Date(booking.date_fin_prevue), 'yyyy-MM-dd'));
-      // Calculer la réduction par nuit existante à partir de la réservation originale
-      const originalNights = differenceInCalendarDays(new Date(booking.date_fin_prevue), new Date(booking.date_debut_prevue));
+      // Calculer la réduction par nuit existante
+      const start = new Date(booking.date_debut_prevue);
+      const end = new Date(booking.date_fin_prevue);
+      const originalNights = differenceInCalendarDays(end, start);
       let originalDiscountPerNight = 0;
       if (originalNights > 0) {
         const originalTotalWithoutDiscount = originalNights * room.prix_base_nuit;
@@ -87,17 +101,6 @@ export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: Ch
         originalDiscountPerNight = totalDiscount / originalNights;
       }
       setDiscountPerNight(originalDiscountPerNight);
-      setManualPriceOverride(false);
-
-      // Calculer le prix initial basé sur la date actuelle et la réduction
-      const initialDate = new Date(booking.date_fin_prevue);
-      const startDate = new Date(booking.date_debut_prevue);
-      const totalNights = differenceInCalendarDays(initialDate, startDate);
-      const baseTotal = totalNights * room.prix_base_nuit;
-      const totalDiscount = totalNights * originalDiscountPerNight;
-      const initialPrice = Math.max(baseTotal - totalDiscount, 0);
-
-      setManualPrice(initialPrice.toFixed(2));
     }
   }, [open, booking, room]);
 
@@ -139,7 +142,7 @@ export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: Ch
       return;
     }
 
-    const finalPrice = manualPriceOverride ? parseFloat(manualPrice) : calculatedPrice;
+    const finalPrice = calculatedPrice;
 
     // Validation supplémentaire pour s'assurer que le prix est raisonnable
     if (finalPrice <= 0) {
@@ -177,21 +180,17 @@ export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: Ch
   };
 
   const resetAndClose = (open: boolean) => {
-    if (!open) {
-      setMode('choice');
-      setNewEndDate(format(new Date(booking.date_fin_prevue), 'yyyy-MM-dd'));
-      // Réinitialiser la réduction avec la valeur d'origine
-      const originalNights = differenceInCalendarDays(new Date(booking.date_fin_prevue), new Date(booking.date_debut_prevue));
-      let originalDiscountPerNight = 0;
-      if (originalNights > 0) {
-        const originalTotalWithoutDiscount = originalNights * room.prix_base_nuit;
-        const totalDiscount = originalTotalWithoutDiscount - booking.prix_total;
-        originalDiscountPerNight = totalDiscount / originalNights;
-      }
-      setDiscountPerNight(originalDiscountPerNight);
-      setManualPriceOverride(false);
-      setManualPrice(calculatedPrice.toFixed(2));
+    setMode('choice');
+    setNewEndDate(format(new Date(booking.date_fin_prevue), 'yyyy-MM-dd'));
+    // Réinitialiser la réduction avec la valeur d'origine
+    const originalNights = differenceInCalendarDays(new Date(booking.date_fin_prevue), new Date(booking.date_debut_prevue));
+    let originalDiscountPerNight = 0;
+    if (originalNights > 0) {
+      const originalTotalWithoutDiscount = originalNights * room.prix_base_nuit;
+      const totalDiscount = originalTotalWithoutDiscount - booking.prix_total;
+      originalDiscountPerNight = totalDiscount / originalNights;
     }
+    setDiscountPerNight(originalDiscountPerNight);
     onOpenChange(open);
   };
 
@@ -207,38 +206,51 @@ export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: Ch
         </DialogHeader>
 
         {mode === 'choice' ? (
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Que souhaitez-vous faire ?
-            </p>
+          <div className="space-y-6 py-4">
+            {overdueInfo.isOverdue && (
+              <div className="bg-red-50 border border-red-200 p-4 rounded-xl flex items-start gap-3 animate-pulse-soft">
+                <AlertTriangle className="h-6 w-6 text-red-600 mt-1 shrink-0" />
+                <div>
+                  <p className="font-bold text-red-800 text-sm">Dépassement de séjour !</p>
+                  <p className="text-red-700 text-xs">
+                    Le client a {overdueInfo.days} jour(s) de retard.
+                    Un surcoût de <span className="font-bold">{overdueInfo.debtAmount.toFixed(2)}$</span> est à régulariser.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-3">
               <Button
                 variant="default"
                 size="lg"
-                className="w-full justify-start gap-3 h-auto py-4"
+                className={cn(
+                  "w-full justify-start gap-3 h-auto py-4 shadow-lg transition-all",
+                  overdueInfo.isOverdue ? "bg-red-600 hover:bg-red-700 shadow-red-200" : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
+                )}
                 onClick={handleConfirmDeparture}
                 disabled={isProcessing}
               >
                 {isProcessing ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogOut className="h-5 w-5" />}
                 <div className="text-left">
-                  <div className="font-semibold">Confirmer le départ</div>
-                  <div className="text-xs text-primary-foreground/70">
-                    Clôturer le séjour et créer la tâche de nettoyage.
+                  <div className="font-bold text-base">Confirmer le départ</div>
+                  <div className="text-xs opacity-90">
+                    {overdueInfo.isOverdue ? "Clôturer avec les jours de retard." : "Clôturer le séjour normalement."}
                   </div>
                 </div>
               </Button>
               <Button
                 variant="outline"
                 size="lg"
-                className="w-full justify-start gap-3 h-auto py-4"
+                className="w-full justify-start gap-3 h-auto py-4 border-slate-200 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 transition-all"
                 onClick={() => setMode('extend')}
                 disabled={isProcessing}
               >
                 <CalendarPlus className="h-5 w-5" />
                 <div className="text-left">
-                  <div className="font-semibold">Prolonger le séjour</div>
+                  <div className="font-bold text-base">Prolonger pour régulariser</div>
                   <div className="text-xs text-muted-foreground">
-                    Choisir une nouvelle date de fin.
+                    Ajouter des jours officiels à la réservation.
                   </div>
                 </div>
               </Button>
@@ -246,79 +258,61 @@ export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: Ch
           </div>
         ) : (
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="newEndDate">Nouvelle date de fin</Label>
-              <Input
-                id="newEndDate"
-                type="date"
-                value={newEndDate}
-                min={booking.date_fin_prevue.split('T')[0]}
-                onChange={(e) => {
-                  setNewEndDate(e.target.value);
-                  // Réinitialiser le mode de prix manuel quand la date change
-                  setManualPriceOverride(false);
-                }}
-              />
-            </div>
-
-            <Separator />
-
-            {/* Contrôle de la réduction par nuit */}
-            <div className="space-y-2">
-              <Label htmlFor="discountPerNight">Réduction par nuit ($)</Label>
-              <Input
-                id="discountPerNight"
-                type="number"
-                min="0"
-                step="0.01"
-                value={discountPerNight}
-                onChange={(e) => setDiscountPerNight(parseFloat(e.target.value) || 0)}
-              />
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <Label htmlFor="newPrice">Prix total ($)</Label>
-              <div className="flex gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="newEndDate">Nouvelle date de fin</Label>
                 <Input
-                  id="newPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={manualPriceOverride ? manualPrice : calculatedPrice.toFixed(2)}
-                  onChange={(e) => {
-                    setManualPrice(e.target.value);
-                    setManualPriceOverride(true);
-                  }}
-                  disabled={!manualPriceOverride}
+                  id="newEndDate"
+                  type="date"
+                  value={newEndDate}
+                  min={overdueInfo.isOverdue ? format(new Date(), 'yyyy-MM-dd') : format(new Date(booking.date_fin_prevue), 'yyyy-MM-dd')}
+                  onChange={(e) => setNewEndDate(e.target.value)}
                 />
-                <Button
-                  type="button"
-                  variant={manualPriceOverride ? "default" : "secondary"}
-                  size="icon"
-                  onClick={() => setManualPriceOverride(!manualPriceOverride)}
-                  title={manualPriceOverride ? "Utiliser le prix calculé" : "Modifier manuellement le prix"}
-                >
-                  <Calculator className="h-4 w-4" />
-                </Button>
               </div>
 
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>Prix total calculé: <CurrencyDisplay amountUSD={calculatedPrice} /></p>
-                <p>Tarif nuit: <CurrencyDisplay amountUSD={room.prix_base_nuit} /></p>
-                <p>Réduction par nuit: <CurrencyDisplay amountUSD={discountPerNight} /></p>
-                <p>Nuits totales (début à nouvelle fin): {differenceInCalendarDays(new Date(newEndDate), new Date(booking.date_debut_prevue))}</p>
-                {extensionDetails.extraNights > 0 && (
-                  <>
-                    <p className="pt-1 font-medium">Période d'extension: {extensionDetails.extraNights} nuits</p>
-                    <p>Coût extension (sans réduction): <CurrencyDisplay amountUSD={extensionDetails.extraCost} /></p>
-                    <p>Réduction extension: <CurrencyDisplay amountUSD={extensionDetails.extraDiscount} /></p>
-                    <p className="font-medium">Coût extension (avec réduction): <CurrencyDisplay amountUSD={extensionDetails.extraCost - extensionDetails.extraDiscount} /></p>
-                  </>
-                )}
+              {/* Réduction par nuit (Désactivée car récupérée de la réservation) */}
+              <div className="space-y-2">
+                <Label htmlFor="discountPerNight">Réduction / nuit ($)</Label>
+                <div className="relative">
+                  <Input
+                    id="discountPerNight"
+                    type="number"
+                    value={discountPerNight}
+                    disabled={true} // Désactivé comme demandé
+                    className="pl-8 bg-muted"
+                  />
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                </div>
               </div>
             </div>
+
+            <Separator />
+
+            {/* Affichage du Nouveau Prix Total */}
+            <div className="bg-muted p-4 rounded-lg flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Nouveau Prix Total</p>
+                <p className="text-2xl font-bold">
+                  {calculatedPrice.toFixed(2)} $
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-muted-foreground">Équivalent CDF</p>
+                <p className="text-xl font-bold text-blue-600">
+                  {(calculatedPrice * (exchangeRateData?.usd_to_cdf || 2800)).toLocaleString()} FC
+                </p>
+              </div>
+            </div>
+
+            {/* Détails de l'extension */}
+            {extensionDetails.extraNights > 0 && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-md text-sm space-y-1 border border-blue-100 dark:border-blue-800">
+                <div className="flex justify-between font-medium">
+                  <span>Extension ({extensionDetails.extraNights} nuits) :</span>
+                  <span>+ {(extensionDetails.extraCost - extensionDetails.extraDiscount).toFixed(2)} $</span>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-2 pt-4">
               <Button
@@ -335,7 +329,7 @@ export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: Ch
                 disabled={isProcessing}
               >
                 {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Confirmer
+                Confirmer la prolongation
               </Button>
             </div>
           </div>

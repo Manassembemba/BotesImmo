@@ -112,6 +112,8 @@ export function AvailabilityFilters({ rooms, onFilterChange }: AvailabilityFilte
       search: '',
       minPrice: minDisplayPrice,
       maxPrice: maxDisplayPrice,
+      roomType: 'all',
+      floor: 'all',
       location: '',
       status: '',
       dateRange: 'today'
@@ -132,6 +134,8 @@ export function AvailabilityFilters({ rooms, onFilterChange }: AvailabilityFilte
       search,
       minPrice: priceRange[0],
       maxPrice: priceRange[1],
+      roomType: 'all',
+      floor: 'all',
       location: location === 'all' ? '' : location,
       status: status === 'all' ? '' : status,
       dateRange,
@@ -161,12 +165,10 @@ export function AvailabilityFilters({ rooms, onFilterChange }: AvailabilityFilte
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tous statuts</SelectItem>
-            <SelectItem value="AVAILABLE">Disponible</SelectItem>
-            <SelectItem value="OCCUPIED">Occupé</SelectItem>
-            <SelectItem value="BOOKED">Réservé</SelectItem>
-            <SelectItem value="PENDING_CHECKOUT">Départ en attente</SelectItem>
-            <SelectItem value="PENDING_CLEANING">Nettoyage</SelectItem>
-            <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+            <SelectItem value="Libre">Disponible</SelectItem>
+            <SelectItem value="Occupé">Occupé</SelectItem>
+            <SelectItem value="Nettoyage">Nettoyage</SelectItem>
+            <SelectItem value="Maintenance">Maintenance</SelectItem>
           </SelectContent>
         </Select>
 
@@ -239,7 +241,7 @@ export function AvailabilityFilters({ rooms, onFilterChange }: AvailabilityFilte
         </div>
         <Slider
           value={priceRange}
-          onValueChange={setPriceRange}
+          onValueChange={(value) => setPriceRange([value[0], value[1]])}
           min={minDisplayPrice}
           max={maxDisplayPrice}
           step={10}

@@ -34,11 +34,10 @@ export function RoomFilters({ onSearchChange, onStatusChange, onTypeChange }: Ro
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">Tous les statuts</SelectItem>
-          <SelectItem value="AVAILABLE">Disponible</SelectItem>
-          <SelectItem value="OCCUPIED">Occupée</SelectItem>
-          <SelectItem value="PENDING_CHECKOUT">Départ en attente</SelectItem>
-          <SelectItem value="PENDING_CLEANING">Nettoyage en attente</SelectItem>
-          <SelectItem value="OUT_OF_SERVICE">Hors service</SelectItem>
+          <SelectItem value="Libre">Disponible</SelectItem>
+          <SelectItem value="Occupé">Occupée</SelectItem>
+          <SelectItem value="Nettoyage">Nettoyage</SelectItem>
+          <SelectItem value="Maintenance">Maintenance</SelectItem>
         </SelectContent>
       </Select>
 

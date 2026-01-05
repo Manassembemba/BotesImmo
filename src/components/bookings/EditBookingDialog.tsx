@@ -10,14 +10,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Edit, User, BedDouble, AlertCircle } from 'lucide-react';
+import { CurrencyInput } from '@/components/ui/currency-input';
 import { supabase } from '@/integrations/supabase/client';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
+import { Label } from '@/components/ui/label';
 import { differenceInDays } from 'date-fns';
+import { BookingFinancialPanel } from './BookingFinancialPanel';
 
 const editBookingSchema = z.object({
   date_debut_prevue: z.string().min(1, 'Date d\'arrivée requise'),
   date_fin_prevue: z.string().min(1, 'Date de départ requise'),
   prix_total: z.number().min(0, 'Prix total invalide'),
-  caution_encaissee: z.number().min(0, 'Caution invalide'),
+  discount_amount: z.number().min(0).optional(),
   notes: z.string().optional(),
   status: z.enum(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'], {
     errorMap: () => ({ message: 'Statut invalide' })
@@ -40,6 +44,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
   const updateBooking = useUpdateBooking();
   const [conflictError, setConflictError] = useState<string | null>(null);
   const { data: rooms = [] } = useRooms(); // Charger les chambres
+  const { data: exchangeRateData } = useExchangeRate(); // Pour l'affichage CDF
 
   // Fonction pour formater correctement la date
   const formatDate = (dateString: string) => {
@@ -64,23 +69,32 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
   const { watch, setValue, reset, getValues, setError } = form;
   const dateDebut = watch('date_debut_prevue');
   const dateFin = watch('date_fin_prevue');
+  const discountAmount = watch('discount_amount');
+  const prixTotal = watch('prix_total');
 
-  // Recalcul automatique du prix
+  // Recalcul automatique du prix avec réduction
   useEffect(() => {
-    const { date_debut_prevue, date_fin_prevue } = getValues();
+    const { date_debut_prevue, date_fin_prevue, discount_amount } = getValues();
     const startDate = new Date(date_debut_prevue);
     const endDate = new Date(date_fin_prevue);
-    
+    const discount = Number(discount_amount) || 0;
+
     // Trouver la chambre associée à la réservation
     const selectedRoom = rooms.find(r => r.id === booking.room_id);
     const roomPrice = selectedRoom?.prix_base_nuit || 0;
 
-    if (startDate && endDate && endDate > startDate) {
+    if (startDate && endDate && endDate > startDate && roomPrice > 0) {
       const numNights = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      const newPrice = numNights * roomPrice;
-      setValue('prix_total', newPrice > 0 ? newPrice : 0, { shouldValidate: true });
+      // Formule : (PrixNuit - Réduction) * Nuits.
+      // Ou Réduction est par nuit ? "discount_amount" dans Create est "Réduction par nuit".
+      // Supposons réduc par nuit comme dans Create.
+      let pricePerNight = roomPrice - discount;
+      if (pricePerNight < 0) pricePerNight = 0;
+
+      const newPrice = numNights * pricePerNight;
+      setValue('prix_total', newPrice, { shouldValidate: true });
     }
-  }, [dateDebut, dateFin, booking.room_id, rooms, getValues, setValue]);
+  }, [dateDebut, dateFin, discountAmount, booking.room_id, rooms, getValues, setValue]);
 
   // Mettre à jour les valeurs par défaut quand la réservation change
   useEffect(() => {
@@ -89,7 +103,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         date_debut_prevue: formatDate(booking.date_debut_prevue),
         date_fin_prevue: formatDate(booking.date_fin_prevue),
         prix_total: Number(booking.prix_total) || 0,
-        caution_encaissee: Number(booking.caution_encaissee) || 0,
+        discount_amount: Number(booking.discount_amount) || 0,
         notes: booking.notes || '',
         status: booking.status as 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
       });
@@ -147,7 +161,6 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         date_debut_prevue: startDate.toISOString(),
         date_fin_prevue: endDate.toISOString(),
         prix_total: data.prix_total,
-        caution_encaissee: data.caution_encaissee,
         notes: data.notes || null,
         status: data.status,
       });
@@ -188,6 +201,8 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
           </DialogDescription>
         </DialogHeader>
 
+        <BookingFinancialPanel bookingId={booking.id} />
+
         <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
           <div className="flex items-center gap-2 text-sm">
             <User className="h-4 w-4 text-muted-foreground" />
@@ -200,8 +215,8 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[75vh] overflow-y-auto pr-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="date_debut_prevue"
@@ -237,47 +252,39 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Prix Total - Affichage simple (pas d'input pour l'utilisateur, mais gardé en hidden pour le form) */}
+            <div className="bg-muted p-4 rounded-lg flex justify-between items-center mb-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Nouveau Prix Total</p>
+                <p className="text-2xl font-bold">
+                  {prixTotal ? prixTotal.toFixed(2) : '0.00'} $
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-muted-foreground">Équivalent CDF</p>
+                <p className="text-xl font-bold text-blue-600">
+                  {((prixTotal || 0) * (exchangeRateData?.usd_to_cdf || 2800)).toLocaleString()} FC
+                </p>
+              </div>
+            </div>
+
+            {/* Champ caché pour que le formulaire soumette la valeur */}
+            <FormField control={form.control} name="prix_total" render={({ field }) => (<input type="hidden" {...field} value={field.value || 0} />)} />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="prix_total"
+                name="discount_amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Prix total ($)</FormLabel>
+                    <FormLabel>Réduction / nuit ($)</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
-                        min={0}
-                        step="0.01"
+                        min="0"
                         {...field}
-                        readOnly
-                        className="font-bold bg-muted/50"
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="caution_encaissee"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Caution ($)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        {...field}
-                        onChange={(e) => {
-                          const value = parseFloat(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
-                        }}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        placeholder="0.00"
                       />
                     </FormControl>
                     <FormMessage />

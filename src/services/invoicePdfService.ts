@@ -5,18 +5,25 @@ import { supabase } from '@/integrations/supabase/client';
 
 // ... (getStatusLabel function remains the same)
 
-// La fonction de génération HTML accepte maintenant le total payé en paramètre
-export const generateInvoiceHTML = (invoice: Invoice, totalPaid: number): string => {
-  const invoiceDate = format(new Date(invoice.date), 'dd/MM/yyyy', { locale: fr });
-  const startDate = invoice.booking_dates ? format(new Date(invoice.booking_dates.start), 'dd/MM/yyyy') : '';
-  const startTime = invoice.booking_dates ? format(new Date(invoice.booking_dates.start), 'HH:mm') : '';
-  const endDate = invoice.booking_dates ? format(new Date(invoice.booking_dates.end), 'dd/MM/yyyy') : '';
-  const endTime = invoice.booking_dates ? format(new Date(invoice.booking_dates.end), 'HH:mm') : '';
-  
-  const netTotal = invoice.net_total || invoice.total;
-  const remainingBalance = netTotal - totalPaid;
+// La fonction de génération HTML accepte maintenant le total payé et le breakdown en paramètre
+export const generateInvoiceHTML = (
+    invoice: Invoice,
+    totalPaid: number,
+    paidUSD: number = 0,
+    paidCDF: number = 0
+): string => {
+    const invoiceDate = format(new Date(invoice.date), 'dd/MM/yyyy', { locale: fr });
 
-  const itemsHTML = invoice.items.map(item => `
+    // Formatage des dates avec heures forcées
+    const startDate = invoice.booking_dates ? format(new Date(invoice.booking_dates.start), 'dd/MM/yyyy') : '';
+    const startTime = '12:00'; // Toujours 12h00 pour l'entrée
+    const endDate = invoice.booking_dates ? format(new Date(invoice.booking_dates.end), 'dd/MM/yyyy') : '';
+    const endTime = '11:00'; // Toujours 11h00 pour la sortie
+
+    const netTotal = invoice.net_total || invoice.total;
+    const remainingBalance = netTotal - totalPaid;
+
+    const itemsHTML = invoice.items.map(item => `
     <tr>
         <td>${item.description}</td>
         <td>${item.unit_price.toFixed(2)}$</td>
@@ -25,7 +32,7 @@ export const generateInvoiceHTML = (invoice: Invoice, totalPaid: number): string
     </tr>
   `).join('');
 
-  return `
+    return `
     <!DOCTYPE html>
     <html lang="fr">
     <head>
@@ -109,6 +116,9 @@ export const generateInvoiceHTML = (invoice: Invoice, totalPaid: number): string
                     <span>Montant Payé :</span>
                     <span>${totalPaid.toFixed(2)}$</span>
                 </div>
+                <div class="summary-row" style="font-size: 11px; font-weight: 400; color: #666; margin-top: -5px; margin-bottom: 10px;">
+                    <span>Dont: ${paidUSD.toFixed(2)}$ et ${paidCDF.toLocaleString()} FC</span>
+                </div>
                  <div class="summary-row">
                     <span>Reste à payer :</span>
                     <span>${remainingBalance > 0 ? remainingBalance.toFixed(2) : '0.00'}$</span>
@@ -131,34 +141,42 @@ export const generateInvoiceHTML = (invoice: Invoice, totalPaid: number): string
 };
 
 export const downloadInvoicePDF = async (invoice: Invoice) => {
-  if (!invoice.booking_id) {
-    alert("Impossible de générer la facture sans réservation associée.");
-    return;
-  }
+    if (!invoice.booking_id) {
+        alert("Impossible de générer la facture sans réservation associée.");
+        return;
+    }
 
-  // 1. Récupérer les paiements liés à la réservation
-  const { data: payments, error } = await supabase
-    .from('payments')
-    .select('montant')
-    .eq('booking_id', invoice.booking_id);
+    // 1. Récupérer les paiements liés à la réservation
+    const { data: payments, error } = await supabase
+        .from('payments')
+        .select('montant, montant_usd, montant_cdf')
+        .eq('booking_id', invoice.booking_id);
 
-  if (error) {
-    console.error("Erreur lors de la récupération des paiements:", error);
-    alert("Erreur lors de la récupération des paiements.");
-    return;
-  }
+    if (error) {
+        console.error("Erreur lors de la récupération des paiements:", error);
+        alert("Erreur lors de la récupération des paiements.");
+        return;
+    }
 
-  // 2. Calculer le total payé
-  const totalPaid = (payments || []).reduce((sum, p) => sum + p.montant, 0);
+    // 2. Calculer le total payé et le breakdown
+    let totalPaid = 0;
+    let paidUSD = 0;
+    let paidCDF = 0;
 
-  // 3. Générer le HTML avec le total payé
-  const htmlContent = generateInvoiceHTML(invoice, totalPaid);
-  const newWindow = window.open('', '_blank');
-  if (newWindow) {
-    newWindow.document.write(htmlContent);
-    newWindow.document.close();
-    newWindow.onload = () => {
-      newWindow.print();
-    };
-  }
+    (payments || []).forEach(p => {
+        totalPaid += p.montant;
+        paidUSD += (p.montant_usd || 0);
+        paidCDF += (p.montant_cdf || 0);
+    });
+
+    // 3. Générer le HTML avec le total payé et le breakdown
+    const htmlContent = generateInvoiceHTML(invoice, totalPaid, paidUSD, paidCDF);
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+        newWindow.document.write(htmlContent);
+        newWindow.document.close();
+        newWindow.onload = () => {
+            newWindow.print();
+        };
+    }
 };

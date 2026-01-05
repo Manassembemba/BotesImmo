@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { BadgeDollarSign, FileText, XCircle } from 'lucide-react';
+import { BadgeDollarSign, FileText, XCircle, FileType } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { useInvoices } from '@/hooks/useInvoices';
 import { InvoiceView } from './InvoiceView';
 import { Invoice } from '@/interfaces/Invoice';
@@ -22,6 +24,7 @@ function InvoiceSummaryDialog({ bookingId, invoices, isOpen, onClose }: {
 }) {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [isInvoiceViewOpen, setIsInvoiceViewOpen] = useState(false);
+  const { data: exchangeRateData } = useExchangeRate();
 
   const openInvoice = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
@@ -44,26 +47,43 @@ function InvoiceSummaryDialog({ bookingId, invoices, isOpen, onClose }: {
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {invoices.map((invoice) => (
-            <div key={invoice.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between border rounded-md p-3 hover:bg-muted/50 transition-colors">
-              <div className="flex-1 text-sm">
-                <p className="font-medium">{invoice.invoice_number}</p>
-                <p className="text-muted-foreground text-xs">
-                  {format(new Date(invoice.date), 'dd/MM/yyyy', { locale: fr })} - {invoice.net_total?.toFixed(2) || invoice.total.toFixed(2)} {invoice.currency}
-                </p>
-                <p className="text-xs text-muted-foreground">Statut: {invoice.status}</p>
+          {invoices.map((invoice) => {
+            const isExtension = invoice.items.some(item =>
+              item.description.toLowerCase().includes('prolongation') ||
+              item.description.toLowerCase().includes('extension')
+            );
+            return (
+              <div key={invoice.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between border rounded-md p-3 hover:bg-muted/50 transition-colors">
+                <div className="flex-1 text-sm bg-transparent">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="font-medium">{invoice.invoice_number}</p>
+                    {isExtension && <Badge variant="secondary" className="text-[10px] h-5">Prolongation</Badge>}
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    {format(new Date(invoice.date), 'dd/MM/yyyy', { locale: fr })} - {invoice.net_total?.toFixed(2) || invoice.total.toFixed(2)} {invoice.currency}
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-1">Statut: {invoice.status === 'PAID' ? <span className="text-green-600 font-medium">Payée</span> : invoice.status === 'PARTIALLY_PAID' ? <span className="text-orange-600 font-medium">Partielle</span> : invoice.status === 'CANCELLED' ? 'Annulée' : 'Non payée'}</p>
+                  {invoice.balance_due > 0 && (
+                    <div className="text-xs text-red-600 font-medium mt-1">
+                      Reste: {invoice.balance_due.toFixed(2)} $
+                      <span className="text-muted-foreground ml-1 font-normal opacity-80">
+                        (~ {(invoice.balance_due * (exchangeRateData?.usd_to_cdf || 2800)).toLocaleString('fr-FR')} FC)
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openInvoice(invoice)}
+                  className="mt-2 sm:mt-0"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Voir détails
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => openInvoice(invoice)}
-                className="mt-2 sm:mt-0"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                Voir détails
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <DialogFooter>

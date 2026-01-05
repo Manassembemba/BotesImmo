@@ -8,8 +8,10 @@ import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { Download } from 'lucide-react';
-import { exportFinancialReportToCsv, exportFinancialReportToPdf } from '@/services/financialReportExportService'; // Import export functions
+import { Download, Landmark, ReceiptText } from 'lucide-react';
+import { exportFinancialReportToCsv, exportFinancialReportToPdf } from '@/services/financialReportExportService';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CashReport } from '@/components/reports/CashReport';
 
 const FinancialReport = () => {
   const { role } = useAuth();
@@ -18,9 +20,7 @@ const FinancialReport = () => {
     search: '',
     status: 'all',
     dateRange: { start: '', end: '' },
-    amountRange: { min: null as number | null, max: null as number | null },
     customer: 'all',
-    roomNumber: 'all'
   });
 
   const [pagination, setPagination] = useState({
@@ -32,16 +32,6 @@ const FinancialReport = () => {
 
   const invoices = invoicesResult?.data || [];
 
-  // Calculate aggregates
-  const { totalBilled, totalPaid, totalBalanceDue } = useMemo(() => {
-    const billed = invoices.reduce((sum, inv) => sum + (inv.net_total || inv.total), 0);
-    const paid = invoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
-    return {
-      totalBilled: billed,
-      totalPaid: paid,
-      totalBalanceDue: billed - paid,
-    };
-  }, [invoices]);
 
   return (
     <MainLayout title="Rapport Financier Complet" subtitle="Vue d'overview des revenus et gestion financière.">
@@ -53,74 +43,75 @@ const FinancialReport = () => {
           />
         </div>
 
-        {/* Aggregate Statistics */}
-        {role === 'ADMIN' && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 border rounded-lg bg-card shadow-sm">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Total net facturé</p>
-              <h3 className="text-lg font-bold"><CurrencyDisplay amountUSD={totalBilled} /></h3>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Total payé</p>
-              <h3 className="text-lg font-bold text-green-600"><CurrencyDisplay amountUSD={totalPaid} /></h3>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground">Solde restant</p>
-              <h3 className="text-lg font-bold text-red-600"><CurrencyDisplay amountUSD={totalBalanceDue} /></h3>
-            </div>
-          </div>
-        )}
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => exportFinancialReportToPdf(invoices, filters)}>
-            <Download className="h-4 w-4 mr-2" />
-            Exporter PDF
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => exportFinancialReportToCsv(invoices, filters)}>
-            <Download className="h-4 w-4 mr-2" />
-            Exporter CSV
-          </Button>
-        </div>
+        <Tabs defaultValue="cash" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+            <TabsTrigger value="invoices" className="flex items-center gap-2">
+              <ReceiptText className="h-4 w-4" />
+              Facturation
+            </TabsTrigger>
+            <TabsTrigger value="cash" className="flex items-center gap-2">
+              <Landmark className="h-4 w-4" />
+              Caisse Physique
+            </TabsTrigger>
+          </TabsList>
 
+          <TabsContent value="invoices" className="space-y-6 pt-6">
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => exportFinancialReportToPdf(invoices, filters)}>
+                <Download className="h-4 w-4 mr-2" />
+                Exporter PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => exportFinancialReportToCsv(invoices, filters)}>
+                <Download className="h-4 w-4 mr-2" />
+                Exporter CSV
+              </Button>
+            </div>
 
-        <div className="bg-card rounded-lg border shadow-soft overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>N° FACTURE</TableHead>
-                <TableHead>CLIENT</TableHead>
-                <TableHead>DATE</TableHead>
-                <TableHead>MONTANT NET</TableHead>
-                <TableHead>PAYÉ</TableHead>
-                <TableHead>DÛ</TableHead>
-                <TableHead>STATUT</TableHead>
-                <TableHead className="text-right">ACTIONS</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="h-24 text-center">Chargement...</TableCell></TableRow>
-              ) : invoices.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="h-24 text-center">Aucune facture trouvée.</TableCell></TableRow>
-              ) : (
-                invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                    <TableCell>{invoice.tenant_name}</TableCell>
-                    <TableCell>{format(new Date(invoice.date), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell><CurrencyDisplay amountUSD={invoice.net_total || invoice.total} /></TableCell>
-                    <TableCell><CurrencyDisplay amountUSD={invoice.amount_paid} /></TableCell>
-                    <TableCell><CurrencyDisplay amountUSD={invoice.balance_due || 0} /></TableCell>
-                    <TableCell>{getStatusBadge(invoice.status)}</TableCell>
-                    <TableCell className="text-right">
-                      {/* Add actions here */}
-                    </TableCell>
+            <div className="bg-card rounded-lg border shadow-soft overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>N° FACTURE</TableHead>
+                    <TableHead>CLIENT</TableHead>
+                    <TableHead>DATE</TableHead>
+                    <TableHead>MONTANT NET</TableHead>
+                    <TableHead>PAYÉ</TableHead>
+                    <TableHead>DÛ</TableHead>
+                    <TableHead>STATUT</TableHead>
+                    <TableHead className="text-right">ACTIONS</TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow><TableCell colSpan={8} className="h-24 text-center">Chargement...</TableCell></TableRow>
+                  ) : invoices.length === 0 ? (
+                    <TableRow><TableCell colSpan={8} className="h-24 text-center">Aucune facture trouvée.</TableCell></TableRow>
+                  ) : (
+                    invoices.map((invoice) => (
+                      <TableRow key={invoice.id}>
+                        <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                        <TableCell>{invoice.tenant_name}</TableCell>
+                        <TableCell>{format(new Date(invoice.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell><CurrencyDisplay amountUSD={invoice.net_total || invoice.total} /></TableCell>
+                        <TableCell><CurrencyDisplay amountUSD={invoice.amount_paid} /></TableCell>
+                        <TableCell><CurrencyDisplay amountUSD={invoice.balance_due || 0} /></TableCell>
+                        <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                        <TableCell className="text-right">
+                          {/* Add actions here */}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="cash" className="pt-6">
+            <CashReport filters={filters} />
+          </TabsContent>
+        </Tabs>
       </div>
     </MainLayout>
   );

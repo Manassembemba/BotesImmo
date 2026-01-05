@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, FileText, Calendar, User } from 'lucide-react';
 import { formatCurrency } from '@/components/CurrencyDisplay';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
 
 interface InvoiceStatsProps {
   totalInvoices: number;
@@ -11,13 +12,16 @@ interface InvoiceStatsProps {
   averageInvoiceAmount: number;
 }
 
-export function InvoiceStats({ 
-  totalInvoices, 
-  paidInvoices, 
-  totalAmount, 
+export function InvoiceStats({
+  totalInvoices,
+  paidInvoices,
+  totalAmount,
   pendingAmount,
-  averageInvoiceAmount 
+  averageInvoiceAmount
 }: InvoiceStatsProps) {
+  const { data: exchangeRateData } = useExchangeRate();
+  const rate = exchangeRateData?.usd_to_cdf || 2800;
+
   const unpaidInvoices = totalInvoices - paidInvoices;
   const paidPercentage = totalInvoices > 0 ? Math.round((paidInvoices / totalInvoices) * 100) : 0;
 
@@ -67,10 +71,10 @@ export function InvoiceStats({
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-            {formatCurrency(totalAmount, 2800).usd}
+            {formatCurrency(totalAmount, rate).usd}
           </div>
           <div className="text-xs text-muted-foreground">
-            Moyenne: {formatCurrency(averageInvoiceAmount, 2800).usd}
+            Moyenne: {formatCurrency(averageInvoiceAmount, rate).usd}
           </div>
         </CardContent>
       </Card>

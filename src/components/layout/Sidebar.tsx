@@ -25,6 +25,7 @@ import { useBookings } from '@/hooks/useBookings';
 import { useRooms } from '@/hooks/useRooms';
 import { isToday, isTomorrow, isPast, parseISO, differenceInDays } from 'date-fns';
 import { useSidebar } from '@/context/SidebarContext';
+import { useAppNotifications } from '@/hooks/useAppNotifications';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 
@@ -49,28 +50,10 @@ export function Sidebar() {
   const { user, profile, role, signOut } = useAuth();
   const navigate = useNavigate();
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { data: bookingsResult } = useBookings();
-  const bookings = bookingsResult?.data || [];
-  const { data: rooms = [] } = useRooms();
+  const { notifications } = useAppNotifications();
+  const notificationCount = notifications.length;
+  const hasError = notifications.some(n => n.severity === 'error');
   const isMobile = useIsMobile();
-
-  const notificationCount = useMemo(() => {
-    let count = 0;
-    const today = new Date();
-    bookings.forEach(booking => {
-      if (!['CONFIRMED', 'IN_PROGRESS'].includes(booking.status)) return;
-      const endDate = parseISO(booking.date_fin_prevue);
-      if (isPast(endDate) && differenceInDays(today, endDate) > 0) count++;
-      else if (isToday(endDate)) count++;
-      else if (isTomorrow(endDate)) count++;
-    });
-    rooms.forEach(room => {
-      if (room.status === 'PENDING_CHECKOUT' || room.status === 'PENDING_CLEANING') {
-        count++;
-      }
-    });
-    return count;
-  }, [bookings, rooms]);
 
   const navigation = useMemo(() => getNavigation(notificationCount, role), [notificationCount, role]);
 
@@ -128,7 +111,10 @@ export function Sidebar() {
               )
             }
           >
-            <item.icon className="h-5 w-5 flex-shrink-0" />
+            <item.icon className={cn(
+              "h-5 w-5 flex-shrink-0",
+              item.name === 'Notifications' && hasError && "text-red-600 animate-bounce"
+            )} />
             {!isCollapsed && <span className="flex-1">{item.name}</span>}
             {!isCollapsed && item.badgeCount > 0 && (
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs px-1">

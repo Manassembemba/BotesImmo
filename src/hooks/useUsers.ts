@@ -10,7 +10,6 @@ export interface User {
   prenom: string;
   created_at: string;
 }
-
 export function useUsers() {
   const { session } = useAuth(); // Get the current session to extract the JWT
 

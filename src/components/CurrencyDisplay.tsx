@@ -7,15 +7,15 @@ interface CurrencyDisplayProps {
 }
 
 export function CurrencyDisplay({ amountUSD, showBoth = true, className = '' }: CurrencyDisplayProps) {
-  const { data: exchangeRate } = useExchangeRate();
-  const rate = exchangeRate?.usd_to_cdf || 2800;
-  
+  const { data: exchangeRateData } = useExchangeRate();
+  const rate = exchangeRateData?.usd_to_cdf || 2800;
+
   const amountCDF = amountUSD * rate;
 
-  const formatUSD = (amount: number) => 
+  const formatUSD = (amount: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  
-  const formatCDF = (amount: number) => 
+
+  const formatCDF = (amount: number) =>
     new Intl.NumberFormat('fr-CD', { style: 'currency', currency: 'CDF', maximumFractionDigits: 0 }).format(amount);
 
   if (!showBoth) {
@@ -34,9 +34,9 @@ export function CurrencyDisplay({ amountUSD, showBoth = true, className = '' }: 
 
 export function formatCurrency(amountUSD: number, rate: number = 2800) {
   const amountCDF = amountUSD * rate;
-  
+
   const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amountUSD);
   const cdf = new Intl.NumberFormat('fr-CD', { style: 'currency', currency: 'CDF', maximumFractionDigits: 0 }).format(amountCDF);
-  
+
   return { usd, cdf, combined: `${usd} (${cdf})` };
 }

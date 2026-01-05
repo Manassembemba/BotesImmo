@@ -7,17 +7,22 @@ import { CheckInDialog } from '@/components/bookings/CheckInDialog';
 import {
   ChevronLeft,
   ChevronRight,
-  Calendar as CalendarIcon,
+  Calendar,
+  Plus,
+  Search,
+  UserPlus,
+  AlertTriangle,
+  BadgeCent,
+  ArrowLeft,
+  ArrowRight,
   LogIn,
   LogOut,
-  Eye,
-  Plus
+  Eye
 } from 'lucide-react';
 import { useRooms, Room } from '@/hooks/useRooms';
 import { useBookings, Booking } from '@/hooks/useBookings';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   format,
@@ -64,13 +69,85 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 
 // High-contrast colors
-const STATUS_COLORS: Record<string, { label: string; bg: string; text: string }> = {
-  PENDING: { label: 'En attente', bg: 'bg-gradient-to-r from-amber-400 to-orange-500', text: 'text-white' },
-  CONFIRMED: { label: 'Confirmé', bg: 'bg-gradient-to-r from-blue-500 to-indigo-600', text: 'text-white' },
-  IN_PROGRESS: { label: 'En cours', bg: 'bg-gradient-to-r from-emerald-500 to-teal-600', text: 'text-white' },
-  PENDING_CHECKOUT: { label: 'Départ imminent', bg: 'bg-gradient-to-r from-yellow-500 to-amber-600', text: 'text-white' },
-  COMPLETED: { label: 'Terminé', bg: 'bg-gradient-to-r from-slate-400 to-slate-600', text: 'text-white' },
-  CANCELLED: { label: 'Annulé', bg: 'bg-gradient-to-r from-rose-500 to-red-600', text: 'text-white' },
+// Premium Nguma Colors with deeper gradients
+// Premium Nguma Colors with deeper, more vibrant gradients
+const STATUS_COLORS: Record<string, { label: string; bg: string; text: string; light: string; border: string }> = {
+  PENDING: {
+    label: 'En attente',
+    bg: 'bg-gradient-to-br from-amber-400 via-orange-400 to-orange-500',
+    text: 'text-white shadow-sm',
+    light: 'bg-amber-100/50',
+    border: 'border-amber-400/50'
+  },
+  CONFIRMED: {
+    label: 'Confirmé',
+    bg: 'bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600',
+    text: 'text-white shadow-sm',
+    light: 'bg-sky-100/50',
+    border: 'border-sky-400/50'
+  },
+  IN_PROGRESS: {
+    label: 'En cours',
+    bg: 'bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600',
+    text: 'text-white shadow-sm',
+    light: 'bg-emerald-100/50',
+    border: 'border-emerald-400/50'
+  },
+  PENDING_CHECKOUT: {
+    label: 'Départ imminent',
+    bg: 'bg-gradient-to-br from-rose-400 via-rose-500 to-pink-600',
+    text: 'text-white shadow-sm',
+    light: 'bg-rose-100/50',
+    border: 'border-rose-400/50'
+  },
+  COMPLETED: {
+    label: 'Terminé',
+    bg: 'bg-gradient-to-br from-slate-400 via-slate-500 to-slate-600',
+    text: 'text-white',
+    light: 'bg-slate-100/30',
+    border: 'border-slate-300'
+  },
+  CANCELLED: {
+    label: 'Annulé',
+    bg: 'bg-gradient-to-br from-red-500 via-red-600 to-red-700',
+    text: 'text-white',
+    light: 'bg-red-100/30',
+    border: 'border-red-300'
+  },
+};
+
+const getRoomStatusColor = (status: string) => {
+  switch (status) {
+    case 'Libre': return 'bg-emerald-500';
+    case 'Occupé': return 'bg-blue-500';
+    case 'Nettoyage':
+    case 'PENDING_CLEANING':
+      return 'bg-purple-500';
+    case 'Maintenance':
+    case 'MAINTENANCE':
+      return 'bg-slate-500';
+    case 'PENDING_CHECKOUT':
+      return 'bg-amber-500';
+    case 'BOOKED':
+      return 'bg-indigo-400';
+    default: return 'bg-slate-300';
+  }
+};
+
+const getRoomBgTint = (status: string) => {
+  switch (status) {
+    case 'Libre': return 'bg-emerald-50/20';
+    case 'Occupé': return 'bg-blue-50/30';
+    case 'Nettoyage':
+    case 'PENDING_CLEANING':
+      return 'bg-purple-50/20';
+    case 'Maintenance':
+    case 'MAINTENANCE':
+      return 'bg-slate-50/30';
+    case 'PENDING_CHECKOUT':
+      return 'bg-amber-50/30';
+    default: return '';
+  }
 };
 
 const VIEW_OPTIONS = [
@@ -117,7 +194,7 @@ const Planning = () => {
   }, [days]);
 
   // Charger uniquement les réservations nécessaires pour la période visible
-        const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({
+  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({
     startDate: queryStartDate?.toISOString(),
     endDate: queryEndDate?.toISOString(),
   });
@@ -147,9 +224,9 @@ const Planning = () => {
   const filteredRooms = useMemo(() => {
     return rooms.filter(room =>
       (room.numero.toLowerCase().includes(search.toLowerCase()) ||
-       room.type.toLowerCase().includes(search.toLowerCase())) &&
+        room.type.toLowerCase().includes(search.toLowerCase())) &&
       (statusFilter === 'all' ||
-       bookings.some(b => b.room_id === room.id && b.status === statusFilter)) &&
+        bookings.some(b => b.room_id === room.id && b.status === statusFilter)) &&
       (roomTypeFilter === 'all' || room.type === roomTypeFilter) &&
       (locationFilter === 'all' || room.locations?.nom === locationFilter)
     );
@@ -160,10 +237,10 @@ const Planning = () => {
       if (b.room_id !== roomId || b.status === 'CANCELLED') return false;
 
       const start = startOfDay(parseISO(b.date_debut_prevue));
-      const end = startOfDay(parseISO(b.date_fin_prevue)); // Checkout day, so exclusive
+      const end = startOfDay(parseISO(b.date_fin_prevue));
 
-      // The day must be on or after the start date AND before the end date.
-      return !isBefore(day, start) && isBefore(day, end);
+      // The day must be on or after the start date AND on or before the end date.
+      return !isBefore(day, start) && !isAfter(day, end);
     });
   };
 
@@ -241,12 +318,28 @@ const Planning = () => {
     return isWithinInterval(day, { start, end });
   };
 
+  // Helper to detect anomalies
+  const getBookingAnomalies = (booking: Booking) => {
+    const today = startOfToday();
+    const endDate = startOfDay(parseISO(booking.date_fin_prevue));
+
+    const isOverdue = isAfter(today, endDate) && booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && !booking.check_out_reel;
+
+    // Detect debt from the financial summary join
+    const financialSummary = booking.booking_financial_summary?.[0];
+    const hasDebt = financialSummary ? financialSummary.balance_due > 0 : false;
+
+    return { isOverdue, hasDebt, balanceDue: financialSummary?.balance_due || 0 };
+  };
+
   const getReservationDisplay = (reservation: Booking, day: Date) => {
     const start = parseISO(reservation.date_debut_prevue);
-    const end = addDays(parseISO(reservation.date_fin_prevue), -1);
+    const end = parseISO(reservation.date_fin_prevue);
     const isStart = isSameDay(day, start);
     const isEnd = isSameDay(day, end);
-    return { isStart, isEnd };
+    const anomalies = getBookingAnomalies(reservation);
+
+    return { isStart, isEnd, ...anomalies };
   };
 
   const goToPrevious = () => {
@@ -399,10 +492,13 @@ const Planning = () => {
 
               <TooltipProvider delayDuration={100}>
                 {filteredRooms.map((room, idx) => (
-                  <div key={room.id} className={cn("grid border-b border-slate-300 group transition-colors", idx % 2 === 0 ? "bg-white" : "bg-slate-50", "hover:bg-indigo-50")} style={{ gridTemplateColumns: `150px repeat(${days.length}, 1fr)` }}>
-                    <div className={cn("p-3 border-r border-slate-300 sticky left-0 z-30 shadow-[4px_0_10px_rgba(0,0,0,0.03)]", idx % 2 === 0 ? "bg-slate-50" : "bg-slate-100", "group-hover:bg-indigo-50")}>
-                      <p className="font-bold text-slate-900 leading-tight">App. {room.numero}</p>
-                      <p className="text-[10px] text-slate-600 font-bold uppercase tracking-tight">{room.type}</p>
+                  <div key={room.id} className={cn("grid border-b border-slate-300 group transition-colors", getRoomBgTint(room.status), "hover:bg-indigo-50/50")} style={{ gridTemplateColumns: `150px repeat(${days.length}, 1fr)` }}>
+                    <div className={cn("p-3 border-r border-slate-300 sticky left-0 z-30 shadow-[4px_0_10px_rgba(0,0,0,0.03)] flex items-center gap-3", idx % 2 === 0 ? "bg-slate-50" : "bg-slate-100", "group-hover:bg-indigo-50")}>
+                      <div className={cn("w-3 h-3 rounded-full ring-2 ring-white shrink-0 shadow-md", getRoomStatusColor(room.status))} />
+                      <div className="flex flex-col min-w-0">
+                        <p className="font-bold text-slate-900 leading-tight">App. {room.numero}</p>
+                        <p className="text-[10px] text-slate-600 font-bold uppercase tracking-tight">{room.type}</p>
+                      </div>
                     </div>
                     {days.map((day) => {
                       const reservation = getReservationForDay(room.id, day);
@@ -421,35 +517,74 @@ const Planning = () => {
                           onClick={() => handleCellClick(room, day)}
                           onMouseEnter={() => handleCellMouseEnter(room, day)}
                         >
-                          {reservation ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div
-                                  className={cn(
-                                    'absolute inset-y-1 inset-x-0.5 flex items-center text-[10px] font-bold rounded-md overflow-hidden z-20 transition-all hover:scale-[1.02] hover:shadow-lg shadow-md',
-                                    STATUS_COLORS[reservation.status]?.bg,
-                                    'border border-white/40 backdrop-blur-sm'
-                                  )}
-                                  onClick={(e) => { e.stopPropagation(); setSelectedBooking(reservation); }}
-                                >
-                                  <div className="w-full px-2 truncate flex items-center gap-1">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                                    <span className={cn('truncate', STATUS_COLORS[reservation.status]?.text)}>
-                                      {reservation.tenants?.prenom} {reservation.tenants?.nom}
-                                    </span>
+                          {reservation ? (() => {
+                            const { isStart, isEnd, isOverdue, hasDebt, balanceDue } = getReservationDisplay(reservation, day);
+                            return (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={cn(
+                                      'absolute inset-y-1 inset-x-0 flex items-center text-[10px] font-bold overflow-hidden z-20 transition-all hover:scale-[1.02] hover:shadow-lg shadow-md',
+                                      isStart ? 'rounded-l-lg ml-1' : '',
+                                      isEnd ? 'rounded-r-lg mr-1' : '',
+                                      !isStart && !isEnd ? 'rounded-none border-x-0' : '',
+                                      isOverdue
+                                        ? "bg-gradient-to-br from-red-600 via-rose-700 to-red-800 animate-pulse border-2 border-white shadow-lg shadow-red-500/50"
+                                        : STATUS_COLORS[reservation.status]?.bg || "bg-slate-400",
+                                      'border-y border-white/20 backdrop-blur-sm shadow-md',
+                                      hasDebt && "ring-2 ring-amber-400 ring-offset-1"
+                                    )}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedBooking(reservation); }}
+                                  >
+                                    <div className="w-full px-2 truncate flex items-center justify-center gap-1">
+                                      {isStart && (
+                                        <>
+                                          {isOverdue ? (
+                                            <AlertTriangle className="h-3 w-3 text-white shrink-0" />
+                                          ) : hasDebt ? (
+                                            <BadgeCent className="h-3 w-3 text-white shrink-0" />
+                                          ) : (
+                                            <div className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0" />
+                                          )}
+                                        </>
+                                      )}
+
+                                      <span className={cn('truncate', STATUS_COLORS[reservation.status]?.text)}>
+                                        {(isStart || (days.length <= 14)) && `${reservation.tenants?.prenom} ${reservation.tenants?.nom}`}
+                                        {isStart && isOverdue && " (RETARD)"}
+                                        {isStart && hasDebt && !isOverdue && ` (${balanceDue}$)`}
+                                      </span>
+
+                                      {isEnd && !isStart && (
+                                        <LogOut className="h-3 w-3 text-white/80 shrink-0 ml-auto" />
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="font-bold">{reservation.tenants?.prenom} {reservation.tenants?.nom}</p>
-                                <p>Du {format(parseISO(reservation.date_debut_prevue), 'dd/MM/yy')} au {format(parseISO(reservation.date_fin_prevue), 'dd/MM/yy')}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            selection.start && selection.roomId === room.id && isSameDay(day, selection.start) && (
-                              <div className="absolute inset-0 bg-primary/50 rounded-md border-2 border-primary" />
-                            )
-                          )}
+                                </TooltipTrigger>
+                                <TooltipContent className="bg-white/80 backdrop-blur-md border-indigo-100 shadow-xl p-3">
+                                  <div className="space-y-1">
+                                    <p className="font-bold text-indigo-900 border-b pb-1 mb-1">{reservation.tenants?.prenom} {reservation.tenants?.nom}</p>
+                                    <p className="text-xs flex justify-between"><span>Période:</span> <span>{format(parseISO(reservation.date_debut_prevue), 'dd/MM/yy')} - {format(parseISO(reservation.date_fin_prevue), 'dd/MM/yy')}</span></p>
+                                    {isOverdue && (
+                                      <p className="text-xs font-bold text-red-600 flex items-center gap-1 bg-red-50 p-1 rounded">
+                                        <AlertTriangle className="h-3 w-3" /> ATTENTION : Départ dépassé !
+                                      </p>
+                                    )}
+                                    {hasDebt && (
+                                      <p className="text-xs font-bold text-orange-600 flex items-center gap-1 bg-orange-50 p-1 rounded">
+                                        <BadgeCent className="h-3 w-3" /> Solde dû : {balanceDue.toFixed(2)} $
+                                      </p>
+                                    )}
+                                  </div>
+                                </TooltipContent>
+                              </Tooltip>
+                            );
+                          })()
+                            : (
+                              selection.start && selection.roomId === room.id && isSameDay(day, selection.start) && (
+                                <div className="absolute inset-0 bg-primary/50 rounded-md border-2 border-primary" />
+                              )
+                            )}
                         </div>
                       );
                     })}

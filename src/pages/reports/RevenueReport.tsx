@@ -1,196 +1,184 @@
-import { useMemo, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useAllPayments } from '@/hooks/usePayments';
-import { format, parseISO, getYear } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useBookings } from '@/hooks/useBookings';
+import { useRooms } from '@/hooks/useRooms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RevenueFilters } from '@/components/reports/RevenueFilters';
+import { RevenueChart } from '@/components/reports/RevenueChart';
+import { format, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
+import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { formatCurrency } from '@/components/CurrencyDisplay';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 
 const RevenueReport = () => {
-  const { data: payments = [], isLoading } = useAllPayments();
-  const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString());
+  const [filters, setFilters] = useState<{
+    dateRange?: { from?: Date; to?: Date; };
+    roomType: string;
+  }>({
+    dateRange: undefined,
+    roomType: 'all',
+  });
 
-  const { monthlyData, totalRevenue, availableYears } = useMemo(() => {
-    if (!payments || payments.length === 0) {
-      return { monthlyData: [], totalRevenue: 0, availableYears: [] };
+  // Fetch all necessary data
+  const { data: invoicesResult, isLoading: invoicesLoading } = useInvoices({ pagination: { pageIndex: 0, pageSize: 9999 }});
+  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const { data: rooms = [], isLoading: roomsLoading } = useRooms();
+
+  const invoices = invoicesResult?.data || [];
+  const bookings = bookingsResult?.data || [];
+  
+  const isLoading = invoicesLoading || bookingsLoading || roomsLoading;
+
+  const revenueData = useMemo(() => {
+    if (invoices.length === 0 || bookings.length === 0) {
+      return { totalRevenue: 0, revenueByRoomType: [], revenueOverTime: [] };
     }
 
-    const revenueByMonth: { [key: string]: number } = {};
-    const years = new Set<string>();
+    // Create maps for efficient lookups
+    const bookingsMap = new Map(bookings.map(b => [b.id, b]));
+    const roomsMap = new Map(rooms.map(r => [r.id, r]));
 
-    payments.forEach(payment => {
-      const date = parseISO(payment.date_paiement);
-      const year = getYear(date).toString();
-      years.add(year);
-
-      if (year === selectedYear) {
-        const month = format(date, 'yyyy-MM');
-        revenueByMonth[month] = (revenueByMonth[month] || 0) + payment.montant;
+    const filteredInvoices = invoices.filter(invoice => {
+      // Date filter
+      const invoiceDate = new Date(invoice.date);
+      if (filters.dateRange?.from && filters.dateRange?.to) {
+        if (!isWithinInterval(invoiceDate, { start: startOfDay(filters.dateRange.from), end: endOfDay(filters.dateRange.to) })) {
+          return false;
+        }
       }
+
+      // Room type filter
+      if (filters.roomType !== 'all') {
+        const booking = bookingsMap.get(invoice.booking_id);
+        if (!booking) return false;
+        const room = roomsMap.get(booking.room_id);
+        if (!room || room.type !== filters.roomType) {
+          return false;
+        }
+      }
+      return true;
     });
 
-    const sortedData = Object.entries(revenueByMonth)
-      .map(([month, revenue]) => ({
-        month,
-        name: format(parseISO(month), 'MMM', { locale: fr }),
-        revenue,
-      }))
-      .sort((a, b) => a.month.localeCompare(b.month));
+    const totalRevenue = filteredInvoices.reduce((sum, inv) => sum + (inv.net_total || inv.total), 0);
 
-    const total = sortedData.reduce((acc, item) => acc + item.revenue, 0);
-    const sortedYears = Array.from(years).sort((a, b) => b.localeCompare(a));
+    // Calculate revenue by room type
+    const revenueByRoomType = filteredInvoices.reduce((acc, invoice) => {
+      const booking = bookingsMap.get(invoice.booking_id);
+      if (!booking) return acc;
+      const room = roomsMap.get(booking.room_id);
+      if (!room) return acc;
 
-    return { monthlyData: sortedData, totalRevenue: total, availableYears: sortedYears };
-  }, [payments, selectedYear]);
+      const roomType = room.type;
+      const amount = invoice.net_total || invoice.total;
+      
+      const existing = acc.find(item => item.roomType === roomType);
+      if (existing) {
+        existing.revenue += amount;
+      } else {
+        acc.push({ roomType, revenue: amount });
+      }
+      return acc;
+    }, [] as { roomType: string; revenue: number }[]);
 
-  const handleExportCsv = () => {
-    if (monthlyData.length === 0) return;
-    const headers = ['Mois', 'Revenu (USD)'];
-    const rows = monthlyData.map(row => [
-      format(parseISO(row.month), 'MMMM yyyy', { locale: fr }),
-      row.revenue.toFixed(2)
-    ]);
-    let csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n" 
-      + rows.map(e => e.join(",")).join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `rapport-revenus-${selectedYear}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+    // Calculate revenue over time (daily)
+    const revenueOverTime = filteredInvoices.reduce((acc, invoice) => {
+      const date = format(parseISO(invoice.date), 'yyyy-MM-dd');
+      const amount = invoice.net_total || invoice.total;
 
-  const handleExportPdf = () => {
-    if (monthlyData.length === 0) return;
-    const doc = new jsPDF();
-    
-    doc.setFontSize(18);
-    doc.text(`Rapport de Revenus - Année ${selectedYear}`, 14, 22);
-    
-    doc.setFontSize(11);
-    doc.setTextColor(100);
-    doc.text(`Revenu total pour l'année: ${formatCurrency(totalRevenue).usd}`, 14, 32);
-    
-    autoTable(doc, {
-      startY: 40,
-      head: [['Mois', 'Revenu (USD)']],
-      body: monthlyData.map(row => [
-        format(parseISO(row.month), 'MMMM yyyy', { locale: fr }),
-        formatCurrency(row.revenue).usd
-      ]),
-      foot: [['Total', formatCurrency(totalRevenue).usd]],
-      showFoot: 'lastPage',
-      headStyles: { fillColor: [22, 163, 74] },
-    });
+      const existing = acc.find(item => item.date === date);
+      if (existing) {
+        existing.revenue += amount;
+      } else {
+        acc.push({ date, revenue: amount });
+      }
+      return acc;
+    }, [] as { date: string; revenue: number }[]).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    doc.save(`rapport-revenus-${selectedYear}.pdf`);
-  };
-
-  if (isLoading) {
-    return (
-      <MainLayout title="Rapport de Revenus" subtitle="Analyse mensuelle des revenus">
-        <p>Chargement des données...</p>
-      </MainLayout>
-    );
-  }
+    return {
+      totalRevenue,
+      revenueByRoomType: revenueByRoomType.sort((a, b) => b.revenue - a.revenue),
+      revenueOverTime,
+    };
+  }, [invoices, bookings, rooms, filters]);
 
   return (
-    <MainLayout title="Rapport de Revenus" subtitle={`Analyse des revenus pour l'année ${selectedYear}`}>
+    <MainLayout title="Rapport de Revenus Détaillé" subtitle="Analyse des revenus par différentes catégories">
       <div className="space-y-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Options</CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-2" onClick={handleExportCsv}>
-                <Download className="h-4 w-4" />
-                CSV
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2" onClick={handleExportPdf}>
-                <Download className="h-4 w-4" />
-                PDF
-              </Button>
-              <Select onValueChange={setSelectedYear} defaultValue={selectedYear}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Sélectionner une année" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableYears.map(year => (
-                    <SelectItem key={year} value={year}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-        </Card>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Revenu Total ({selectedYear})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalRevenue).usd}</div>
-              <p className="text-xs text-muted-foreground">Total des paiements enregistrés pour l'année</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenus Mensuels ({selectedYear})</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[400px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis tickFormatter={(value) => `$${value}`} />
-                <Tooltip formatter={(value: number) => [formatCurrency(value).usd, 'Revenu']} />
-                <Legend />
-                <Bar dataKey="revenue" name="Revenu Mensuel" fill="#16a34a" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
         
         <Card>
           <CardHeader>
-            <CardTitle>Détail des Revenus Mensuels ({selectedYear})</CardTitle>
+            <CardTitle>Filtres</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mois</TableHead>
-                  <TableHead className="text-right">Revenu</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {monthlyData.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center">Aucune donnée pour cette année.</TableCell>
-                  </TableRow>
-                )}
-                {monthlyData.map((row) => (
-                  <TableRow key={row.month}>
-                    <TableCell className="font-medium">{format(parseISO(row.month), 'MMMM yyyy', { locale: fr })}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(row.revenue).usd}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <RevenueFilters 
+              rooms={rooms}
+              onFilterChange={(newFilters) => setFilters(newFilters as any)} 
+            />
           </CardContent>
         </Card>
 
+        {/* Aggregate Stat */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenu Total Filtré</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-3xl font-bold">
+              <CurrencyDisplay amountUSD={revenueData.totalRevenue} />
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Graphique */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Tendance des revenus</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="h-80 flex items-center justify-center">
+                <p className="text-muted-foreground">Chargement des données du graphique...</p>
+              </div>
+            ) : (
+              <RevenueChart data={revenueData.revenueOverTime} />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Tableau de données */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Revenus par type de chambre</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-card rounded-lg border shadow-soft overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type de Chambre</TableHead>
+                    <TableHead className="text-right">Revenu Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow><TableCell colSpan={2} className="h-24 text-center">Chargement...</TableCell></TableRow>
+                  ) : revenueData.revenueByRoomType.length === 0 ? (
+                    <TableRow><TableCell colSpan={2} className="h-24 text-center">Aucune donnée de revenu trouvée pour les filtres sélectionnés.</TableCell></TableRow>
+                  ) : (
+                    revenueData.revenueByRoomType.map((item) => (
+                      <TableRow key={item.roomType}>
+                        <TableCell className="font-medium">{item.roomType}</TableCell>
+                        <TableCell className="text-right">
+                          <CurrencyDisplay amountUSD={item.revenue} />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );

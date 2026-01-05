@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { useExchangeRate } from './useExchangeRate';
 import { useCreatePayment } from './usePayments'; // Import useCreatePayment
 import { useGenerateInvoiceForBooking } from './useInvoices';
 import { format, differenceInDays } from 'date-fns'; // Import format for date formatting
@@ -33,6 +34,12 @@ export interface Booking {
     telephone: string | null;
     id_document: string | null;
   };
+  booking_financial_summary?: {
+    total_invoiced: number;
+    total_paid: number;
+    balance_due: number;
+    payment_summary_status: string;
+  }[];
 }
 
 export interface BookingFilters {
@@ -49,37 +56,31 @@ export function useBookings(filters?: BookingFilters, pagination?: { pageIndex: 
     queryKey: ['bookings', filters, pagination],
     queryFn: async () => {
       const rangeFrom = pageIndex * pageSize;
-      const rangeTo = rangeFrom + pageSize - 1;
+      const formattedStatuses = filters?.status && filters.status.length > 0 && !filters.status.includes('all')
+        ? filters.status.map(s => s.toUpperCase().replace('-', '_'))
+        : null;
 
-      let query = supabase
-        .from('bookings')
-        .select(`
-          *,
-          rooms (numero, type),
-          tenants (nom, prenom, email, telephone, id_document)
-        `, { count: 'exact' });
+      const { data, error, count } = await supabase.rpc('get_bookings_with_financials', {
+        p_search_term: filters?.searchTerm || null,
+        p_status: formattedStatuses,
+        p_start_date: filters?.startDate || null,
+        p_end_date: filters?.endDate || null,
+        p_offset: rangeFrom,
+        p_limit: pageSize
+      }, { count: 'exact' });
 
-      if (filters?.searchTerm) {
-        const search = `%${filters.searchTerm.toLowerCase()}%`;
-        query = query.or(`tenants.nom.ilike.${search},tenants.prenom.ilike.${search},rooms.numero.ilike.${search}`);
+      if (error) {
+        console.error('RPC Error:', error);
+        throw error;
       }
 
-      if (filters?.status && filters.status.length > 0 && !filters.status.includes('all')) {
-        const formattedStatuses = filters.status.map(s => s.toUpperCase().replace('-', '_'));
-        query = query.in('status', formattedStatuses);
-      }
+      // Map financial_summary to the interface's expected booking_financial_summary (as an array for consistency)
+      const mappedData = data.map((b: any) => ({
+        ...b,
+        booking_financial_summary: b.financial_summary ? [b.financial_summary] : []
+      }));
 
-      if (filters?.startDate && filters?.endDate) {
-        query = query.lt('date_debut_prevue', filters.endDate);
-        query = query.gt('date_fin_prevue', filters.startDate);
-      }
-
-      query = query.order('date_debut_prevue', { ascending: false }).range(rangeFrom, rangeTo);
-
-      const { data, error, count } = await query;
-
-      if (error) throw error;
-      return { data: data as Booking[], count: count ?? 0 };
+      return { data: mappedData as Booking[], count: count ?? 0 };
     },
   });
 }
@@ -88,97 +89,70 @@ export function useCreateBooking() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
-  const createPayment = useCreatePayment();
-  const generateInvoice = useGenerateInvoiceForBooking();
+  const { data: exchangeRateData } = useExchangeRate();
 
   return useMutation({
-    mutationFn: async ({ booking, isImmediate, initialPaymentAmount = 0, discountAmount = 0 }: {
-      booking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'agent_id' | 'rooms' | 'tenants'>;
+    mutationFn: async ({
+      booking,
+      isImmediate,
+      initialPaymentAmount,
+      discountAmount,
+      initialPaymentUSD,
+      initialPaymentCDF
+    }: {
+      booking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'rooms' | 'agent_id' | 'tenants'>;
       isImmediate: boolean;
       initialPaymentAmount?: number;
       discountAmount?: number;
+      initialPaymentUSD?: number;
+      initialPaymentCDF?: number;
     }) => {
       if (!user) throw new Error('Non authentifié');
 
-      if (isImmediate) {
-        // Workflow for Immediate Check-in
-        const rpcParams = {
-          p_room_id: booking.room_id,
-          p_tenant_id: booking.tenant_id,
-          p_agent_id: user.id,
-          p_prix_total: booking.prix_total,
-          p_caution_encaissee: 0,
-          p_notes: booking.notes,
-          p_date_fin_prevue: new Date(booking.date_fin_prevue).toISOString(),
-        };
-        const { data, error } = await supabase.rpc('create_booking_and_checkin', rpcParams).single();
-        if (error) throw error;
-        return { booking: data, isImmediate, initialPaymentAmount, discountAmount };
-      } else {
-        // Workflow for Future Booking
-        const { discount_amount, initial_payment, caution_encaissee, ...bookingData } = booking as any;
-
-        const { data, error } = await supabase
-          .from('bookings')
-          .insert({ 
-            ...bookingData, 
-            agent_id: user.id,
-            caution_encaissee: 0,
-            date_debut_prevue: new Date(booking.date_debut_prevue).toISOString(),
-            date_fin_prevue: new Date(booking.date_fin_prevue).toISOString(),
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        return { booking: data, isImmediate, initialPaymentAmount, discountAmount };
+      const exchangeRate = exchangeRateData?.usd_to_cdf;
+      if (!exchangeRate || exchangeRate <= 0) {
+        throw new Error('Taux de change invalide ou non disponible. Impossible de continuer.');
       }
+
+      const { data, error } = await supabase.rpc('create_booking_with_invoice_atomic', {
+        p_room_id: booking.room_id,
+        p_tenant_id: booking.tenant_id,
+        p_agent_id: user.id,
+        p_date_debut_prevue: new Date(booking.date_debut_prevue).toISOString(),
+        p_date_fin_prevue: new Date(booking.date_fin_prevue).toISOString(),
+        p_prix_total: booking.prix_total,
+        p_caution_encaissee: 0,
+        p_notes: booking.notes,
+        p_discount_per_night: discountAmount || 0,
+        p_initial_payment_usd: initialPaymentUSD || 0,
+        p_initial_payment_cdf: initialPaymentCDF || 0,
+        p_exchange_rate: exchangeRate,
+        p_payment_method: 'CASH',
+        p_is_immediate_checkin: isImmediate
+      });
+
+      if (error) throw error;
+      return { ...data, isImmediate };
     },
-    onSuccess: async ({ booking: newBooking, isImmediate, initialPaymentAmount, discountAmount }) => {
+    onSuccess: async () => {
+      // Refresh all related data
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
 
-      let newInvoiceId: string | null = null;
-      let invoiceCreationFailed = false;
-
-      // Step 1: Generate Invoice First
-      try {
-        const { data: tenantData } = await supabase.from('tenants').select('*').eq('id', newBooking.tenant_id).single();
-        const { data: roomData } = await supabase.from('rooms').select('*').eq('id', newBooking.room_id).single();
-        
-        if (tenantData && roomData) {
-          const createdInvoice = await generateInvoice.generateForBooking(newBooking, tenantData, roomData, discountAmount, initialPaymentAmount);
-          newInvoiceId = createdInvoice.id;
-        } else {
-           throw new Error("Données du locataire ou de la chambre introuvables pour la facturation.");
-        }
-      } catch (error) {
-        invoiceCreationFailed = true;
-        toast({ variant: 'destructive', title: 'Erreur de facturation', description: `La réservation est faite, mais la génération de la facture a échoué. Détails: ${(error as Error).message}` });
-      }
-
-      // Step 2: Create Initial Payment and link it to the invoice
-      const paymentAmount = initialPaymentAmount || 0;
-      if (paymentAmount > 0 && newInvoiceId) {
-        try {
-          await createPayment.mutateAsync({
-            booking_id: newBooking.id,
-            invoice_id: newInvoiceId,
-            montant: paymentAmount,
-            methode: 'CASH',
-            date_paiement: format(new Date(), "yyyy-MM-dd"),
-            notes: isImmediate ? 'Paiement pour check-in direct' : 'Acompte de réservation',
-          });
-        } catch (error) {
-          toast({ variant: 'destructive', title: 'Erreur de paiement', description: `La réservation et la facture sont faites, mais l'enregistrement du paiement a échoué.` });
-        }
-      }
-
-      if (!invoiceCreationFailed) {
-        toast({ title: 'Opération réussie!', description: `La réservation a été enregistrée, la facture et le paiement initial ont été traités.` });
-      }
+      toast({
+        title: 'Opération réussie!',
+        description: `La réservation, la facture et le paiement éventuel ont été traités de manière sécurisée.`
+      });
     },
     onError: (error) => {
-      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+      console.error('Erreur lors de la création atomique:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error.message || 'Une erreur est survenue lors de la création de la réservation.'
+      });
     },
   });
 }
@@ -189,12 +163,14 @@ export function useUpdateBooking() {
 
   return useMutation({
     mutationFn: async ({ id, ...booking }: Partial<Booking> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('bookings')
-        .update(booking)
-        .eq('id', id)
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc('update_booking_with_invoice_atomic', {
+        p_booking_id: id,
+        p_date_debut_prevue: booking.date_debut_prevue,
+        p_date_fin_prevue: booking.date_fin_prevue,
+        p_prix_total: booking.prix_total,
+        p_notes: booking.notes,
+        p_status: booking.status
+      });
 
       if (error) throw error;
       return data;
@@ -202,7 +178,8 @@ export function useUpdateBooking() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      toast({ title: 'Réservation mise à jour', description: 'Les modifications ont été enregistrées' });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast({ title: 'Réservation mise à jour', description: 'Les modifications et la facture associée ont été synchronisées.' });
     },
     onError: (error) => {
       toast({ variant: 'destructive', title: 'Erreur', description: error.message });
@@ -216,17 +193,18 @@ export function useDeleteBooking() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('bookings')
-        .delete()
-        .eq('id', id);
+      const { data, error } = await supabase.rpc('delete_booking_with_invoice_atomic', {
+        p_booking_id: id
+      });
 
       if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      toast({ title: 'Réservation supprimée', description: 'La réservation a été supprimée' });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast({ title: 'Réservation supprimée', description: 'La réservation et ses factures (non payées) ont été retirées.' });
     },
     onError: (error) => {
       toast({ variant: 'destructive', title: 'Erreur', description: error.message });
@@ -275,33 +253,27 @@ export function useExtendStay() {
       bookingId: string,
       newEndDate: string,
       newTotalBookingPrice: number,
-      extensionDiscountPerNight: number, // Nouveau paramètre
+      extensionDiscountPerNight: number,
     }) => {
-      
-      const { data, error } = await supabase.functions.invoke('extend-stay', {
-        body: { 
-          p_booking_id: bookingId,
-          p_new_date_fin_prevue: newEndDate,
-          p_new_prix_total: newTotalBookingPrice,
-          p_extension_discount_per_night: extensionDiscountPerNight, // Passer la réduction par nuit
-        },
+      const { data, error } = await supabase.rpc('extend_stay_atomic', {
+        p_booking_id: bookingId,
+        p_new_date_fin_prevue: newEndDate,
+        p_new_prix_total: newTotalBookingPrice,
+        p_extension_discount_per_night: extensionDiscountPerNight,
       });
 
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
-      // Invalidate invoices for this booking to show the new extension invoice
-      if (data && data.id) {
-          queryClient.invalidateQueries({ queryKey: ['invoices', { bookingId: data.id }] });
-      }
-      queryClient.invalidateQueries({ queryKey: ['invoices'] }); // Also invalidate the general invoices list
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['booking-financial-summary', variables.bookingId] });
 
       toast({
         title: 'Séjour prolongé avec succès',
-        description: `La réservation a été prolongée. Une facture a été créée pour la période additionnelle.`,
+        description: `La réservation a été prolongée et la facture d'extension générée.`,
       });
     },
     onError: (error) => {

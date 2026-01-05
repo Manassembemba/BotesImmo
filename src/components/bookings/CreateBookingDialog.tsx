@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateBooking } from '@/hooks/useBookings';
 import { useRooms } from '@/hooks/useRooms';
+import { supabase } from '@/integrations/supabase/client';
 import { useTenants, Tenant } from '@/hooks/useTenants';
 import { bookingSchema, BookingFormData } from '@/lib/validationSchemas';
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +13,18 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Label } from '@/components/ui/label';
 import { Checkbox } from "@/components/ui/checkbox"
-import { Plus, UserPlus, AlertCircle } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
+import { Plus, UserPlus, AlertCircle, LogIn } from 'lucide-react';
+import { CurrencyInput } from '@/components/ui/currency-input';
+import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { differenceInCalendarDays, format, addDays, isValid } from 'date-fns';
 import { CreateTenantDialog } from '../tenants/CreateTenantDialog';
-import { supabase } from '@/integrations/supabase/client';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { cn } from "@/lib/utils"
+import { Check, ChevronsUpDown } from "lucide-react"
 
 interface CreateBookingDialogProps {
   open?: boolean;
@@ -41,20 +49,21 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [isCreatingTenant, setIsCreatingTenant] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
-  const [isImmediate, setIsImmediate] = useState(true);
   const [nights, setNights] = useState(1);
-  const [isPaidInFull, setIsPaidInFull] = useState(true); // New state for the checkbox
+  /* isPaidInFull state removed as requested - logic is now automatic based on amount vs total */
 
   const { data: rooms = [] } = useRooms();
   const { data: tenants = [], refetch: refetchTenants } = useTenants();
   const createBooking = useCreateBooking();
+  const { data: exchangeRateData } = useExchangeRate();
 
   const isControlled = props.open !== undefined && props.onOpenChange !== undefined;
   const open = isControlled ? props.open : internalOpen;
   const onOpenChange = isControlled ? props.onOpenChange : setInternalOpen;
-  
+
   const form = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
+    mode: 'onChange',
     defaultValues: {
       room_id: '',
       tenant_id: '',
@@ -68,7 +77,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     },
   });
 
-  const { watch, setValue, reset } = form;
+  const { watch, setValue, reset, formState: { isValid: isFormValid } } = form;
   const roomId = watch('room_id');
   const dateDebut = watch('date_debut_prevue');
   const dateFin = watch('date_fin_prevue');
@@ -76,90 +85,100 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   const prixTotal = watch('prix_total'); // Watch prix_total
   const selectedRoom = rooms.find(r => r.id === roomId);
 
+  // États pour le mode de paiement mixte
+  // États pour le paiement (Saisie séparée USD/CDF uniquement)
+  const [amountUSD, setAmountUSD] = useState<string | number>('');
+  const [amountCDF, setAmountCDF] = useState<string | number>('');
+
   // Effect to handle pre-filled data from the calendar
   useEffect(() => {
     if (open && props.initialData) {
-      setIsImmediate(false); 
+      const startDate = new Date(props.initialData.startDate);
+      const endDate = new Date(props.initialData.endDate);
+      const numNights = isValid(startDate) && isValid(endDate) && endDate > startDate
+        ? differenceInCalendarDays(endDate, startDate)
+        : 1;
+
+      setNights(numNights);
       reset({
         room_id: props.initialData.roomId,
-        date_debut_prevue: format(new Date(props.initialData.startDate), 'yyyy-MM-dd'),
-        date_fin_prevue: format(new Date(props.initialData.endDate), 'yyyy-MM-dd'),
-        status: 'PENDING',
+        date_debut_prevue: format(startDate, 'yyyy-MM-dd'),
+        date_fin_prevue: format(endDate, 'yyyy-MM-dd'),
+        status: props.initialData.startDate === format(new Date(), 'yyyy-MM-dd') ? 'CONFIRMED' : 'PENDING',
         tenant_id: '',
-        prix_total: 0,
+        prix_total: 0, // Will be calculated by the effect
         notes: '',
         discount_amount: 0,
         initial_payment: 0,
       });
-    } else if (open && !props.initialData) {
-      setIsImmediate(true);
     }
   }, [open, props.initialData, reset]);
 
+  // Logic to determine if it's an immediate check-in
+  const isTodayBooking = useMemo(() => {
+    return dateDebut === format(new Date(), 'yyyy-MM-dd');
+  }, [dateDebut]);
 
-  // Effect to manage form state based on isImmediate checkbox
+  const isImmediate = isTodayBooking;
+
+  // Effect to manage status based on date
   useEffect(() => {
     if (isImmediate) {
-      setValue('date_debut_prevue', format(new Date(), 'yyyy-MM-dd'));
-      setValue('status', 'CONFIRMED');
-      setIsPaidInFull(true); // Default to paid in full for walk-ins
+      setValue('status', 'CONFIRMED', { shouldValidate: true });
     } else {
-      if (!props.initialData) {
-        setValue('date_debut_prevue', '');
-      }
-      setValue('status', 'PENDING');
-      setIsPaidInFull(false); // Default to partial payment for future bookings
+      setValue('status', 'PENDING', { shouldValidate: true });
     }
-    if (!props.initialData) {
-        setValue('date_fin_prevue', '');
-        setValue('prix_total', 0);
-        setValue('discount_amount', 0);
-        setValue('initial_payment', 0);
-    }
-  }, [isImmediate, setValue, props.initialData]);
-  
-  // Combined effect for all date/night/price logic
+  }, [isImmediate, setValue]);
+
+  // Stabilization: Split synchronization to prevent loops and flickering
+  // 1. Update nights when dates change
   useEffect(() => {
     const startDate = new Date(dateDebut);
     const endDate = new Date(dateFin);
 
-    // This branch handles calculation when both dates are valid. It's the primary source of truth.
-    if (selectedRoom && isValid(startDate) && isValid(endDate) && endDate > startDate) {
+    if (isValid(startDate) && isValid(endDate) && endDate > startDate) {
       const numNights = differenceInCalendarDays(endDate, startDate);
       if (nights !== numNights) {
         setNights(numNights);
       }
-      const calculatedPrice = numNights * selectedRoom.prix_base_nuit;
-      const totalDiscount = numNights * (discountAmount || 0);
-      const finalPrice = calculatedPrice - totalDiscount;
-      if (prixTotal !== finalPrice) {
-        setValue('prix_total', finalPrice > 0 ? finalPrice : 0);
-      }
-    } 
-    // This branch handles calculation when the user updates the 'nights' input.
-    else if (isValid(startDate) && nights > 0) {
+    }
+  }, [dateDebut, dateFin]);
+
+  // 2. Update dateFin when nights change (manual input)
+  useEffect(() => {
+    const startDate = new Date(dateDebut);
+    if (isValid(startDate) && nights > 0) {
       const calculatedEndDate = format(addDays(startDate, nights), 'yyyy-MM-dd');
-      // Only set the value if it's different to prevent a loop.
       if (dateFin !== calculatedEndDate) {
         setValue('date_fin_prevue', calculatedEndDate, { shouldValidate: true });
       }
-    } 
-    // This is a fallback to reset if dates/nights are invalid.
-    else {
-      if (nights !== 0) setNights(0);
-      if (prixTotal !== 0) setValue('prix_total', 0);
     }
-  }, [dateDebut, dateFin, nights, selectedRoom, discountAmount, setValue, prixTotal]);
+  }, [nights, dateDebut, setValue]);
+
+  // 3. Update price whenever dates, nights, room or discount changes
+  useEffect(() => {
+    if (selectedRoom && nights > 0) {
+      const calculatedPrice = nights * selectedRoom.prix_base_nuit;
+      const totalDiscount = nights * (discountAmount || 0);
+      const finalPrice = Math.max(0, calculatedPrice - totalDiscount);
+
+      if (prixTotal !== finalPrice) {
+        setValue('prix_total', finalPrice, { shouldValidate: true });
+      }
+    }
+  }, [nights, selectedRoom, discountAmount, setValue, prixTotal]);
 
   // New effect for handling initial payment based on isPaidInFull
+  // Auto-fill initial payment for immediate check-ins (convenience)
   useEffect(() => {
-    if (isPaidInFull) {
+    if (isImmediate && prixTotal > 0) {
+      // On pré-remplit seulement si le champ est vide ou si on vient de calculer le prix total
+      // Mais on n'écrase pas si l'utilisateur a modifié.
+      // Simplification: pour le mode immédiat, on part du principe que c'est souvent un paiement complet.
+      // Si l'utilisateur veut changer, il peut.
       setValue('initial_payment', prixTotal);
-    } else {
-      // Optional: reset to 0 when unchecked, or leave it as is for manual entry
-      setValue('initial_payment', 0); 
     }
-  }, [isPaidInFull, prixTotal, setValue]);
+  }, [isImmediate, prixTotal, setValue]);
 
   useEffect(() => {
     if (!roomId || !dateDebut || !dateFin) {
@@ -193,15 +212,32 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
 
   const onSubmit = async (data: BookingFormData) => {
     if (conflictError) return;
+    // Calcul des montants physiques à envoyer - Toujours en mode indépendant (valeurs saisies)
+    const finalInitialPaymentUSD = Number(amountUSD);
+    const finalInitialPaymentCDF = Number(amountCDF);
+
     await createBooking.mutateAsync({
-      booking: data,
+      booking: {
+        room_id: data.room_id,
+        tenant_id: data.tenant_id,
+        date_debut_prevue: data.date_debut_prevue,
+        date_fin_prevue: data.date_fin_prevue,
+        prix_total: data.prix_total,
+        notes: data.notes || '',
+        status: data.status || (isImmediate ? 'CONFIRMED' : 'PENDING'),
+        caution_encaissee: 0,
+        check_in_reel: isImmediate ? new Date().toISOString() : null,
+        check_out_reel: null,
+      },
       isImmediate,
       initialPaymentAmount: data.initial_payment,
       discountAmount: data.discount_amount,
+      initialPaymentUSD: finalInitialPaymentUSD,
+      initialPaymentCDF: finalInitialPaymentCDF,
     });
     onOpenChange(false);
   };
-  
+
   const trigger = props.trigger ?? <Button><Plus className="mr-2 h-4 w-4" /> Nouvelle Entrée</Button>;
 
   return (
@@ -210,72 +246,232 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         <DialogTrigger asChild>{trigger}</DialogTrigger>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{isImmediate ? 'Check-in Direct' : 'Nouvelle Réservation'}</DialogTitle>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              {isImmediate ? (
+                <span className="flex items-center gap-2 text-emerald-600"><LogIn className="h-5 w-5" /> Check-in Direct</span>
+              ) : (
+                <span className="flex items-center gap-2 text-indigo-600"><Plus className="h-5 w-5" /> Nouvelle Réservation</span>
+              )}
+            </DialogTitle>
             <DialogDescription>
-              Remplissez les informations pour créer une réservation future ou enregistrer un check-in immédiat.
+              {isImmediate
+                ? "Enregistrez une arrivée immédiate. Le locataire sera installé dès la validation."
+                : "Planifiez une réservation future. Le statut sera 'En attente' par défaut."}
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-              <div className="flex items-center space-x-2"><Checkbox id="isImmediate" checked={isImmediate} onCheckedChange={(checked) => setIsImmediate(Boolean(checked))} /><label htmlFor="isImmediate" className="text-sm font-medium">Check-in immédiat (Walk-in)</label></div>
-              <FormField control={form.control} name="room_id" render={({ field }) => (<FormItem><FormLabel>Chambre *</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionner une chambre" /></SelectTrigger></FormControl><SelectContent>{bookableRooms.map(room => (<SelectItem key={room.id} value={room.id}>                          Ch. {room.numero} - {room.type} ({room.prix_base_nuit}$/nuit)
-{room.status !== 'Libre' && (
-                            <Badge variant="secondary" className="ml-2">{room.status}</Badge>
-                          )}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)}/>
-              <FormField control={form.control} name="tenant_id" render={({ field }) => (<FormItem><FormLabel>Locataire *</FormLabel><div className="flex gap-2"><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionner un locataire" /></SelectTrigger></FormControl><SelectContent>{tenants.filter(t => !t.liste_noire).map(tenant => <SelectItem key={tenant.id} value={tenant.id}>{tenant.prenom} {tenant.nom}</SelectItem>)}</SelectContent></Select><Button type="button" variant="outline" size="icon" onClick={() => setIsCreatingTenant(true)} title="Créer un nouveau locataire"><UserPlus className="h-4 w-4" /></Button></div><FormMessage /></FormItem>)}/>
-                            <div className="grid grid-cols-3 gap-4">
-                              <FormField control={form.control} name="date_debut_prevue" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Date d'arrivée *</FormLabel>
-                                  <FormControl>
-                                    <Input type="date" {...field} disabled={isImmediate} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}/>
-                              {/* New nights input field */}
-                              <FormItem>
-                                <FormLabel>Nuits</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={nights}
-                                    onChange={(e) => setNights(Math.max(1, parseInt(e.target.value) || 1))}
-                                    disabled={isImmediate} // Disable if immediate check-in
-                                  />
-                                </FormControl>
-                              </FormItem>
-                              <FormField control={form.control} name="date_fin_prevue" render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Date de départ *</FormLabel>
-                                  <FormControl>
-                                    <Input type="date" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}/>
-                            </div>
-              {conflictError && <div className="flex items-center gap-2 text-sm text-destructive font-medium"><AlertCircle className="h-4 w-4" /><p>{conflictError}</p></div>}
-              
-              <div className="border-t pt-4 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField control={form.control} name="prix_total" render={({ field }) => (<FormItem><FormLabel>Prix Total Final (USD) *</FormLabel><FormControl><Input type="number" min={0} step="0.01" {...field} readOnly className="font-bold" /></FormControl><FormMessage /></FormItem>)}/>
-                  <FormField control={form.control} name="discount_amount" render={({ field }) => (<FormItem><FormLabel>Réduction par nuit (USD)</FormLabel><FormControl><Input type="number" min={0} step="0.01" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} placeholder="0.00" /></FormControl><FormMessage /></FormItem>)}/>
-                </div>
-
-                <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                        <Checkbox id="isPaidInFull" checked={isPaidInFull} onCheckedChange={(checked) => setIsPaidInFull(Boolean(checked))} />
-                        <label htmlFor="isPaidInFull" className="text-sm font-medium">Totalité soldée</label>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4 max-h-[75vh] overflow-y-auto pr-6 scrollbar-thin">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                <FormField control={form.control} name="room_id" render={({ field }) => (<FormItem><FormLabel>Chambre</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionner une chambre" /></SelectTrigger></FormControl><SelectContent>{bookableRooms.map(room => (<SelectItem key={room.id} value={room.id}>                          Ch. {room.numero} - {room.type} ({room.prix_base_nuit}$/nuit)
+                  {room.status !== 'Libre' && (
+                    <Badge variant="secondary" className="ml-2">{room.status}</Badge>
+                  )}
+                </SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="tenant_id" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Locataire</FormLabel>
+                    <div className="flex gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? tenants.find((tenant) => tenant.id === field.value)?.prenom + ' ' + tenants.find((tenant) => tenant.id === field.value)?.nom
+                                : "Rechercher un locataire..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Rechercher nom ou prénom..." />
+                            <CommandList>
+                              <CommandEmpty>Aucun locataire trouvé.</CommandEmpty>
+                              <CommandGroup>
+                                {tenants.filter(t => !t.liste_noire).map((tenant) => (
+                                  <CommandItem
+                                    value={tenant.prenom + ' ' + tenant.nom} // Utiliser le nom complet pour la recherche
+                                    key={tenant.id}
+                                    onSelect={() => {
+                                      form.setValue("tenant_id", tenant.id, { shouldValidate: true })
+                                    }}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        tenant.id === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {tenant.prenom} {tenant.nom}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <Button type="button" variant="outline" size="icon" onClick={() => setIsCreatingTenant(true)} title="Créer un nouveau locataire"><UserPlus className="h-4 w-4" /></Button>
                     </div>
-                    <FormField control={form.control} name="initial_payment" render={({ field }) => (<FormItem><FormLabel>Acompte / Paiement initial (USD)</FormLabel><FormControl><Input type="number" min={0} step="0.01" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} placeholder="0.00" disabled={isPaidInFull} /></FormControl><FormMessage /></FormItem>)}/>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <Label className="text-sm font-bold uppercase tracking-wider text-slate-500">Dates du séjour</Label>
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_80px_1fr] gap-4 items-end">
+                  <FormField control={form.control} name="date_debut_prevue" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Arrivée</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          className="h-11 border-slate-200 focus:border-indigo-500"
+                          min={format(new Date(), 'yyyy-MM-dd')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+
+                  <FormItem>
+                    <FormLabel>Nuits</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={nights}
+                        className="h-11 text-center font-bold border-slate-200"
+                        onChange={(e) => setNights(Math.max(1, parseInt(e.target.value) || 1))}
+                      />
+                    </FormControl>
+                  </FormItem>
+
+                  <FormField control={form.control} name="date_fin_prevue" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Départ</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          className="h-11 border-slate-200 focus:border-indigo-500"
+                          min={dateDebut ? format(addDays(new Date(dateDebut), 1), 'yyyy-MM-dd') : format(addDays(new Date(), 1), 'yyyy-MM-dd')}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </div>
+              </div>
+              {conflictError && <div className="flex items-center gap-2 text-sm text-destructive font-medium"><AlertCircle className="h-4 w-4" /><p>{conflictError}</p></div>}
+
+              <div className="border-t pt-4 space-y-4">
+
+                <div className="space-y-4">
+                  {/* Prix Total - Affichage simple (pas d'input) */}
+                  <div className="border-t pt-6 space-y-6">
+                    <div className="space-y-4">
+                      {/* Prix Total - Affichage Premium */}
+                      <div className="bg-gradient-to-br from-slate-900 to-indigo-950 p-6 rounded-2xl shadow-xl border border-white/10 text-white relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-white/10 transition-colors" />
+                        <div className="relative z-10 flex justify-between items-center">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-widest text-indigo-300 mb-1">Total du Séjour</p>
+                            <p className="text-4xl font-black tracking-tight italic">
+                              {prixTotal.toFixed(2)} <span className="text-xl text-indigo-300 not-italic">$</span>
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Équivalent CDF</p>
+                            <p className="text-2xl font-bold text-indigo-100">
+                              {(prixTotal * (exchangeRateData?.usd_to_cdf || 2800)).toLocaleString()} <span className="text-sm">FC</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Réduction & Paiement - Layout vertical compact */}
+                      <div className="space-y-6">
+                        {/* Réduction */}
+                        <div className="space-y-2">
+                          <Label htmlFor="discount" className="text-sm font-bold text-slate-600">Réduction par nuit ($)</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                            <Input
+                              id="discount"
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={discountAmount}
+                              className="h-11 pl-8 border-slate-200 focus:ring-indigo-500 bg-white"
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (val >= 0 || e.target.value === '') {
+                                  setValue('discount_amount', val, { shouldValidate: true });
+                                }
+                              }}
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Paiement */}
+                        <FormField control={form.control} name="initial_payment" render={({ field }) => (
+                          <FormItem className="space-y-2">
+                            <FormLabel className="text-sm font-bold text-slate-600">Paiement / Acompte ($)</FormLabel>
+                            <FormControl>
+                              <CurrencyInput
+                                value={field.value}
+                                onChange={(val) => field.onChange(val)}
+                                onChangeUsd={(usd) => setAmountUSD(usd)}
+                                onChangeCdf={(cdf) => setAmountCDF(cdf)}
+                                mode="independent"
+                                labelUsd="USD Recu *"
+                                labelCdf="CDF Recu"
+                                showStatusIndicator={true}
+                                balanceDue={prixTotal}
+                                className="bg-white border-slate-200"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
 
-              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea placeholder="Informations complémentaires..." rows={2} {...field} /></FormControl><FormMessage /></FormItem>)}/>
-              <div className="flex justify-end gap-3 pt-4"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button><Button type="submit" disabled={createBooking.isPending || !!conflictError || !selectedRoom}>{createBooking.isPending ? 'Traitement...' : (isImmediate ? 'Confirmer le Check-in' : 'Créer la réservation')}</Button></div>
+              <div className="flex justify-end gap-3 pt-6 border-t">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="px-6 h-12 font-bold text-slate-500 hover:text-slate-900"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!isFormValid || createBooking.isPending || !!conflictError}
+                  className={cn(
+                    "px-8 h-12 font-black uppercase tracking-widest shadow-lg transition-all",
+                    isImmediate ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"
+                  )}
+                >
+                  {createBooking.isPending ? 'Traitement...' : (isImmediate ? 'Confirmer le Check-in' : 'Valider la réservation')}
+                </Button>
+              </div>
             </form>
           </Form>
         </DialogContent>

@@ -6,7 +6,10 @@ export interface Payment {
   id: string;
   booking_id: string;
   invoice_id: string | null;
-  montant: number;
+  montant: number; // Total équivalent USD
+  montant_usd: number; // 🔥 Physique USD
+  montant_cdf: number; // 🔥 Physique CDF
+  taux_change: number; // 🔥 Taux utilisé au moment du paiement
   date_paiement: string;
   methode: 'CB' | 'CASH' | 'TRANSFERT' | 'CHEQUE';
   notes: string | null;
@@ -22,11 +25,28 @@ export function usePaymentsByBooking(bookingId: string) {
         .select('*')
         .eq('booking_id', bookingId)
         .order('date_paiement', { ascending: false });
-      
+
       if (error) throw error;
       return data as Payment[];
     },
     enabled: !!bookingId,
+  });
+}
+
+export function usePaymentsByInvoice(invoiceId: string) {
+  return useQuery({
+    queryKey: ['payments', 'invoice', invoiceId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('invoice_id', invoiceId)
+        .order('date_paiement', { ascending: false });
+
+      if (error) throw error;
+      return data as Payment[];
+    },
+    enabled: !!invoiceId,
   });
 }
 
@@ -53,7 +73,7 @@ export function useAllPayments() {
       const { data, error } = await supabase
         .from('payments')
         .select('*');
-      
+
       if (error) throw error;
       return data as Payment[];
     },
@@ -71,7 +91,7 @@ export function useCreatePayment() {
         .insert(payment)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -100,7 +120,7 @@ export function useUpdatePayment() {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return { data, booking_id };
     },
@@ -128,7 +148,7 @@ export function useDeletePayment() {
         .from('payments')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
       return { booking_id };
     },
