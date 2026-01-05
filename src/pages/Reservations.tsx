@@ -18,8 +18,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { InvoiceListForBooking } from '@/components/invoices/InvoiceListForBooking';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle } from 'lucide-react';
-import { useBookings, Booking, useDeleteBooking, BookingFilters } from '@/hooks/useBookings';
 import { usePaymentsForBookings } from '@/hooks/usePayments';
+import { useBookings, Booking, useDeleteBooking, BookingFilters } from '@/hooks/useBookings';
+import { useInvoices } from '@/hooks/useInvoices';
 import { useExchangeRate } from '@/hooks/useExchangeRate'; // Import pour conversion
 import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, isAfter } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -63,6 +64,8 @@ const Reservations = () => {
   const rate = exchangeRateData?.usd_to_cdf || 2800;
   const bookingIds = useMemo(() => bookingsData.map(b => b.id), [bookingsData]);
   const { data: paymentsForBookings = [], isLoading: paymentsLoading } = usePaymentsForBookings(bookingIds);
+  const { data: invoicesResult, isLoading: invoicesLoading } = useInvoices({ pagination: { pageIndex: 0, pageSize: 1000 } }); // Fetch all invoices to match totals
+  const invoices = invoicesResult?.data || [];
 
   const { data: rooms = [] } = useRooms();
   const deleteBooking = useDeleteBooking();
@@ -78,6 +81,14 @@ const Reservations = () => {
     const paymentsByBooking = new Map<string, number>();
     paymentsForBookings.forEach(p => {
       paymentsByBooking.set(p.booking_id, (paymentsByBooking.get(p.booking_id) || 0) + p.montant);
+    });
+
+    const invoiceByBooking = new Map<string, number>();
+    invoices.forEach(inv => {
+      if (inv.booking_id && inv.status !== 'CANCELLED') {
+        // Sum up totals if multiple active invoices (rare but safer)
+        invoiceByBooking.set(inv.booking_id, (invoiceByBooking.get(inv.booking_id) || 0) + inv.total);
+      }
     });
 
     const today = startOfToday();
@@ -101,7 +112,9 @@ const Reservations = () => {
         lateStayDebt = lateNights * dailyRate;
       }
 
-      const currentTotalWithLate = b.prix_total + lateStayDebt;
+      // Logic: If invoice exists, use Invoice Total as the truth. Else use booking price + potential debt.
+      const invoiceTotal = invoiceByBooking.get(b.id);
+      const currentTotalWithLate = invoiceTotal ? invoiceTotal : (b.prix_total + lateStayDebt);
 
       let paymentStatus: PaymentStatus = 'UNPAID';
       if (totalPaid > 0) {
@@ -172,7 +185,7 @@ const Reservations = () => {
     };
   };
 
-  const isLoading = bookingsLoading || paymentsLoading;
+  const isLoading = bookingsLoading || paymentsLoading || invoicesLoading;
 
   return (
     <MainLayout title="GESTION DES RÉSERVATIONS">
@@ -246,6 +259,7 @@ const Reservations = () => {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-primary hover:bg-primary">
+                    <TableHead className="text-primary-foreground font-semibold">CRÉÉE LE</TableHead>
                     <TableHead className="text-primary-foreground font-semibold">CLIENT</TableHead>
                     <TableHead className="text-primary-foreground font-semibold">APPARTEMENT</TableHead>
                     <TableHead className="text-primary-foreground font-semibold">STATUT</TableHead>
@@ -265,6 +279,12 @@ const Reservations = () => {
                     const actions = getAvailableActions(booking);
                     return (
                       <TableRow key={booking.id}>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm">{format(new Date(booking.created_at), 'dd/MM/yyyy')}</span>
+                            <span className="text-xs text-muted-foreground">{format(new Date(booking.created_at), 'HH:mm')}</span>
+                          </div>
+                        </TableCell>
                         <TableCell><p className="font-semibold">{booking.tenants?.prenom} {booking.tenants?.nom?.toUpperCase()}</p><p className="text-xs text-muted-foreground">{booking.tenants?.telephone}</p></TableCell>
                         <TableCell><p className="font-medium">App. {booking.rooms?.numero}</p><p className="text-sm text-muted-foreground">{booking.rooms?.type}</p></TableCell>
                         <TableCell><span className={statusConfig.className}>{statusConfig.label}</span></TableCell>

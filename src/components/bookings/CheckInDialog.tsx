@@ -10,8 +10,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useUpdateBooking, Booking } from '@/hooks/useBookings';
+import { useCheckIn, Booking } from '@/hooks/useBookings';
 import { useUpdateRoomStatus } from '@/hooks/useRooms';
+import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { LogIn, User, BedDouble, Calendar, DollarSign } from 'lucide-react';
@@ -25,27 +26,41 @@ interface CheckInDialogProps {
 }
 
 export function CheckInDialog({ booking, open, onOpenChange }: CheckInDialogProps) {
-  const updateBooking = useUpdateBooking();
+  const checkIn = useCheckIn();
   const updateRoomStatus = useUpdateRoomStatus();
+  const { toast } = useToast();
 
   const handleCheckIn = async () => {
-    // 1. Update booking with check-in time. Status becomes CONFIRMED (which means IN_PROGRESS for us now)
-    await updateBooking.mutateAsync({
-      id: booking.id,
-      check_in_reel: new Date().toISOString(),
-      status: 'CONFIRMED',
-    });
+    try {
+      // 1. Update booking with check-in time.
+      await checkIn.mutateAsync({
+        id: booking.id,
+        check_in_reel: new Date().toISOString(),
+      });
 
-    // 2. Update room status to OCCUPIED
-    await updateRoomStatus.mutateAsync({
-      id: booking.room_id,
-      status: 'Occupé',
-    });
+      // 2. Update room status to OCCUPIED
+      await updateRoomStatus.mutateAsync({
+        id: booking.room_id,
+        status: 'Occupé',
+      });
 
-    onOpenChange(false);
+      onOpenChange(false);
+
+      toast({
+        title: "Check-in confirmé",
+        description: "Le locataire est bien arrivé.",
+      });
+    } catch (error) {
+      console.error("Erreur check-in:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur lors du check-in",
+        description: "Impossible de valider l'entrée. Veuillez réessayer.",
+      });
+    }
   };
 
-  const isLoading = updateBooking.isPending || updateRoomStatus.isPending;
+  const isLoading = checkIn.isPending || updateRoomStatus.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -214,22 +214,64 @@ export function useDeleteBooking() {
 
 
 
+
+export function useCheckIn() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, check_in_reel }: { id: string; check_in_reel: string }) => {
+      const { data, error } = await supabase
+        .from('bookings')
+        .update({
+          check_in_reel,
+          status: 'CONFIRMED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    },
+    onError: (error) => {
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+    },
+  });
+}
+
 export function useConfirmDeparture() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ bookingId, roomId }: { bookingId: string, roomId: string }) => {
+    mutationFn: async ({ bookingId, roomId, debtAmount, overdueDays }: { bookingId: string, roomId: string, debtAmount?: number, overdueDays?: number }) => {
       if (!user) throw new Error('Non authentifié');
+
+      console.log('Confirming departure with:', { bookingId, roomId, userId: user.id, debtAmount, overdueDays });
+
+      if (!bookingId || !roomId || !user.id) {
+        throw new Error('Les identifiants (Booking, Room, User) sont incomplets.');
+      }
 
       const { data, error } = await supabase.rpc('confirm_departure_and_cleanup', {
         p_booking_id: bookingId,
         p_room_id: roomId,
         p_agent_id: user.id,
+        p_debt_amount: debtAmount || 0,
+        p_overdue_days: overdueDays || 0,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC Error:', error);
+        throw error;
+      };
       return data;
     },
     onSuccess: () => {

@@ -8,10 +8,11 @@ import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { Download, Landmark, ReceiptText } from 'lucide-react';
+import { Download, Landmark, ReceiptText, AlertTriangle } from 'lucide-react';
 import { exportFinancialReportToCsv, exportFinancialReportToPdf } from '@/services/financialReportExportService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CashReport } from '@/components/reports/CashReport';
+import { DebtsReport } from '@/components/reports/DebtsReport';
 
 const FinancialReport = () => {
   const { role } = useAuth();
@@ -45,7 +46,7 @@ const FinancialReport = () => {
 
 
         <Tabs defaultValue="cash" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+          <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
             <TabsTrigger value="invoices" className="flex items-center gap-2">
               <ReceiptText className="h-4 w-4" />
               Facturation
@@ -53,6 +54,10 @@ const FinancialReport = () => {
             <TabsTrigger value="cash" className="flex items-center gap-2">
               <Landmark className="h-4 w-4" />
               Caisse Physique
+            </TabsTrigger>
+            <TabsTrigger value="debts" className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              Dettes (Dépassement)
             </TabsTrigger>
           </TabsList>
 
@@ -110,6 +115,10 @@ const FinancialReport = () => {
 
           <TabsContent value="cash" className="pt-6">
             <CashReport filters={filters} />
+          </TabsContent>
+
+          <TabsContent value="debts" className="pt-6">
+            <DebtsReport />
           </TabsContent>
         </Tabs>
       </div>

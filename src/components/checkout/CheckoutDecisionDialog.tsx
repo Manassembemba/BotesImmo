@@ -109,6 +109,8 @@ export function CheckoutDecisionDialog({ open, onOpenChange, booking, room }: Ch
       await confirmDeparture.mutateAsync({
         bookingId: booking.id,
         roomId: room.id,
+        debtAmount: overdueInfo.isOverdue ? overdueInfo.debtAmount : 0,
+        overdueDays: overdueInfo.isOverdue ? overdueInfo.days : 0,
       });
       onOpenChange(false);
     } catch (error) {
