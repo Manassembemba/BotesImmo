@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { SidebarProvider } from '@/context/SidebarContext';
+import { LocationFilterProvider } from '@/context/LocationFilterContext';
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -35,29 +36,31 @@ const App = () => (
         <Toaster />
         <Sonner />
         <SidebarProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-              <Route path="/rooms" element={<ProtectedRoute><Rooms /></ProtectedRoute>} />
-              <Route path="/planning" element={<ProtectedRoute><Planning /></ProtectedRoute>} />
-              <Route path="/reservations" element={<ProtectedRoute><Reservations /></ProtectedRoute>} />
-              <Route path="/tenants" element={<ProtectedRoute><Tenants /></ProtectedRoute>} />
-              <Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
-              <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
-              <Route path="/reports" element={<ProtectedRoute allowedRoles={['ADMIN']}><Reports /></ProtectedRoute>} />
-              <Route path="/reports/revenue" element={<ProtectedRoute allowedRoles={['ADMIN']}><RevenueReport /></ProtectedRoute>} />
-              <Route path="/reports/occupancy" element={<ProtectedRoute allowedRoles={['ADMIN']}><OccupancyReport /></ProtectedRoute>} />
-              <Route path="/reports/financial-report" element={<ProtectedRoute allowedRoles={['ADMIN']}><FinancialReport /></ProtectedRoute>} />
-              {/* New accounting routes */}
-              <Route path="/reports/general-ledger" element={<ProtectedRoute allowedRoles={['ADMIN']}><GeneralLedger /></ProtectedRoute>} />
-              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-              <Route path="/availability" element={<ProtectedRoute><Availability /></ProtectedRoute>} />
-              <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-              <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <LocationFilterProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+                <Route path="/rooms" element={<ProtectedRoute><Rooms /></ProtectedRoute>} />
+                <Route path="/planning" element={<ProtectedRoute><Planning /></ProtectedRoute>} />
+                <Route path="/reservations" element={<ProtectedRoute><Reservations /></ProtectedRoute>} />
+                <Route path="/tenants" element={<ProtectedRoute><Tenants /></ProtectedRoute>} />
+                <Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
+                <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+                <Route path="/reports" element={<ProtectedRoute allowedRoles={['ADMIN']}><Reports /></ProtectedRoute>} />
+                <Route path="/reports/revenue" element={<ProtectedRoute allowedRoles={['ADMIN']}><RevenueReport /></ProtectedRoute>} />
+                <Route path="/reports/occupancy" element={<ProtectedRoute allowedRoles={['ADMIN']}><OccupancyReport /></ProtectedRoute>} />
+                <Route path="/reports/financial-report" element={<ProtectedRoute allowedRoles={['ADMIN']}><FinancialReport /></ProtectedRoute>} />
+                {/* New accounting routes */}
+                <Route path="/reports/general-ledger" element={<ProtectedRoute allowedRoles={['ADMIN']}><GeneralLedger /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/availability" element={<ProtectedRoute><Availability /></ProtectedRoute>} />
+                <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </LocationFilterProvider>
         </SidebarProvider>
       </TooltipProvider>
     </AuthProvider>

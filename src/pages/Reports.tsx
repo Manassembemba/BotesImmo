@@ -17,11 +17,13 @@ import { formatCurrency } from '@/components/CurrencyDisplay';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { RevenueChart } from '@/components/reports/RevenueChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/useAuth';
 
 
 type Period = 'today' | 'week' | 'month' | 'custom';
 
 const Reports = () => {
+  const { role, profile } = useAuth(); // Get role and profile for location info
   const [period, setPeriod] = useState<Period>('today');
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: startOfToday(),
@@ -103,6 +105,16 @@ const Reports = () => {
 
     return { totalRevenue, numberOfPayments, averagePayment, totalUsdDirect, totalCdfDirect, occupancyRate, totalNightsOccupied, chartData, trends: { revenue: revenueTrend } };
   }, [payments, bookings, rooms, dateRange]);
+
+  const subtitle = useMemo(() => {
+    if (role === 'ADMIN') {
+      return "Analyses et exports de données globales.";
+    }
+    if (profile?.locations?.nom) {
+      return `Analyses et exports pour la localité : ${profile.locations.nom}`;
+    }
+    return "Analyses et exports de données.";
+  }, [role, profile]);
 
   // --- HANDLERS ---
   const handlePeriodChange = (selectedPeriod: Period) => {
@@ -186,7 +198,7 @@ const Reports = () => {
   const isLoading = paymentsLoading || bookingsLoading || invoicesLoading || roomsLoading;
 
   return (
-    <MainLayout title="Rapports" subtitle="Analyses et exports de données">
+    <MainLayout title="Rapports" subtitle={subtitle}>
       {/* ... (UI des filtres) ... */}
 
       {/* Cartes de Statistiques */}

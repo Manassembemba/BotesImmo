@@ -22,14 +22,25 @@ export interface Room {
   } | null;
 }
 
+import { useLocationFilter } from '@/context/LocationFilterContext';
+
 export function useRooms() {
+  const { selectedLocationId, userLocationId } = useLocationFilter();
+
   return useQuery({
-    queryKey: ['rooms'],
+    queryKey: ['rooms', selectedLocationId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('rooms')
         .select('*, locations(nom)')
         .order('numero');
+
+      // Apply location filter based on user role
+      if (selectedLocationId) {
+        query = query.eq('location_id', selectedLocationId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data as Room[];

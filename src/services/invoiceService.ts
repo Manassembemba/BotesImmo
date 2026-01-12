@@ -56,7 +56,7 @@ export const calculateInvoiceTotals = (
     tax_amount = (subtotal * tax_rate) / 100;
   }
 
-  let total = subtotal + tax_amount;
+  const total = subtotal + tax_amount;
 
   // Calculer les réductions
   let appliedDiscount = 0;

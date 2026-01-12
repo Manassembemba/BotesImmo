@@ -143,12 +143,17 @@ export function LocationManagement({ onLocationSelected }: LocationManagementPro
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <MapPin className="h-5 w-5" />
-          Localités
-        </h2>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <MapPin className="h-6 w-6" />
+            Gestion des Localités
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Configurez et gérez les différents sites de votre entreprise
+          </p>
+        </div>
         <Button onClick={handleAddNew} className="gap-2">
           <Plus className="h-4 w-4" />
           Ajouter une localité
@@ -156,63 +161,84 @@ export function LocationManagement({ onLocationSelected }: LocationManagementPro
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-32">
-          <p>Chargement des localités...</p>
+        <div className="flex items-center justify-center h-40">
+          <div className="flex flex-col items-center gap-2">
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
+            <p>Chargement des localités...</p>
+          </div>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="bg-primary hover:bg-primary">
-                <TableHead className="text-primary-foreground font-semibold">Nom</TableHead>
-                <TableHead className="text-primary-foreground font-semibold">Adresse</TableHead>
-                <TableHead className="text-primary-foreground font-semibold">Ville</TableHead>
-                <TableHead className="text-primary-foreground font-semibold">Pays</TableHead>
-                <TableHead className="text-primary-foreground font-semibold text-center">Actions</TableHead>
+              <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold text-foreground">Nom</TableHead>
+                <TableHead className="font-semibold text-foreground">Adresse</TableHead>
+                <TableHead className="font-semibold text-foreground">Ville</TableHead>
+                <TableHead className="font-semibold text-foreground">Pays</TableHead>
+                <TableHead className="font-semibold text-foreground text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {locations.map(location => (
-                <TableRow key={location.id} className="hover:bg-secondary/50">
-                  <TableCell className="font-medium">{location.nom}</TableCell>
-                  <TableCell>
-                    <div className="text-sm">
-                      <p>{location.adresse_ligne1}</p>
-                      {location.adresse_ligne2 && <p>{location.adresse_ligne2}</p>}
-                    </div>
-                  </TableCell>
-                  <TableCell>{location.ville}</TableCell>
-                  <TableCell>{location.pays}</TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex justify-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        onClick={() => handleEdit(location)}
-                        className="h-8 w-8"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="icon" 
-                        className="h-8 w-8"
-                        onClick={() => handleDelete(location.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+              {locations.length > 0 ? (
+                locations.map(location => (
+                  <TableRow key={location.id} className="hover:bg-accent/50 transition-colors">
+                    <TableCell className="font-medium">{location.nom}</TableCell>
+                    <TableCell>
+                      <div className="text-sm space-y-1">
+                        <p className="truncate max-w-xs">{location.adresse_ligne1}</p>
+                        {location.adresse_ligne2 && (
+                          <p className="truncate max-w-xs text-muted-foreground">{location.adresse_ligne2}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{location.ville}</TableCell>
+                    <TableCell>{location.pays}</TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex justify-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(location)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleDelete(location.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    Aucune localité enregistrée. Commencez par en ajouter une.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
         </div>
       )}
 
       {locations.length === 0 && !isLoading && (
-        <div className="text-center py-12 text-muted-foreground">
-          Aucune localité enregistrée. Commencez par en ajouter une.
+        <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg bg-muted/10">
+          <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-1">Aucune localité enregistrée</h3>
+          <p className="text-sm text-muted-foreground mb-4 max-w-md">
+            Commencez par ajouter votre première localité pour gérer vos différentes propriétés.
+          </p>
+          <Button onClick={handleAddNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Ajouter une localité
+          </Button>
         </div>
       )}
 

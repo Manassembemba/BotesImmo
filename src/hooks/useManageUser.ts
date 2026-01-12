@@ -3,12 +3,31 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+export type UserCreationPayload = {
+  email: string;
+  password?: string;
+  role: string;
+  nom: string;
+  prenom: string;
+  username: string;
+  location_id?: string | null;
+};
+
+export type UserUpdatePayload = {
+  userId: string;
+  role: string;
+  nom: string;
+  prenom: string;
+  username: string;
+  location_id?: string | null;
+};
+
 export function useManageUser() {
     const { session } = useAuth();
     const queryClient = useQueryClient();
 
     const createUser = useMutation({
-        mutationFn: async (payload: any) => {
+        mutationFn: async (payload: UserCreationPayload) => {
             const { data, error } = await supabase.functions.invoke('manage-users', {
                 body: { action: 'CREATE', payload },
                 headers: { Authorization: `Bearer ${session?.access_token}` },
@@ -25,10 +44,10 @@ export function useManageUser() {
         },
     });
 
-    const updateRole = useMutation({
-        mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+    const updateUser = useMutation({
+        mutationFn: async (payload: UserUpdatePayload) => {
             const { data, error } = await supabase.functions.invoke('manage-users', {
-                body: { action: 'UPDATE_ROLE', payload: { userId, role } },
+                body: { action: 'UPDATE', payload },
                 headers: { Authorization: `Bearer ${session?.access_token}` },
             });
             if (error) throw new Error(data?.error || error.message);
@@ -36,7 +55,7 @@ export function useManageUser() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['users'] });
-            toast.success('Rôle mis à jour');
+            toast.success('Utilisateur mis à jour');
         },
         onError: (error: Error) => {
             toast.error(`Erreur: ${error.message}`);
@@ -61,5 +80,5 @@ export function useManageUser() {
         },
     });
 
-    return { createUser, updateRole, deleteUser };
+    return { createUser, updateUser, deleteUser };
 }

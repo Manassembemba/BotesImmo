@@ -28,6 +28,10 @@ import { useSidebar } from '@/context/SidebarContext';
 import { useAppNotifications } from '@/hooks/useAppNotifications';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useLocationFilter } from '@/context/LocationFilterContext';
+import { useLocations } from '@/hooks/useLocations';
+import { MapPin } from 'lucide-react';
 
 const getNavigation = (notificationCount: number, role: string | null) => {
   const items = [
@@ -46,6 +50,40 @@ const getNavigation = (notificationCount: number, role: string | null) => {
   return items.filter(item => !item.roles || (role && item.roles.includes(role)));
 };
 
+const LocationSelector = () => {
+  const { data: locations } = useLocations();
+  const { selectedLocationId, setSelectedLocationId, userLocationId } = useLocationFilter();
+
+  // For non-ADMIN users, show their assigned location as disabled
+  if (locations && userLocationId && !locations.some(loc => loc.id === userLocationId)) {
+    // If user's location is not in the list, show a message
+    return (
+      <div className="text-xs text-muted-foreground italic px-3 py-2">
+        Localité non disponible
+      </div>
+    );
+  }
+
+  return (
+    <Select
+      value={selectedLocationId || "all"}
+      onValueChange={(value) => setSelectedLocationId(value === "all" ? null : value)}
+    >
+      <SelectTrigger className="w-full h-8 text-xs">
+        <SelectValue placeholder="Toutes les localités" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">Toutes les localités</SelectItem>
+        {locations?.map((location) => (
+          <SelectItem key={location.id} value={location.id}>
+            {location.nom}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+};
+
 export function Sidebar() {
   const { user, profile, role, signOut } = useAuth();
   const navigate = useNavigate();
@@ -54,6 +92,7 @@ export function Sidebar() {
   const notificationCount = notifications.length;
   const hasError = notifications.some(n => n.severity === 'error');
   const isMobile = useIsMobile();
+  const { userLocationId } = useLocationFilter();
 
   const navigation = useMemo(() => getNavigation(notificationCount, role), [notificationCount, role]);
 
@@ -125,7 +164,17 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-auto p-2">
+      <div className="mt-auto p-2 space-y-2">
+        {(role === 'ADMIN' || (role && role !== 'ADMIN' && userLocationId)) && !isCollapsed && (
+          <div className="px-3 mb-2">
+            <div className="flex items-center gap-2 mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <MapPin className="h-3 w-3" />
+              <span>{role === 'ADMIN' ? 'Filtrer par localité' : 'Ma localité'}</span>
+            </div>
+            <LocationSelector />
+          </div>
+        )}
+
         <Button
           onClick={handleSignOut}
           variant="ghost"

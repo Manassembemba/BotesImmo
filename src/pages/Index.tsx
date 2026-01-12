@@ -36,9 +36,11 @@ import { RecentActivity } from '@/components/dashboard/RecentActivity';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { useAppNotifications } from '@/hooks/useAppNotifications';
+import { useLocationFilter } from '@/context/LocationFilterContext';
+import { useLocations } from '@/hooks/useLocations';
 
 const Dashboard = () => {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
   const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
   const bookings = bookingsResult?.data || [];
@@ -47,6 +49,8 @@ const Dashboard = () => {
   const { notifications } = useAppNotifications();
   const rate = exchangeRateData?.usd_to_cdf || 2800;
   const isMobile = useIsMobile();
+  const { selectedLocationId } = useLocationFilter();
+  const { data: locations } = useLocations();
 
   const overdueCount = notifications.filter(n => n.type === 'checkout_overdue').length;
 
@@ -124,11 +128,29 @@ const Dashboard = () => {
       .slice(0, 5);
   }, [bookings, payments, rate]);
 
+  const dashboardSubtitle = useMemo(() => {
+    if (role === 'ADMIN') {
+      if (selectedLocationId && locations) {
+        const locationName = locations.find(l => l.id === selectedLocationId)?.nom;
+        return `Données pour la localité : ${locationName || 'Inconnue'}`;
+      }
+      return "Vue d'ensemble de toutes les localités. Sélectionnez un site pour filtrer.";
+    }
+    if (profile?.locations?.nom) {
+      return `Données pour la localité : ${profile.locations.nom}`;
+    }
+    if (profile?.location_id && locations) {
+      const userLocation = locations.find(l => l.id === profile.location_id)?.nom;
+      return `Données pour la localité : ${userLocation || 'Inconnue'}`;
+    }
+    return "Gérez efficacement votre établissement.";
+  }, [role, profile, selectedLocationId, locations]);
+
   if (roomsLoading || bookingsLoading || paymentsLoading) {
     return (
       <MainLayout
         title="DASHBOARD"
-        subtitle="Gérez efficacement votre établissement pour assurer une gestion fluide et professionnelle."
+        subtitle={dashboardSubtitle}
         headerImage
       >
         <div className="flex items-center justify-center h-64">
@@ -141,7 +163,7 @@ const Dashboard = () => {
   return (
     <MainLayout
       title="DASHBOARD"
-      subtitle="Gérez efficacement votre établissement pour assurer une gestion fluide et professionnelle. Un suivi rigoureux permet de maximiser la performance de votre équipe."
+      subtitle={dashboardSubtitle}
       headerImage
     >
       {/* KPI Cards */}

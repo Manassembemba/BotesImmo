@@ -49,11 +49,14 @@ export interface BookingFilters {
   endDate?: string;
 }
 
+import { useLocationFilter } from '@/context/LocationFilterContext';
+
 export function useBookings(filters?: BookingFilters, pagination?: { pageIndex: number; pageSize: number; }) {
   const { pageIndex = 0, pageSize = 15 } = pagination || {};
+  const { selectedLocationId, userLocationId } = useLocationFilter();
 
   return useQuery({
-    queryKey: ['bookings', filters, pagination],
+    queryKey: ['bookings', filters, pagination, selectedLocationId],
     queryFn: async () => {
       const rangeFrom = pageIndex * pageSize;
       const formattedStatuses = filters?.status && filters.status.length > 0 && !filters.status.includes('all')
@@ -66,7 +69,8 @@ export function useBookings(filters?: BookingFilters, pagination?: { pageIndex: 
         p_start_date: filters?.startDate || null,
         p_end_date: filters?.endDate || null,
         p_offset: rangeFrom,
-        p_limit: pageSize
+        p_limit: pageSize,
+        p_location_id: selectedLocationId || null
       }, { count: 'exact' });
 
       if (error) {
@@ -74,11 +78,46 @@ export function useBookings(filters?: BookingFilters, pagination?: { pageIndex: 
         throw error;
       }
 
-      // Map financial_summary to the interface's expected booking_financial_summary (as an array for consistency)
-      const mappedData = data.map((b: any) => ({
-        ...b,
-        booking_financial_summary: b.financial_summary ? [b.financial_summary] : []
-      }));
+      // Map the flat RPC response to the nested Booking interface
+      const mappedData = data.map((b: any) => {
+        const {
+          room_number,
+          room_type,
+          tenant_nom,
+          tenant_prenom,
+          tenant_email,
+          tenant_telephone,
+          total_factures,
+          total_paiements,
+          reste_a_payer,
+          statut_paiement,
+          agent_email,
+          location_name,
+          ...restOfBooking
+        } = b;
+
+        return {
+          ...restOfBooking,
+          rooms: {
+            numero: room_number,
+            type: room_type,
+          },
+          tenants: {
+            nom: tenant_nom,
+            prenom: tenant_prenom,
+            email: tenant_email,
+            telephone: tenant_telephone,
+          },
+          booking_financial_summary: [
+            {
+              total_invoiced: total_factures,
+              total_paid: total_paiements,
+              balance_due: reste_a_payer,
+              payment_summary_status: statut_paiement,
+            },
+          ],
+        };
+      });
 
       return { data: mappedData as Booking[], count: count ?? 0 };
     },

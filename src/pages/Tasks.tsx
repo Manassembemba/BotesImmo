@@ -8,6 +8,7 @@ import { CheckCircle2, Clock, Loader2, Sparkles, Wrench, Package } from 'lucide-
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
+import { useMemo } from 'react'; // Added useMemo
 
 const taskTypeConfig = {
   NETTOYAGE: { label: 'Nettoyage', icon: Sparkles, color: 'bg-blue-100 text-blue-800' },
@@ -22,7 +23,7 @@ const statusConfig = {
 };
 
 export default function Tasks() {
-  const { role } = useAuth();
+  const { role, profile } = useAuth(); // Get profile for location info
   const { data: tasks = [], isLoading: tasksLoading } = useTasks();
   const { data: rooms = [] } = useRooms();
   const updateTaskStatus = useUpdateTaskStatus();
@@ -52,9 +53,19 @@ export default function Tasks() {
     }
   };
 
+  const subtitle = useMemo(() => {
+    if (role === 'ADMIN') {
+      return "Gestion des tâches opérationnelles pour toutes les localités.";
+    }
+    if (profile?.locations?.nom) {
+      return `Gestion des tâches pour la localité : ${profile.locations.nom}`;
+    }
+    return "Gestion des tâches opérationnelles.";
+  }, [role, profile]);
+
   if (tasksLoading) {
     return (
-      <MainLayout title="Tâches" subtitle="Gestion des tâches opérationnelles">
+      <MainLayout title="Tâches" subtitle={subtitle}>
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -63,7 +74,7 @@ export default function Tasks() {
   }
 
   return (
-    <MainLayout title="Tâches" subtitle="Gestion des tâches opérationnelles">
+    <MainLayout title="Tâches" subtitle={subtitle}>
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Pending Tasks */}
         <Card>

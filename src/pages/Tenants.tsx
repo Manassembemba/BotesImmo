@@ -2,28 +2,30 @@ import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Input } from '@/components/ui/input';
 import { CreateTenantDialog } from '@/components/tenants/CreateTenantDialog';
-import { Search, Mail, Phone, Calendar, Filter, Plus } from 'lucide-react'; // Added Filter and Plus icons
+import { Search, Mail, Phone, Calendar, Filter, Plus } from 'lucide-react';
 import { useTenants } from '@/hooks/useTenants';
-import { useBookings } from '@/hooks/useBookings';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
-  Select, // Added Select
-  SelectContent, // Added SelectContent
-  SelectItem, // Added SelectItem
-  SelectTrigger, // Added SelectTrigger
-  SelectValue, // Added SelectValue
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocations } from '@/hooks/useLocations';
+import { useLocationFilter } from '@/context/LocationFilterContext';
 
 const Tenants = () => {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
+  const { selectedLocationId } = useLocationFilter();
+  const { data: locations } = useLocations();
   const { data: tenants = [], isLoading } = useTenants();
-        const { data: bookingsResult } = useBookings();
-  const bookings = bookingsResult?.data || [];
-  const [search, setSearch] = useState(''); // Re-added search state
-  const [blacklistFilter, setBlacklistFilter] = useState('all'); // New state for blacklist filter
+  
+  const [search, setSearch] = useState('');
+  const [blacklistFilter, setBlacklistFilter] = useState('all');
 
   const filteredTenants = useMemo(() => {
     return tenants.filter(tenant => {
@@ -31,7 +33,6 @@ const Tenants = () => {
       const matchesSearch = (
         tenant.nom.toLowerCase().includes(searchLower) ||
         tenant.prenom.toLowerCase().includes(searchLower) ||
-        // tenant.email is optional and might have been removed from form, but exists in DB
         (tenant.email && tenant.email.toLowerCase().includes(searchLower)) ||
         (tenant.telephone && tenant.telephone.toLowerCase().includes(searchLower))
       );
@@ -43,7 +44,25 @@ const Tenants = () => {
 
       return matchesSearch && matchesBlacklist;
     });
-  }, [tenants, search, blacklistFilter]); // Added blacklistFilter to dependencies
+  }, [tenants, search, blacklistFilter]);
+
+  const subtitle = useMemo(() => {
+    const tenantCount = filteredTenants.length;
+    const countText = `${tenantCount} locataire${tenantCount > 1 ? 's' : ''} trouvé${tenantCount > 1 ? 's' : ''}`;
+
+    if (role === 'ADMIN') {
+      if (selectedLocationId && locations) {
+        const locationName = locations.find(l => l.id === selectedLocationId)?.nom;
+        return `${countText} pour : ${locationName || 'site inconnu'}`;
+      }
+      return `Vue globale - ${countText}`;
+    }
+    if (profile?.location_id && locations) {
+      const userLocation = locations.find(l => l.id === profile.location_id)?.nom;
+      return `${countText} pour : ${userLocation || 'Mon site'}`;
+    }
+    return countText;
+  }, [role, profile, filteredTenants.length, selectedLocationId, locations]);
 
   if (isLoading) {
     return (
@@ -56,20 +75,18 @@ const Tenants = () => {
   }
 
   return (
-    <MainLayout title="Locataires" subtitle={`${filteredTenants.length} locataire${filteredTenants.length > 1 ? 's' : ''} trouvé${filteredTenants.length > 1 ? 's' : ''}`}>
+    <MainLayout title="Locataires" subtitle={subtitle}>
       <div className="space-y-6">
-        {/* Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-4"> {/* Adjusted gap and layout */}
-          <div className="relative flex-1 max-w-xs"> {/* Adjusted width */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Rechercher un locataire..."
               className="pl-9"
-              value={search} // Bind value to state
-              onChange={(e) => setSearch(e.target.value)} // Add onChange handler
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          {/* New Select filter for blacklist status */}
           <Select value={blacklistFilter} onValueChange={setBlacklistFilter}>
             <SelectTrigger className="w-[180px]">
               <Filter className="h-4 w-4 mr-2" />
@@ -81,7 +98,6 @@ const Tenants = () => {
               <SelectItem value="false">Hors liste noire</SelectItem>
             </SelectContent>
           </Select>
-          {/* CreateTenantDialog moved and uses trigger prop */}
           {(role === 'ADMIN' || role === 'AGENT_RES') && (
             <CreateTenantDialog trigger={
               <Button className="gap-2">
@@ -92,8 +108,7 @@ const Tenants = () => {
           )}
         </div>
 
-        {/* Grid */}
-        {filteredTenants.length === 0 ? ( // Use filteredTenants
+        {filteredTenants.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <p className="text-lg font-medium text-foreground mb-2">
               {tenants.length === 0 && !search && blacklistFilter === 'all' ? 'Aucun locataire enregistré' : 'Aucun locataire trouvé avec ces filtres'}
@@ -104,8 +119,8 @@ const Tenants = () => {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredTenants.map((tenant, index) => { // Use filteredTenants
-              const reservationCount = bookings.filter(r => r.tenant_id === tenant.id).length;
+            {filteredTenants.map((tenant, index) => {
+              const reservationCount = tenant.booking_count || 0;
 
               return (
                 <div

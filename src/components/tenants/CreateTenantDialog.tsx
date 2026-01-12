@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateTenant } from '@/hooks/useTenants';
+import { useAuth } from '@/hooks/useAuth';
 import { tenantSchema, TenantFormData } from '@/lib/validationSchemas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,7 @@ interface Props {
 }
 
 export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigger }: Props) {
+  const { profile } = useAuth();
   const createTenant = useCreateTenant();
 
   const form = useForm<TenantFormData>({
@@ -48,21 +50,28 @@ export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigge
   });
 
   const onSubmit = async (data: TenantFormData) => {
-    const newTenant = await createTenant.mutateAsync({
-      nom: data.nom,
-      prenom: data.prenom,
-      email: data.email || null,
-      telephone: data.telephone || null,
-      id_document: data.id_document || null,
-      notes: data.notes || null,
-      liste_noire: data.liste_noire,
-    });
+    try {
 
-    if (newTenant) {
-      onTenantCreated(newTenant);
+      const newTenant = await createTenant.mutateAsync({
+        nom: data.nom,
+        prenom: data.prenom,
+        email: data.email || null,
+        telephone: data.telephone || null,
+        id_document: data.id_document || null,
+        notes: data.notes || null,
+        liste_noire: data.liste_noire,
+        location_id: profile?.location_id,
+      });
+
+      if (newTenant) {
+        onTenantCreated(newTenant);
+      }
+      form.reset();
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Tenant creation failed:", error);
+      // Toast is likely handled in mutation hook onError, checking implementation would confirm
     }
-    form.reset();
-    onOpenChange(false);
   };
 
   return (

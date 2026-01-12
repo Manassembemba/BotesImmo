@@ -202,7 +202,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     return () => clearTimeout(handler);
   }, [roomId, dateDebut, dateFin]);
 
-  const bookableRooms = rooms.filter(r => isImmediate ? r.status === 'Libre' : r.status !== 'Maintenance');
+  const bookableRooms = rooms.filter(r => isImmediate ? (r.status === 'Libre' || r.status === 'Nettoyage') : r.status !== 'Maintenance');
 
   const handleTenantCreated = async (newTenant: Tenant) => {
     await refetchTenants();
@@ -216,26 +216,31 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     const finalInitialPaymentUSD = Number(amountUSD);
     const finalInitialPaymentCDF = Number(amountCDF);
 
-    await createBooking.mutateAsync({
-      booking: {
-        room_id: data.room_id,
-        tenant_id: data.tenant_id,
-        date_debut_prevue: data.date_debut_prevue,
-        date_fin_prevue: data.date_fin_prevue,
-        prix_total: data.prix_total,
-        notes: data.notes || '',
-        status: data.status || (isImmediate ? 'CONFIRMED' : 'PENDING'),
-        caution_encaissee: 0,
-        check_in_reel: isImmediate ? new Date().toISOString() : null,
-        check_out_reel: null,
-      },
-      isImmediate,
-      initialPaymentAmount: data.initial_payment,
-      discountAmount: data.discount_amount,
-      initialPaymentUSD: finalInitialPaymentUSD,
-      initialPaymentCDF: finalInitialPaymentCDF,
-    });
-    onOpenChange(false);
+    try {
+      await createBooking.mutateAsync({
+        booking: {
+          room_id: data.room_id,
+          tenant_id: data.tenant_id,
+          date_debut_prevue: data.date_debut_prevue,
+          date_fin_prevue: data.date_fin_prevue,
+          prix_total: data.prix_total,
+          notes: data.notes || '',
+          status: data.status || (isImmediate ? 'CONFIRMED' : 'PENDING'),
+          caution_encaissee: 0,
+          check_in_reel: isImmediate ? new Date().toISOString() : null,
+          check_out_reel: null,
+        },
+        isImmediate,
+        initialPaymentAmount: data.initial_payment,
+        discountAmount: data.discount_amount,
+        initialPaymentUSD: finalInitialPaymentUSD,
+        initialPaymentCDF: finalInitialPaymentCDF,
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Booking creation failed:", error);
+      // Toast is already handled in mutation hook onError
+    }
   };
 
   const trigger = props.trigger ?? <Button><Plus className="mr-2 h-4 w-4" /> Nouvelle Entrée</Button>;
@@ -262,11 +267,14 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4 max-h-[75vh] overflow-y-auto pr-6 scrollbar-thin">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-                <FormField control={form.control} name="room_id" render={({ field }) => (<FormItem><FormLabel>Chambre</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionner une chambre" /></SelectTrigger></FormControl><SelectContent>{bookableRooms.map(room => (<SelectItem key={room.id} value={room.id}>                          Ch. {room.numero} - {room.type} ({room.prix_base_nuit}$/nuit)
-                  {room.status !== 'Libre' && (
-                    <Badge variant="secondary" className="ml-2">{room.status}</Badge>
-                  )}
-                </SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="room_id" render={({ field }) => (<FormItem><FormLabel>Chambre</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionner une chambre" /></SelectTrigger></FormControl><SelectContent>{bookableRooms.map(room => (
+                  <SelectItem key={room.id} value={room.id} className="flex justify-between items-center w-full">
+                    <span>Ch. {room.numero} - {room.type} ({room.prix_base_nuit}$/nuit)</span>
+                    {room.status === 'Nettoyage' && (
+                      <Badge variant="destructive" className="ml-2 text-[10px] h-5">Nettoyage</Badge>
+                    )}
+                  </SelectItem>
+                ))}</SelectContent></Select><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="tenant_id" render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Locataire</FormLabel>

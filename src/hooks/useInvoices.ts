@@ -7,16 +7,21 @@ import { Invoice, InvoiceFormData } from '@/interfaces/Invoice';
 import { generateInvoiceFromBooking } from '@/services/invoiceService';
 import { invoiceDbService } from '@/services/invoiceDbService';
 
+import { useLocationFilter } from '@/context/LocationFilterContext';
+
 export function useInvoices(options?: {
-  filters?: { search?: string; status?: string; dateRange?: { start?: string; end?: string; }; bookingId?: string; };
+  filters?: { search?: string; status?: string; dateRange?: { start?: string; end?:string; }; bookingId?: string; };
   pagination?: { pageIndex: number; pageSize: number; };
 }) {
   const { filters, pagination } = options || {};
+  const { selectedLocationId, userLocationId } = useLocationFilter();
 
   return useQuery({
-    queryKey: ['invoices', filters, pagination],
-    queryFn: () => invoiceDbService.getAll({ filters, pagination }),
-    enabled: !!filters, // Ensure query only runs when filters are provided
+    queryKey: ['invoices', filters, pagination, selectedLocationId],
+    queryFn: () => invoiceDbService.getAll({
+      filters: { ...filters, locationId: selectedLocationId },
+      pagination
+    }),
   });
 }
 

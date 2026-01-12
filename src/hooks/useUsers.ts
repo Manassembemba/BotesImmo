@@ -9,6 +9,9 @@ export interface User {
   nom: string;
   prenom: string;
   created_at: string;
+  username: string;
+  location_id: string | null;
+  location_nom: string | null;
 }
 export function useUsers() {
   const { session } = useAuth(); // Get the current session to extract the JWT

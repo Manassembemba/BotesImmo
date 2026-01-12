@@ -6,6 +6,8 @@ interface Profile {
   nom: string;
   prenom: string;
   avatar_url?: string;
+  location_id?: string;
+  locations?: { nom: string } | null;
 }
 
 interface AuthContextType {
@@ -31,14 +33,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserDetails = async (userId: string) => {
     console.log('Fetching details for user...', userId);
 
-    // Create a promise that rejects after a timeout
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Timeout after 8s')), 8000)
     );
 
     try {
       const fetchPromise = (async () => {
-        // Fetch Role
         const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
@@ -46,10 +46,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
         if (roleError) console.error('Role fetch error:', roleError);
 
-        // Fetch Profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('nom, prenom, avatar_url')
+          .select('nom, prenom, avatar_url, location_id, locations(nom)')
           .eq('user_id', userId)
           .maybeSingle();
         if (profileError) console.error('Profile fetch error:', profileError);
@@ -57,7 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { role: roleData?.role || null, profile: profileData || null };
       })();
 
-      // Race the fetch against the timeout
       const result = await Promise.race([fetchPromise, timeoutPromise]) as { role: string | null, profile: Profile | null };
 
       console.log('Successfully fetched user details:', result);
@@ -65,7 +63,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(result.profile);
     } catch (err) {
       console.error('fetchUserDetails failed or timed out:', err);
-      // Fallback: don't block the user, but they might have limited access
       setRole(null);
       setProfile(null);
     }
@@ -91,16 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted) setLoading(false);
     };
 
-    // 1. Initial check
     supabase.auth.getSession().then(({ data: { session } }) => {
       initialize(session);
     });
 
-    // 2. Listen for changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth event:', event);
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
           initialize(session);
         } else if (event === 'SIGNED_OUT') {
           initialize(null);

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLocationFilter } from '@/context/LocationFilterContext';
 
 export interface Tenant {
   id: string;
@@ -11,20 +12,26 @@ export interface Tenant {
   id_document: string | null;
   notes: string | null;
   liste_noire: boolean;
+  location_id?: string;
   created_at: string;
   updated_at: string;
+  booking_count?: number; // From RPC
 }
 
 export function useTenants() {
+  const { selectedLocationId, userLocationId } = useLocationFilter();
+
   return useQuery({
-    queryKey: ['tenants'],
+    queryKey: ['tenants', selectedLocationId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('*')
-        .order('nom');
-      
-      if (error) throw error;
+      const { data, error } = await supabase.rpc('get_tenants_with_stats', {
+        p_location_id: selectedLocationId || null
+      });
+
+      if (error) {
+        console.error("Error fetching tenants with stats:", error);
+        throw error;
+      };
       return data as Tenant[];
     },
   });
@@ -41,7 +48,7 @@ export function useCreateTenant() {
         .insert(tenant)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -67,7 +74,7 @@ export function useUpdateTenant() {
         .eq('id', id)
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },

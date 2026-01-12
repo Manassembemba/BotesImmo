@@ -107,7 +107,7 @@ export function useDeleteLocation() {
         .from('locations')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -117,5 +117,25 @@ export function useDeleteLocation() {
     onError: (error) => {
       toast({ variant: 'destructive', title: 'Erreur', description: error.message });
     },
+  });
+}
+
+/**
+ * Gets a single location by ID.
+ */
+export function useLocation(id: string) {
+  return useQuery({
+    queryKey: ['location', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('locations')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data as Location;
+    },
+    enabled: !!id,
   });
 }

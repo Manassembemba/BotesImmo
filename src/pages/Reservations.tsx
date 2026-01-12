@@ -13,14 +13,14 @@ import { CheckoutDecisionDialog } from '@/components/checkout/CheckoutDecisionDi
 import { ManagePaymentDialog } from '@/components/payments/ManagePaymentDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useRooms } from '@/hooks/useRooms';
+import { useLocations } from '@/hooks/useLocations';
+import { useLocationFilter } from '@/context/LocationFilterContext';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvoiceListForBooking } from '@/components/invoices/InvoiceListForBooking';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle } from 'lucide-react';
-import { usePaymentsForBookings } from '@/hooks/usePayments';
 import { useBookings, Booking, useDeleteBooking, BookingFilters } from '@/hooks/useBookings';
-import { useInvoices } from '@/hooks/useInvoices';
 import { useExchangeRate } from '@/hooks/useExchangeRate'; // Import pour conversion
 import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, isAfter } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -43,7 +43,9 @@ const PAYMENT_STATUS_CONFIG: Record<PaymentStatus, { label: string; className: s
 };
 
 const Reservations = () => {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
+  const { selectedLocationId } = useLocationFilter();
+  const { data: locations } = useLocations();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -60,12 +62,9 @@ const Reservations = () => {
   const { data: bookingsResult, isLoading: bookingsLoading } = useBookings(bookingFilters, pagination);
   const bookingsData = bookingsResult?.data || [];
   const pageCount = bookingsResult?.count ? Math.ceil(bookingsResult.count / pagination.pageSize) : 0;
-  const { data: exchangeRateData } = useExchangeRate(); // Récupérer taux
+  
+  const { data: exchangeRateData } = useExchangeRate();
   const rate = exchangeRateData?.usd_to_cdf || 2800;
-  const bookingIds = useMemo(() => bookingsData.map(b => b.id), [bookingsData]);
-  const { data: paymentsForBookings = [], isLoading: paymentsLoading } = usePaymentsForBookings(bookingIds);
-  const { data: invoicesResult, isLoading: invoicesLoading } = useInvoices({ pagination: { pageIndex: 0, pageSize: 1000 } }); // Fetch all invoices to match totals
-  const invoices = invoicesResult?.data || [];
 
   const { data: rooms = [] } = useRooms();
   const deleteBooking = useDeleteBooking();
@@ -77,61 +76,69 @@ const Reservations = () => {
   const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const [managePaymentBooking, setManagePaymentBooking] = useState<Booking | null>(null);
 
-  const bookingsWithPayments = useMemo(() => {
-    const paymentsByBooking = new Map<string, number>();
-    paymentsForBookings.forEach(p => {
-      paymentsByBooking.set(p.booking_id, (paymentsByBooking.get(p.booking_id) || 0) + p.montant);
-    });
-
-    const invoiceByBooking = new Map<string, number>();
-    invoices.forEach(inv => {
-      if (inv.booking_id && inv.status !== 'CANCELLED') {
-        // Sum up totals if multiple active invoices (rare but safer)
-        invoiceByBooking.set(inv.booking_id, (invoiceByBooking.get(inv.booking_id) || 0) + inv.total);
-      }
-    });
-
+  const processedBookings = useMemo(() => {
     const today = startOfToday();
 
     return bookingsData.map(b => {
-      const totalPaid = paymentsByBooking.get(b.id) || 0;
-
-      // Late Stay Calculation
-      const startDate = startOfDay(parseISO(b.date_debut_prevue));
+      const summary = b.booking_financial_summary?.[0];
+      const totalPaid = summary?.total_paid || 0;
+      const totalInvoiced = summary?.total_invoiced || 0;
+      
+      // Real-time late stay calculation, as this is dynamic
       const endDate = startOfDay(parseISO(b.date_fin_prevue));
-      const plannedNights = differenceInCalendarDays(endDate, startDate);
-
       let lateStayDebt = 0;
       let lateNights = 0;
       const isOverdue = isAfter(today, endDate) && b.status !== 'COMPLETED' && b.status !== 'CANCELLED' && !b.check_out_reel;
 
       if (isOverdue) {
         lateNights = differenceInCalendarDays(today, endDate);
-        // Calculate negotiated daily rate
-        const dailyRate = plannedNights > 0 ? b.prix_total / plannedNights : (rooms.find(r => r.id === b.room_id)?.prix_base_nuit || 0);
+        const plannedNights = differenceInCalendarDays(endDate, startOfDay(parseISO(b.date_debut_prevue)));
+        const dailyRate = plannedNights > 0 ? b.prix_total / plannedNights : (b.rooms?.type ? (rooms.find(r => r.type === b.rooms?.type)?.prix_base_nuit || 0) : (rooms.find(r => r.id === b.room_id)?.prix_base_nuit || 0));
         lateStayDebt = lateNights * dailyRate;
       }
-
-      // Logic: If invoice exists, use Invoice Total as the truth. Else use booking price + potential debt.
-      const invoiceTotal = invoiceByBooking.get(b.id);
-      const currentTotalWithLate = invoiceTotal ? invoiceTotal : (b.prix_total + lateStayDebt);
-
-      let paymentStatus: PaymentStatus = 'UNPAID';
-      if (totalPaid > 0) {
-        paymentStatus = totalPaid >= currentTotalWithLate - 0.01 ? 'PAID' : 'PARTIAL';
+      
+      const currentTotalDue = totalInvoiced + lateStayDebt;
+      
+      let paymentStatus: PaymentStatus;
+      if(summary?.payment_summary_status) {
+          paymentStatus = summary.payment_summary_status as PaymentStatus;
+      } else {
+        paymentStatus = 'UNPAID';
+        if (totalPaid > 0) {
+            paymentStatus = totalPaid >= currentTotalDue - 0.01 ? 'PAID' : 'PARTIAL';
+        }
       }
 
       return {
         ...b,
         totalPaid,
+        balanceDue: currentTotalDue - totalPaid,
         paymentStatus,
         lateStayDebt,
         lateNights,
         isOverdue,
-        currentTotalWithLate
+        currentTotalDue,
       };
     });
-  }, [bookingsData, paymentsForBookings, rooms]);
+  }, [bookingsData, rooms]);
+  
+  const subtitle = useMemo(() => {
+    if (role === 'ADMIN') {
+      if (selectedLocationId && locations) {
+        const locationName = locations.find(l => l.id === selectedLocationId)?.nom;
+        return `Gérez les réservations pour le site : ${locationName || 'Inconnu'}`;
+      }
+      return "Gérez les réservations de tous les sites.";
+    }
+    if (profile?.locations?.nom) {
+      return `Réservations pour la localité : ${profile.locations.nom}`;
+    }
+    if (profile?.location_id && locations) {
+      const userLocation = locations.find(l => l.id === profile.location_id)?.nom;
+      return `Réservations pour la localité : ${userLocation || 'Mon site'}`;
+    }
+    return "Gérez vos réservations.";
+  }, [role, profile, selectedLocationId, locations]);
 
   const resetFilters = () => {
     setSearchTerm('');
@@ -162,7 +169,6 @@ const Reservations = () => {
     return count;
   }, [searchTerm, statusFilter, dateRange]);
 
-  const calculateDaysRemaining = (endDate: string) => differenceInDays(new Date(endDate), new Date());
   const handleDelete = async () => {
     if (deleteBookingId) {
       await deleteBooking.mutateAsync(deleteBookingId);
@@ -185,10 +191,10 @@ const Reservations = () => {
     };
   };
 
-  const isLoading = bookingsLoading || paymentsLoading || invoicesLoading;
+  const isLoading = bookingsLoading;
 
   return (
-    <MainLayout title="GESTION DES RÉSERVATIONS">
+    <MainLayout title="GESTION DES RÉSERVATIONS" subtitle={subtitle}>
       <div className="space-y-6">
         <div className="border rounded-lg p-4 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -248,7 +254,7 @@ const Reservations = () => {
 
         <div className="flex justify-end">{(role === 'ADMIN' || role === 'AGENT_RES') && <CreateBookingDialog />}</div>
 
-        {isLoading ? <div className="text-center py-12">Chargement...</div> : bookingsWithPayments.length === 0 ? (
+        {isLoading ? <div className="text-center py-12">Chargement...</div> : processedBookings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center bg-card rounded-lg border">
             <p className="text-lg font-medium text-foreground mb-2">Aucune réservation trouvée</p>
             <p className="text-sm text-muted-foreground">Essayez de modifier vos filtres ou créez une nouvelle réservation.</p>
@@ -271,8 +277,7 @@ const Reservations = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {bookingsWithPayments.map((booking) => {
-                    const daysRemaining = calculateDaysRemaining(booking.date_fin_prevue);
+                  {processedBookings.map((booking) => {
                     const numberOfNights = differenceInCalendarDays(new Date(booking.date_fin_prevue), new Date(booking.date_debut_prevue));
                     const statusConfig = STATUS_CONFIG[booking.status] || STATUS_CONFIG.PENDING;
                     const paymentStatusConfig = PAYMENT_STATUS_CONFIG[booking.paymentStatus];
@@ -315,7 +320,7 @@ const Reservations = () => {
 
                               <div className="flex justify-between text-sm pt-1 border-t border-slate-100">
                                 <span className="text-muted-foreground">Total dû:</span>
-                                <span className="font-extrabold text-indigo-900">${Number(booking.currentTotalWithLate).toLocaleString('fr-FR')}</span>
+                                <span className="font-extrabold text-indigo-900">${Number(booking.currentTotalDue).toLocaleString('fr-FR')}</span>
                               </div>
 
                               <div className="flex justify-between text-sm">
@@ -325,14 +330,14 @@ const Reservations = () => {
                                 </span>
                               </div>
 
-                              {Number(booking.currentTotalWithLate) - (Number(booking.totalPaid) || 0) > 0.01 && (
+                              {booking.balanceDue > 0.01 && (
                                 <div className="text-xs pt-1 border-t border-slate-100 mt-1">
                                   <div className="flex justify-between font-bold text-red-600 bg-red-50/50 px-1 rounded">
                                     <span>Reste:</span>
-                                    <span>${(Number(booking.currentTotalWithLate) - Number(booking.totalPaid)).toLocaleString('fr-FR')}</span>
+                                    <span>${(booking.balanceDue).toLocaleString('fr-FR')}</span>
                                   </div>
                                   <div className="text-right text-muted-foreground italic scale-90 origin-right mt-0.5">
-                                    ~ {((Number(booking.currentTotalWithLate) - Number(booking.totalPaid)) * rate).toLocaleString('fr-FR')} FC
+                                    ~ {(booking.balanceDue * rate).toLocaleString('fr-FR')} FC
                                   </div>
                                 </div>
                               )}

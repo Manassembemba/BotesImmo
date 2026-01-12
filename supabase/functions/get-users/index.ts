@@ -37,61 +37,53 @@ Deno.serve(async (req) => {
     }
 
     // 2. Verify the user is an admin by calling the has_role RPC
-    console.log(`Checking role for user: ${user.id}`);
     const { data: isAdmin, error: rpcError } = await userClient.rpc('has_role', {
       _role: 'ADMIN',
       _user_id: user.id
     });
 
-    if (rpcError) {
-      console.error('RPC Error (has_role):', rpcError);
-      throw new Error(`RPC Error checking role: ${rpcError.message}`);
-    }
+    if (rpcError) throw new Error(`RPC Error checking role: ${rpcError.message}`);
+    if (!isAdmin) throw new Error('Permission denied: User is not an admin.');
 
-    if (!isAdmin) {
-      console.warn(`User ${user.id} is not an admin.`);
-      throw new Error('Permission denied: User is not an admin.');
-    }
-
-    // 3. If admin, create a service role client to fetch all users and roles
-    console.log('User is admin, fetching all users...');
+    // 3. If admin, create a service role client to fetch all users and related data
     const adminClient = createClient(supabaseUrl, serviceKey);
 
     const { data: { users }, error: usersError } = await adminClient.auth.admin.listUsers();
-    if (usersError) {
-      console.error('Error listing users:', usersError);
-      throw usersError;
-    }
+    if (usersError) throw usersError;
 
     const { data: roles, error: rolesError } = await adminClient
       .from('user_roles')
-      .select('*');
-    if (rolesError) {
-      console.error('Error fetching roles:', rolesError);
-      throw rolesError;
-    }
+      .select('user_id, role');
+    if (rolesError) throw rolesError;
 
+    // Fetch profiles and join with locations to get the location name
     const { data: profiles, error: profilesError } = await adminClient
       .from('profiles')
-      .select('user_id, nom, prenom');
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      throw profilesError;
-    }
-
-    console.log(`Found ${users.length} users, ${roles.length} role assignments, and ${profiles.length} profiles.`);
-
+      .select(`
+        user_id,
+        nom,
+        prenom,
+        username,
+        location_id,
+        locations ( nom )
+      `);
+    if (profilesError) throw profilesError;
+    
     // 4. Map roles and profiles to users
-    const usersWithDetails = users.map(user => {
-      const userRole = roles.find(r => r.user_id === user.id);
-      const userProfile = profiles.find(p => p.user_id === user.id);
+    const usersWithDetails = users.map(u => {
+      const userRole = roles.find(r => r.user_id === u.id);
+      const userProfile = profiles.find(p => p.user_id === u.id);
+      
       return {
-        id: user.id,
-        email: user.email,
+        id: u.id,
+        email: u.email,
         role: userRole ? userRole.role : 'Non assigné',
         nom: userProfile?.nom || '',
         prenom: userProfile?.prenom || '',
-        created_at: user.created_at,
+        username: userProfile?.username || '',
+        created_at: u.created_at,
+        location_id: userProfile?.location_id || null,
+        location_nom: userProfile?.locations?.nom || null,
       };
     });
 
@@ -100,10 +92,8 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error('Edge Function Error:', error.message);
     return new Response(JSON.stringify({
       error: error.message,
-      details: error.stack
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: error.message.includes('Permission denied') ? 403 : 400,

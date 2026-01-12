@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils';
 import { useIncidents } from '@/hooks/useIncidents';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { useAuth } from '@/hooks/useAuth'; // Import useAuth
+import { useMemo } from 'react'; // Import useMemo
 
 const getSeverityStyle = (severity: string) => {
   const styles: Record<string, string> = {
@@ -39,10 +41,23 @@ const getSeverityLabel = (severity: string) => {
 
 const Incidents = () => {
   const { data: incidents = [], isLoading } = useIncidents();
+  const { role, profile } = useAuth(); // Get role and profile for location info
+
+  const subtitle = useMemo(() => {
+    const incidentCount = incidents.length;
+    const countText = `${incidentCount} incident${incidentCount > 1 ? 's' : ''} signalé${incidentCount > 1 ? 's' : ''}`;
+    if (role === 'ADMIN') {
+      return `Vue globale - ${countText}`;
+    }
+    if (profile?.locations?.nom) {
+      return `${countText} pour la localité : ${profile.locations.nom}`;
+    }
+    return countText;
+  }, [role, profile, incidents.length]);
 
   if (isLoading) {
     return (
-      <MainLayout title="Incidents" subtitle="Chargement...">
+      <MainLayout title="Incidents" subtitle={subtitle}>
         <div className="flex items-center justify-center h-64">
           <p className="text-muted-foreground animate-pulse">Chargement des incidents...</p>
         </div>
@@ -51,7 +66,7 @@ const Incidents = () => {
   }
 
   return (
-    <MainLayout title="Incidents" subtitle="Suivi des problèmes et maintenance">
+    <MainLayout title="Incidents" subtitle={subtitle}>
       <div className="space-y-6">
         {/* Actions */}
         <div className="flex items-center justify-end">

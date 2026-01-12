@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 export const invoiceDbService = {
   // Récupérer toutes les factures avec filtres et pagination
   getAll: async (options?: {
-    filters?: { search?: string; status?: string; dateRange?: { start?: string; end?: string; }; bookingId?: string; };
+    filters?: { search?: string; status?: string; dateRange?: { start?: string; end?: string; }; bookingId?: string; locationId?: string | null };
     pagination?: { pageIndex: number; pageSize: number; };
   }) => {
     const { filters = {}, pagination = { pageIndex: 0, pageSize: 15 } } = options || {};
@@ -16,11 +16,19 @@ export const invoiceDbService = {
       .from('invoices')
       .select(`
         *,
-        bookings (
+        bookings!inner (
           date_debut_prevue,
-          date_fin_prevue
+          date_fin_prevue,
+          rooms!inner (
+            location_id
+          )
         )
       `, { count: 'exact' });
+
+    // Filter by location if provided
+    if (filters.locationId) {
+      query = query.eq('bookings.rooms.location_id', filters.locationId);
+    }
 
     if (filters.search) {
       const search = `%${filters.search}%`;

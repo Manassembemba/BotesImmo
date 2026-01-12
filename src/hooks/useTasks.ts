@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLocationFilter } from '@/context/LocationFilterContext';
 
 export interface Task {
   id: string;
@@ -13,22 +14,18 @@ export interface Task {
   date_completion: string | null;
   created_at: string;
   updated_at: string;
-  rooms?: {
-    numero: string;
-  };
+  room_numero?: string;
 }
 
 export function useTasks() {
+  const { selectedLocationId } = useLocationFilter();
+
   return useQuery({
-    queryKey: ['tasks'],
+    queryKey: ['tasks', selectedLocationId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tasks')
-        .select(`
-          *,
-          rooms (numero)
-        `)
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.rpc('get_tasks', {
+        p_location_id: selectedLocationId || null,
+      });
       
       if (error) throw error;
       return data as Task[];
@@ -41,7 +38,7 @@ export function useCreateTask() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'rooms'>) => {
+    mutationFn: async (task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'room_numero'>) => {
       const { data, error } = await supabase
         .from('tasks')
         .insert(task)

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLocationFilter } from '@/context/LocationFilterContext';
 
 export interface Payment {
   id: string;
@@ -11,9 +12,14 @@ export interface Payment {
   montant_cdf: number; // 🔥 Physique CDF
   taux_change: number; // 🔥 Taux utilisé au moment du paiement
   date_paiement: string;
-  methode: 'CB' | 'CASH' | 'TRANSFERT' | 'CHEQUE';
+  methode: string; // Changed to string to match RPC return type
   notes: string | null;
   created_at: string;
+  // Joined data from RPC
+  location_id?: string;
+  room_numero?: string;
+  tenant_nom?: string;
+  tenant_prenom?: string;
 }
 
 export function usePaymentsByBooking(bookingId: string) {
@@ -67,14 +73,19 @@ export function usePaymentsForBookings(bookingIds: string[]) {
 }
 
 export function useAllPayments() {
-  return useQuery({
-    queryKey: ['allPayments'], // Clé plus spécifique
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('*');
+  const { selectedLocationId, userLocationId } = useLocationFilter();
 
-      if (error) throw error;
+  return useQuery({
+    queryKey: ['allPayments', selectedLocationId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_payments_with_details', {
+        p_location_id: selectedLocationId || null,
+      });
+
+      if (error) {
+        console.error('RPC Error in useAllPayments:', error);
+        throw error;
+      }
       return data as Payment[];
     },
   });

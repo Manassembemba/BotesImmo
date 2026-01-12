@@ -26,12 +26,12 @@ Deno.serve(async (req) => {
             global: { headers: { Authorization: authHeader } }
         });
 
-        const { data: { user } } = await userClient.auth.getUser();
-        if (!user) throw new Error('Invalid user token.');
+        const { data: { user: callingUser } } = await userClient.auth.getUser();
+        if (!callingUser) throw new Error('Invalid user token.');
 
         const { data: isAdmin } = await userClient.rpc('has_role', {
             _role: 'ADMIN',
-            _user_id: user.id
+            _user_id: callingUser.id
         });
 
         if (!isAdmin) throw new Error('Permission denied.');
@@ -44,29 +44,58 @@ Deno.serve(async (req) => {
 
         switch (action) {
             case 'CREATE': {
-                const { email, password, role, nom, prenom } = payload;
+                const { email, password, role, nom, prenom, location_id, username } = payload;
+                
+                if (!username) {
+                    throw new Error("Le nom d'utilisateur est requis.");
+                }
+                if (role !== 'ADMIN' && !location_id) {
+                    throw new Error("Une localité est requise pour les rôles non-administrateurs.");
+                }
+
                 console.log(`Creating user: ${email} with role: ${role}`);
 
+                // 1. Create user in Auth
                 const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
                     email,
                     password,
                     email_confirm: true,
-                    user_metadata: { nom, prenom }
                 });
 
                 if (createError) {
                     console.error('Auth Create Error:', createError);
                     throw createError;
                 }
+                const newUserId = newUser.user.id;
+                console.log(`User created in Auth: ${newUserId}.`);
 
-                console.log(`User created in Auth: ${newUser.user.id}. Assigning role...`);
-                await adminClient.from('user_roles').delete().eq('user_id', newUser.user.id);
+                // 2. Create user profile
+                console.log(`Creating profile for user ${newUserId}...`);
+                const { error: profileError } = await adminClient.from('profiles').insert({
+                    user_id: newUserId,
+                    nom,
+                    prenom,
+                    username,
+                    location_id: role === 'ADMIN' ? null : location_id
+                });
+                if (profileError) {
+                    console.error('Profile Creation Error:', profileError);
+                    // Attempt to clean up the created auth user
+                    await adminClient.auth.admin.deleteUser(newUserId);
+                    throw profileError;
+                }
+                
+                // 3. Assign role
+                console.log(`Assigning role for user ${newUserId}...`);
                 const { error: roleError } = await adminClient
                     .from('user_roles')
-                    .insert({ user_id: newUser.user.id, role });
+                    .insert({ user_id: newUserId, role });
 
                 if (roleError) {
                     console.error('Role Assign Error:', roleError);
+                    // Attempt to clean up
+                    await adminClient.auth.admin.deleteUser(newUserId);
+                    // The profile will be cascaded
                     throw roleError;
                 }
 
@@ -75,11 +104,35 @@ Deno.serve(async (req) => {
                 });
             }
 
-            case 'UPDATE_ROLE': {
-                const { userId, role } = payload;
-                console.log(`Updating role for user: ${userId} to: ${role}`);
+            case 'UPDATE': {
+                const { userId, role, nom, prenom, location_id, username } = payload;
 
-                // Use a transaction-like approach by deleting then inserting
+                if (!username) {
+                    throw new Error("Le nom d'utilisateur est requis.");
+                }
+                if (role !== 'ADMIN' && !location_id) {
+                    throw new Error("Une localité est requise pour les rôles non-administrateurs.");
+                }
+                
+                console.log(`Updating user: ${userId}`);
+
+                // 1. Update profile
+                const { error: profileError } = await adminClient
+                    .from('profiles')
+                    .update({
+                        nom,
+                        prenom,
+                        username,
+                        location_id: role === 'ADMIN' ? null : location_id
+                    })
+                    .eq('user_id', userId);
+
+                if (profileError) {
+                    console.error('Profile Update Error:', profileError);
+                    throw profileError;
+                }
+
+                // 2. Update role
                 const { error: delError } = await adminClient.from('user_roles').delete().eq('user_id', userId);
                 if (delError) {
                     console.error('Delete Role Error:', delError);
@@ -95,7 +148,7 @@ Deno.serve(async (req) => {
                     throw updateError;
                 }
 
-                console.log(`Role updated successfully for ${userId}`);
+                console.log(`User ${userId} updated successfully.`);
                 return new Response(JSON.stringify({ success: true }), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' }
                 });
@@ -104,6 +157,8 @@ Deno.serve(async (req) => {
             case 'DELETE': {
                 const { userId } = payload;
                 console.log(`Deleting user: ${userId}`);
+                // Deleting the auth user should cascade to profiles and user_roles
+                // if the foreign keys are set up with ON DELETE CASCADE.
                 const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
                 if (deleteError) {
                     console.error('Auth Delete Error:', deleteError);

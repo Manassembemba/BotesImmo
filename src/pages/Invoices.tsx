@@ -17,6 +17,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { downloadInvoicePDF } from '@/services/invoicePdfService';
 import { useAuth } from '@/hooks/useAuth';
+import { useLocations } from '@/hooks/useLocations';
+import { useLocationFilter } from '@/context/LocationFilterContext';
 import { InvoiceFilters } from '@/components/invoices/InvoiceFilters';
 import { InvoiceStats } from '@/components/invoices/InvoiceStats';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay'; // Added import for CurrencyDisplay
@@ -44,7 +46,9 @@ export const getStatusBadge = (status: Invoice['status']) => {
 };
 
 const Invoices = () => {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
+  const { selectedLocationId } = useLocationFilter();
+  const { data: locations } = useLocations();
   
   const [filters, setFilters] = useState({
     search: '',
@@ -75,9 +79,26 @@ const Invoices = () => {
       totalBalanceDue: billed - paid,
     };
   }, [invoices]);
+
+  const subtitle = useMemo(() => {
+    const invoiceCount = invoicesResult?.count ?? 0;
+    const countText = `${invoiceCount} facture${invoiceCount > 1 ? 's' : ''} trouvée${invoiceCount > 1 ? 's' : ''}`;
+    if (role === 'ADMIN') {
+      if (selectedLocationId && locations) {
+        const locationName = locations.find(l => l.id === selectedLocationId)?.nom;
+        return `${countText} pour : ${locationName || 'site inconnu'}`;
+      }
+      return `Vue globale - ${countText}`;
+    }
+    if (profile?.location_id && locations) {
+      const userLocation = locations.find(l => l.id === profile.location_id)?.nom;
+      return `${countText} pour : ${userLocation || 'Mon site'}`;
+    }
+    return countText;
+  }, [role, profile, invoicesResult?.count, selectedLocationId, locations]);
   
   return (
-    <MainLayout title="FACTURES">
+    <MainLayout title="FACTURES" subtitle={subtitle}>
       <div className="space-y-6">
         <div className="border rounded-lg p-4 bg-card shadow-sm">
           <InvoiceFilters

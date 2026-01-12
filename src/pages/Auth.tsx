@@ -5,19 +5,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Building2 } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client'; // Import supabase client
 
 const loginSchema = z.object({
-  email: z.string().email('Adresse email invalide'),
-  password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
+  credential: z.string().min(1, "L'identifiant est requis"),
+  password: z.string().min(1, 'Le mot de passe est requis'),
 });
 
 const Auth = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    credential: '',
     password: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -46,18 +47,28 @@ const Auth = () => {
     setErrors({});
 
     try {
-      const validated = loginSchema.parse({
-        email: formData.email,
-        password: formData.password,
-      });
+      const validated = loginSchema.parse(formData);
+      let emailToLogin = validated.credential;
 
-      const { error } = await signIn(validated.email, validated.password);
+      // If credential is not an email, assume it's a username and get the email
+      if (!validated.credential.includes('@')) {
+        const { data, error } = await supabase.rpc('get_email_for_username', {
+          p_username: validated.credential
+        });
+
+        if (error || !data) {
+          throw new Error('Nom d\'utilisateur ou mot de passe incorrect');
+        }
+        emailToLogin = data;
+      }
+
+      const { error } = await signIn(emailToLogin, validated.password);
       if (error) {
         toast({
           variant: 'destructive',
           title: 'Erreur de connexion',
           description: error.message === 'Invalid login credentials' 
-            ? 'Email ou mot de passe incorrect'
+            ? 'Identifiant ou mot de passe incorrect'
             : error.message,
         });
       } else {
@@ -66,8 +77,8 @@ const Auth = () => {
           description: 'Bienvenue sur Botes Immo',
         });
       }
-    } catch (err) {
-      if (err instanceof z.ZodError) {
+    } catch (err: any) {
+       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
         err.errors.forEach((error) => {
           if (error.path[0]) {
@@ -75,6 +86,12 @@ const Auth = () => {
           }
         });
         setErrors(fieldErrors);
+      } else {
+         toast({
+          variant: 'destructive',
+          title: 'Erreur de connexion',
+          description: err.message,
+        });
       }
     } finally {
       setLoading(false);
@@ -84,7 +101,6 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <img
             src="/LOGO.jpg"
@@ -95,7 +111,6 @@ const Auth = () => {
           <p className="text-muted-foreground mt-1">Gestion des réservations</p>
         </div>
 
-        {/* Form Card */}
         <div className="bg-card border rounded-xl p-6 shadow-medium animate-fade-in">
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-foreground">Connexion</h2>
@@ -106,18 +121,19 @@ const Auth = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="credential">Email ou Nom d'utilisateur</Label>
               <Input
-                id="email"
-                name="email"
-                type="email"
-                value={formData.email}
+                id="credential"
+                name="credential"
+                type="text"
+                value={formData.credential}
                 onChange={handleChange}
-                placeholder="prenom.nom@botesimmo.com"
-                className={errors.email ? 'border-destructive' : ''}
+                placeholder="nom.utilisateur ou email@botesimmo.com"
+                className={errors.credential ? 'border-destructive' : ''}
+                autoComplete="username"
               />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email}</p>
+              {errors.credential && (
+                <p className="text-xs text-destructive">{errors.credential}</p>
               )}
             </div>
 
@@ -132,6 +148,7 @@ const Auth = () => {
                   onChange={handleChange}
                   placeholder="••••••••"
                   className={errors.password ? 'border-destructive pr-10' : 'pr-10'}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
