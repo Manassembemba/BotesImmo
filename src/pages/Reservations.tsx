@@ -348,18 +348,35 @@ const Reservations = () => {
                         <TableCell className="text-center font-medium">{numberOfNights}</TableCell>
                         <TableCell><InvoiceListForBooking bookingId={booking.id} /></TableCell>
                         <TableCell className="text-center">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {actions.canCheckIn && <DropdownMenuItem onClick={() => setCheckInBooking(booking)}><LogIn className="h-4 w-4 mr-2" />Check-in</DropdownMenuItem>}
-                              {actions.canCheckOut && <DropdownMenuItem onClick={() => setCheckOutBooking(booking)}><LogOut className="h-4 w-4 mr-2" />Check-out</DropdownMenuItem>}
-                              {(actions.canCheckIn || actions.canCheckOut) && <DropdownMenuSeparator />}
-                              {actions.canEdit && <DropdownMenuItem onClick={() => setEditBooking(booking)}><Edit className="h-4 w-4 mr-2" />Modifier</DropdownMenuItem>}
-                              {actions.canEdit && <DropdownMenuItem onClick={() => setManagePaymentBooking(booking)}><BadgeCent className="h-4 w-4 mr-2" />Gérer les paiements</DropdownMenuItem>}
-                              {actions.canCancel && <DropdownMenuItem onClick={() => setCancelBooking(booking)} className="text-orange-600"><XCircle className="h-4 w-4 mr-2" />Annuler</DropdownMenuItem>}
-                              {actions.canDelete && role === 'ADMIN' && (<><DropdownMenuSeparator /><DropdownMenuItem onClick={() => setDeleteBookingId(booking.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem></>)}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <div className="flex items-center justify-center gap-1">
+                            {actions.canCheckIn && (
+                              <Button
+                                size="sm"
+                                onClick={() => setCheckInBooking(booking)}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                                title="Check-in"
+                              >
+                                <LogIn className="h-4 w-4 mr-1" />
+                                Check-in
+                              </Button>
+                            )}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {actions.canCheckIn && <DropdownMenuItem onClick={() => setCheckInBooking(booking)}><LogIn className="h-4 w-4 mr-2" />Check-in</DropdownMenuItem>}
+                                {actions.canCheckOut && <DropdownMenuItem onClick={() => setCheckOutBooking(booking)}><LogOut className="h-4 w-4 mr-2" />Check-out</DropdownMenuItem>}
+                                {(actions.canCheckIn || actions.canCheckOut) && <DropdownMenuSeparator />}
+                                {actions.canEdit && <DropdownMenuItem onClick={() => setEditBooking(booking)}><Edit className="h-4 w-4 mr-2" />Modifier</DropdownMenuItem>}
+                                {actions.canEdit && <DropdownMenuItem onClick={() => setManagePaymentBooking(booking)}><BadgeCent className="h-4 w-4 mr-2" />Gérer les paiements</DropdownMenuItem>}
+                                {actions.canCancel && <DropdownMenuItem onClick={() => setCancelBooking(booking)} className="text-orange-600"><XCircle className="h-4 w-4 mr-2" />Annuler</DropdownMenuItem>}
+                                {actions.canDelete && role === 'ADMIN' && (<><DropdownMenuSeparator /><DropdownMenuItem onClick={() => setDeleteBookingId(booking.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem></>)}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
