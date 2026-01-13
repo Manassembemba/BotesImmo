@@ -53,6 +53,7 @@ const getNavigation = (notificationCount: number, role: string | null) => {
 const LocationSelector = () => {
   const { data: locations } = useLocations();
   const { selectedLocationId, setSelectedLocationId, userLocationId } = useLocationFilter();
+  const { role } = useAuth();
 
   // For non-ADMIN users, show their assigned location as disabled
   if (locations && userLocationId && !locations.some(loc => loc.id === userLocationId)) {
@@ -68,6 +69,7 @@ const LocationSelector = () => {
     <Select
       value={selectedLocationId || "all"}
       onValueChange={(value) => setSelectedLocationId(value === "all" ? null : value)}
+      disabled={role !== 'ADMIN'}
     >
       <SelectTrigger className="w-full h-8 text-xs">
         <SelectValue placeholder="Toutes les localités" />

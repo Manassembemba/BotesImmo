@@ -12,60 +12,45 @@ const LocationFilterContext = createContext<LocationFilterContextType | undefine
 
 export const LocationFilterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { role, profile } = useAuth();
-
-    // Get the location assigned to the current user
     const userLocationId = profile?.location_id || null;
 
-    // For ADMIN users, allow selection of any location
-    // For other users, default to their assigned location
-    const [selectedLocationId, setSelectedLocationId] = useState<string | null>(() => {
-        const savedLocation = localStorage.getItem('selected_location_id');
-
-        if (role === 'ADMIN') {
-            // ADMIN can select any location or "All locations"
-            return savedLocation || null;
-        } else {
-            // Non-ADMIN users should default to their assigned location
-            return savedLocation || userLocationId || null;
-        }
+    // This state ONLY tracks the selection made by an ADMIN.
+    const [adminSelectedLocationId, setAdminSelectedLocationId] = useState<string | null>(() => {
+        return localStorage.getItem('selected_location_id');
     });
 
-    // Effect to persist to localStorage
+    // Determine the final, effective location ID based on role.
+    const effectiveLocationId = role === 'ADMIN' ? adminSelectedLocationId : userLocationId;
+
+    // Effect to persist ADMIN's selection to localStorage, and clean up for non-admins.
     useEffect(() => {
-        if (selectedLocationId) {
-            localStorage.setItem('selected_location_id', selectedLocationId);
+        if (role === 'ADMIN') {
+            if (adminSelectedLocationId) {
+                localStorage.setItem('selected_location_id', adminSelectedLocationId);
+            } else {
+                localStorage.removeItem('selected_location_id');
+            }
         } else {
+            // For non-admins, clear the local storage to prevent future conflicts.
             localStorage.removeItem('selected_location_id');
         }
-    }, [selectedLocationId]);
+    }, [adminSelectedLocationId, role]);
 
-    // Reset selection when user logs out or role changes
-    useEffect(() => {
-        if (!role) {
-            setSelectedLocationId(null);
-            localStorage.removeItem('selected_location_id');
-        } else if (role !== 'ADMIN' && userLocationId) {
-            // Non-ADMIN users should only see their assigned location
-            setSelectedLocationId(userLocationId);
-        }
-    }, [role, userLocationId]);
-
-    // Determine if filter is active
-    // For non-ADMIN users, it's active if they have an assigned location
-    // For ADMIN users, it's active if they've selected a specific location
     const isFilterActive = role === 'ADMIN'
-        ? !!selectedLocationId
+        ? !!adminSelectedLocationId
         : !!userLocationId;
+
+    const setLocation = (id: string | null) => {
+        if (role === 'ADMIN') {
+            setAdminSelectedLocationId(id);
+        }
+        // For non-admins, this function does nothing.
+    };
 
     return (
         <LocationFilterContext.Provider value={{
-            selectedLocationId: role === 'ADMIN' ? selectedLocationId : userLocationId,
-            setSelectedLocationId: (id: string | null) => {
-                if (role === 'ADMIN') {
-                    setSelectedLocationId(id);
-                }
-                // Non-ADMIN users cannot change their location selection
-            },
+            selectedLocationId: effectiveLocationId,
+            setSelectedLocationId: setLocation,
             isFilterActive,
             userLocationId
         }}>
