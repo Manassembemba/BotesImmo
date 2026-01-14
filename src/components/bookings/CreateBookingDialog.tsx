@@ -202,7 +202,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     return () => clearTimeout(handler);
   }, [roomId, dateDebut, dateFin]);
 
-  const bookableRooms = rooms.filter(r => isImmediate ? (r.status === 'Libre' || r.status === 'Nettoyage') : r.status !== 'Maintenance');
+  const bookableRooms = rooms.filter(r => r.status === 'Libre' || r.status === 'Nettoyage');
 
   const handleTenantCreated = async (newTenant: Tenant) => {
     await refetchTenants();

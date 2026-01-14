@@ -181,7 +181,7 @@ const Availability = () => {
 
         {/* Affichage selon la vue sélectionnée */}
         {currentView === 'table' && (
-          <div className="bg-card rounded-lg border overflow-hidden">
+          <div className="bg-card rounded-lg border overflow-x-auto">
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr>

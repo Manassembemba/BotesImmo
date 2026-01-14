@@ -18,7 +18,7 @@ CREATE OR REPLACE FUNCTION public.confirm_departure_and_cleanup(
 )
 RETURNS VOID
 LANGUAGE plpgsql
-SECURITY DEFINER
+SECURITY INVOKER
 AS $$
 DECLARE
     room_number TEXT;

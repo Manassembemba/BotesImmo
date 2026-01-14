@@ -54,7 +54,7 @@ export function UserManagement() {
           Assignez des rôles et des sites aux utilisateurs de votre système
         </p>
       </div>
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border rounded-lg overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">

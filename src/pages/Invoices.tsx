@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Printer, ChevronDown, Plus } from 'lucide-react';
+import { Download, Printer, ChevronDown, Plus, SlidersHorizontal } from 'lucide-react';
 import { useInvoices } from '@/hooks/useInvoices';
 import { Invoice } from '@/interfaces/Invoice';
 import {
@@ -28,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export const getStatusBadge = (status: Invoice['status']) => {
   const config: Record<Invoice['status'], { label: string; className: string }> = {
@@ -49,6 +50,8 @@ const Invoices = () => {
   const { role, profile } = useAuth();
   const { selectedLocationId } = useLocationFilter();
   const { data: locations } = useLocations();
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [activeFiltersCount, setActiveFiltersCount] = useState(0);
   
   const [filters, setFilters] = useState({
     search: '',
@@ -100,12 +103,32 @@ const Invoices = () => {
   return (
     <MainLayout title="FACTURES" subtitle={subtitle}>
       <div className="space-y-6">
-        <div className="border rounded-lg p-4 bg-card shadow-sm">
-          <InvoiceFilters
-            invoices={invoices}
-            onFilterChange={setFilters}
-          />
-        </div>
+        <Collapsible
+          open={isFiltersOpen}
+          onOpenChange={setIsFiltersOpen}
+          className="space-y-2"
+        >
+          <CollapsibleTrigger asChild>
+            <Button variant="outline">
+              <SlidersHorizontal className="h-4 w-4 mr-2" />
+              Filtres
+              {activeFiltersCount > 0 && (
+                <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                  {activeFiltersCount}
+                </span>
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="border rounded-lg p-4 bg-card shadow-sm">
+              <InvoiceFilters
+                invoices={invoices}
+                onFilterChange={setFilters}
+                onActiveFiltersChange={setActiveFiltersCount}
+              />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Aggregate Statistics - Only for Admin */}
         {role === 'ADMIN' && (
@@ -131,7 +154,7 @@ const Invoices = () => {
           </p>
         </div>
 
-        <div className="bg-card rounded-lg border shadow-soft overflow-hidden">
+        <div className="bg-card rounded-lg border shadow-soft overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

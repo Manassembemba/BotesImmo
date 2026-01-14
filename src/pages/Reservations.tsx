@@ -19,11 +19,12 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvoiceListForBooking } from '@/components/invoices/InvoiceListForBooking';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle } from 'lucide-react';
+import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle, SlidersHorizontal } from 'lucide-react';
 import { useBookings, Booking, useDeleteBooking, BookingFilters } from '@/hooks/useBookings';
 import { useExchangeRate } from '@/hooks/useExchangeRate'; // Import pour conversion
 import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, isAfter } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'En attente', className: 'status-badge bg-yellow-100 text-foreground dark:bg-yellow-900/30' },
@@ -50,6 +51,7 @@ const Reservations = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined, to: Date | undefined }>({ from: undefined, to: undefined });
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 15 });
 
   const bookingFilters: BookingFilters = useMemo(() => ({
@@ -195,64 +197,75 @@ const Reservations = () => {
 
   return (
     <MainLayout title="GESTION DES RÉSERVATIONS" subtitle={subtitle}>
-      <div className="space-y-6">
-        <div className="border rounded-lg p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="relative">
+      <div className="space-y-4">
+        <Collapsible
+          open={isFiltersOpen}
+          onOpenChange={setIsFiltersOpen}
+          className="space-y-2"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher par locataire, chambre..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+              <Input placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger><SelectValue placeholder="Statut de la réservation" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                {Object.entries(STATUS_CONFIG).map(([status, { label }]) => <SelectItem key={status} value={status}>{label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <div className="grid grid-cols-2 gap-2">
-              <Popover>
-                <PopoverTrigger asChild><Button variant="outline" className={cn('justify-start text-left font-normal', !dateRange.from && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange.from ? format(dateRange.from, 'dd/MM/yy') : <span>Date de début</span>}</Button></PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateRange.from} onSelect={(day) => setDateRange(prev => ({ ...prev, from: day as Date }))} initialFocus /></PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild><Button variant="outline" className={cn('justify-start text-left font-normal', !dateRange.to && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange.to ? format(dateRange.to, 'dd/MM/yy') : <span>Date de fin</span>}</Button></PopoverTrigger>
-                <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateRange.to} onSelect={(day) => setDateRange(prev => ({ ...prev, to: day as Date }))} initialFocus /></PopoverContent>
-              </Popover>
-            </div>
-            <div className="md:col-span-2 lg:col-span-3 flex flex-wrap gap-2 pt-2 border-t mt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={setTodayFilter}
-                className="text-xs h-8"
-              >
-                Aujourd'hui
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={setWeekFilter}
-                className="text-xs h-8"
-              >
-                Cette semaine
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={setMonthFilter}
-                className="text-xs h-8"
-              >
-                Ce mois
-              </Button>
-            </div>
-          </div>
-          <div className="flex justify-between items-center mt-4 pt-2 border-t">
-            <div className="flex items-center gap-2"><Filter className="h-4 w-4 text-muted-foreground" /><span className="text-sm text-muted-foreground">{activeFiltersCount} filtre(s) actif(s)</span></div>
-            <Button variant="outline" size="sm" onClick={resetFilters}><span className="mr-1">Réinitialiser</span><X className="h-4 w-4" /></Button>
-          </div>
-        </div>
 
-        <div className="flex justify-end">{(role === 'ADMIN' || role === 'AGENT_RES') && <CreateBookingDialog />}</div>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" className="h-10">
+                <SlidersHorizontal className="h-4 w-4 mr-2" />
+                Filtres
+                {activeFiltersCount > 0 && (
+                  <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-xs text-primary-foreground">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </Button>
+            </CollapsibleTrigger>
+            
+            <div className="hidden md:flex items-center gap-2 border-l pl-2 ml-auto">
+              <span className="text-sm text-muted-foreground">Dates rapides:</span>
+                <Button variant="outline" size="sm" onClick={setTodayFilter} className="text-xs h-9">Aujourd'hui</Button>
+                <Button variant="outline" size="sm" onClick={setWeekFilter} className="text-xs h-9">Cette semaine</Button>
+                <Button variant="outline" size="sm" onClick={setMonthFilter} className="text-xs h-9">Ce mois</Button>
+            </div>
+
+            <div className="flex-grow sm:flex-grow-0">
+              {(role === 'ADMIN' || role === 'AGENT_RES') && <CreateBookingDialog />}
+            </div>
+          </div>
+
+          <CollapsibleContent className="space-y-4 pt-2">
+            <div className="border rounded-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                 <Select value={statusFilter} onValueChange={setStatusFilter}>
+                   <SelectTrigger><SelectValue placeholder="Statut de la réservation" /></SelectTrigger>
+                   <SelectContent>
+                     <SelectItem value="all">Tous les statuts</SelectItem>
+                     {Object.entries(STATUS_CONFIG).map(([status, { label }]) => <SelectItem key={status} value={status}>{label}</SelectItem>)}
+                   </SelectContent>
+                 </Select>
+                <div className="grid grid-cols-2 gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild><Button variant="outline" className={cn('justify-start text-left font-normal', !dateRange.from && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange.from ? format(dateRange.from, 'dd/MM/yy') : <span>Date de début</span>}</Button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateRange.from} onSelect={(day) => setDateRange(prev => ({ ...prev, from: day as Date }))} initialFocus /></PopoverContent>
+                  </Popover>
+                  <Popover>
+                    <PopoverTrigger asChild><Button variant="outline" className={cn('justify-start text-left font-normal', !dateRange.to && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange.to ? format(dateRange.to, 'dd/MM/yy') : <span>Date de fin</span>}</Button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateRange.to} onSelect={(day) => setDateRange(prev => ({ ...prev, to: day as Date }))} initialFocus /></PopoverContent>
+                  </Popover>
+                </div>
+                 <div className="flex items-center justify-end gap-2 md:col-span-2 lg:col-span-1">
+                    <Button variant="ghost" size="sm" onClick={resetFilters}><X className="h-4 w-4 mr-2" />Réinitialiser les filtres</Button>
+                </div>
+              </div>
+                <div className="flex md:hidden items-center gap-2 border-t pt-4 mt-4">
+                    <span className="text-sm text-muted-foreground">Dates rapides:</span>
+                    <Button variant="outline" size="sm" onClick={setTodayFilter} className="text-xs h-9">Aujourd'hui</Button>
+                    <Button variant="outline" size="sm" onClick={setWeekFilter} className="text-xs h-9">Cette semaine</Button>
+                    <Button variant="outline" size="sm" onClick={setMonthFilter} className="text-xs h-9">Ce mois</Button>
+                </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {isLoading ? <div className="text-center py-12">Chargement...</div> : processedBookings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center bg-card rounded-lg border">

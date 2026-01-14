@@ -1,25 +1,7 @@
--- Migration: Fix exchange rate consistency
--- Date: 29 décembre 2025
--- Objectif: Utiliser le taux défini en paramètres et l'enregistrer dans chaque paiement
-
--- 1. Ajouter la colonne taux_change à la table payments
-ALTER TABLE public.payments 
-  ADD COLUMN IF NOT EXISTS taux_change DECIMAL(10, 2) DEFAULT 2800;
-
--- 2. Mettre à jour la contrainte de cohérence pour utiliser cette colonne au lieu d'une valeur fixe
-ALTER TABLE public.payments 
-  DROP CONSTRAINT IF EXISTS check_montant_coherence;
-
-ALTER TABLE public.payments
-  ADD CONSTRAINT check_montant_coherence
-  CHECK (
-    ABS(montant - (montant_usd + montant_cdf / COALESCE(NULLIF(taux_change, 0), 2800.0))) < 1.00
-  );
-
--- 3. Mettre à jour la fonction create_booking_with_invoice_atomic pour utiliser le taux dynamique
--- Note: On supprime d'abord l'ancienne version car le type de retour change (UUID -> JSON)
-DROP FUNCTION IF EXISTS public.create_booking_with_invoice_atomic(uuid,numeric,timestamptz,timestamptz,numeric,numeric,numeric,numeric,boolean,text,text,numeric,uuid,uuid);
-DROP FUNCTION IF EXISTS public.create_booking_with_invoice_atomic(uuid,uuid,uuid,timestamptz,timestamptz,numeric,numeric,text,numeric,numeric,numeric,public.payment_method,boolean);
+-- Migration: Fix booking conflict check for completed bookings
+-- Date: 14 janvier 2026
+-- Objectif: Modifier la fonction create_booking_with_invoice_atomic pour ignorer les réservations
+--            avec le statut 'COMPLETED' lors de la vérification des conflits.
 
 CREATE OR REPLACE FUNCTION public.create_booking_with_invoice_atomic(
   p_agent_id UUID,
@@ -45,7 +27,7 @@ DECLARE
   v_invoice_id UUID;
   v_invoice_number TEXT;
   v_invoice_status TEXT;
-  v_forced_end_date TIMESTAMPTZ;
+  v_forced_end_date TIMESTamptz;
   v_forced_start_date TIMESTAMPTZ;
   v_final_usd NUMERIC;
   v_final_cdf NUMERIC;
@@ -106,7 +88,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.bookings 
     WHERE room_id = p_room_id 
-    AND status NOT IN ('CANCELLED', 'EXTENDED', 'COMPLETED')
+    AND status NOT IN ('CANCELLED', 'EXTENDED', 'COMPLETED') -- Fix: Ignore completed bookings
     AND (
       (date_debut_prevue, date_fin_prevue + interval '1 hour') OVERLAPS (v_forced_start_date, v_forced_end_date + interval '1 hour')
     )

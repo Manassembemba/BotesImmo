@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,9 +15,10 @@ interface InvoiceFiltersProps {
     dateRange: { start: string; end: string };
     customer: string;
   }) => void;
+  onActiveFiltersChange: (count: number) => void;
 }
 
-export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps) {
+export function InvoiceFilters({ invoices, onFilterChange, onActiveFiltersChange }: InvoiceFiltersProps) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<string>('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
@@ -46,6 +47,10 @@ export function InvoiceFilters({ invoices, onFilterChange }: InvoiceFiltersProps
 
     setActiveFilters(active);
   }, [search, status, dateRange, customer, period]);
+
+  useEffect(() => {
+    onActiveFiltersChange(activeFilters.length);
+  }, [activeFilters, onActiveFiltersChange]);
 
   const clearFilter = (filterName: string) => {
     switch (filterName.split(':')[0]) {

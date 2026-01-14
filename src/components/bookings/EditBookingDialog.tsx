@@ -22,7 +22,7 @@ const editBookingSchema = z.object({
   date_fin_prevue: z.string().min(1, 'Date de départ requise'),
   prix_total: z.number().min(0, 'Prix total invalide'),
   discount_amount: z.number().min(0).optional(),
-  notes: z.string().optional(),
+
   status: z.enum(['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'], {
     errorMap: () => ({ message: 'Statut invalide' })
   }),
@@ -104,7 +104,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         date_fin_prevue: formatDate(booking.date_fin_prevue),
         prix_total: Number(booking.prix_total) || 0,
         discount_amount: Number(booking.discount_amount) || 0,
-        notes: booking.notes || '',
+
         status: booking.status as 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
       });
     }
@@ -161,7 +161,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         date_debut_prevue: startDate.toISOString(),
         date_fin_prevue: endDate.toISOString(),
         prix_total: data.prix_total,
-        notes: data.notes || null,
+
         status: data.status,
       });
 
@@ -201,21 +201,22 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
           </DialogDescription>
         </DialogHeader>
 
-        <BookingFinancialPanel bookingId={booking.id} />
+        <div className="max-h-[75vh] overflow-y-auto pr-4">
+          <BookingFinancialPanel bookingId={booking.id} />
 
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-          <div className="flex items-center gap-2 text-sm">
-            <User className="h-4 w-4 text-muted-foreground" />
-            <span className="font-medium">{booking.tenants?.prenom} {booking.tenants?.nom}</span>
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-2 mt-4">
+            <div className="flex items-center gap-2 text-sm">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <span className="font-medium">{booking.tenants?.prenom} {booking.tenants?.nom}</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <BedDouble className="h-4 w-4 text-muted-foreground" />
+              <span>Appartement {booking.rooms?.numero}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <BedDouble className="h-4 w-4 text-muted-foreground" />
-            <span>Appartement {booking.rooms?.numero}</span>
-          </div>
-        </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[75vh] overflow-y-auto pr-6">
+          <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -318,23 +319,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      rows={2}
-                      placeholder="Informations complémentaires..."
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
 
             <div className="flex justify-end gap-3 pt-4">
               <Button
@@ -354,6 +339,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
             </div>
           </form>
         </Form>
+        </div> {/* Closing tag for the scrollable content wrapper */}
       </DialogContent>
     </Dialog>
   );

@@ -226,7 +226,7 @@ const Rooms = () => {
                 <p className="text-sm text-muted-foreground">{rooms.length === 0 ? 'Ajoutez votre premier appartement pour commencer' : 'Essayez de modifier votre recherche'}</p>
               </div>
             ) : (
-              <div className="bg-card rounded-lg border shadow-soft overflow-hidden">
+              <div className="bg-card rounded-lg border shadow-soft overflow-x-auto">
                 <Table>
                   <TableHeader><TableRow className="bg-primary hover:bg-primary"><TableHead className="text-primary-foreground font-semibold">N°</TableHead><TableHead className="text-primary-foreground font-semibold">NOM & NUMÉRO</TableHead><TableHead className="text-primary-foreground font-semibold">STATUT</TableHead><TableHead className="text-primary-foreground font-semibold">TYPE</TableHead><TableHead className="text-primary-foreground font-semibold">LOCALITÉ</TableHead><TableHead className="text-primary-foreground font-semibold">PRIX</TableHead>{role === 'ADMIN' && <TableHead className="text-primary-foreground font-semibold text-right">ACTIONS</TableHead>}</TableRow></TableHeader>
                   <TableBody>
