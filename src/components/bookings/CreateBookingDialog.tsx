@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateBooking } from '@/hooks/useBookings';
+import { useCreateBooking, useBookings, Booking } from '@/hooks/useBookings';
 import { useRooms } from '@/hooks/useRooms';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenants, Tenant } from '@/hooks/useTenants';
@@ -53,9 +53,29 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   /* isPaidInFull state removed as requested - logic is now automatic based on amount vs total */
 
   const { data: rooms = [] } = useRooms();
+  const { data: bookingsResult } = useBookings();
+  const bookings = bookingsResult?.data || [];
   const { data: tenants = [], refetch: refetchTenants } = useTenants();
   const createBooking = useCreateBooking();
   const { data: exchangeRateData } = useExchangeRate();
+
+  const activeBookingsByRoomId = useMemo(() => {
+    const map = new Map<string, Booking>();
+    const today = new Date();
+
+    bookings.forEach(b => {
+      const startDate = new Date(b.date_debut_prevue);
+      const endDate = new Date(b.date_fin_prevue);
+
+      if (
+        (b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS') &&
+        startDate <= today && today <= endDate
+      ) {
+        map.set(b.room_id, b);
+      }
+    });
+    return map;
+  }, [bookings]);
 
   const isControlled = props.open !== undefined && props.onOpenChange !== undefined;
   const open = isControlled ? props.open : internalOpen;
@@ -202,7 +222,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     return () => clearTimeout(handler);
   }, [roomId, dateDebut, dateFin]);
 
-  const bookableRooms = rooms.filter(r => r.status === 'Libre' || r.status === 'Nettoyage');
+  const bookableRooms = rooms.filter(r => r.status !== 'Maintenance' && r.status !== 'MAINTENANCE');
 
   const handleTenantCreated = async (newTenant: Tenant) => {
     await refetchTenants();
@@ -273,6 +293,15 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                     {room.status === 'Nettoyage' && (
                       <Badge variant="destructive" className="ml-2 text-[10px] h-5">Nettoyage</Badge>
                     )}
+                    {room.status === 'Occupé' && (() => {
+                      const currentActiveBooking = activeBookingsByRoomId.get(room.id);
+                      const endDate = currentActiveBooking ? format(new Date(currentActiveBooking.date_fin_prevue), 'dd/MM') : '';
+                      return (
+                        <Badge variant="secondary" className="ml-2 text-[10px] h-5">
+                          Occupé {endDate && `jusqu'au ${endDate}`}
+                        </Badge>
+                      );
+                    })()}
                   </SelectItem>
                 ))}</SelectContent></Select><FormMessage /></FormItem>)} />
                 <FormField control={form.control} name="tenant_id" render={({ field }) => (
