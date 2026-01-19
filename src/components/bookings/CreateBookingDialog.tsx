@@ -49,8 +49,6 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [isCreatingTenant, setIsCreatingTenant] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
-  const [nights, setNights] = useState(1);
-  /* isPaidInFull state removed as requested - logic is now automatic based on amount vs total */
 
   const { data: rooms = [] } = useRooms();
   const { data: bookingsResult } = useBookings();
@@ -58,24 +56,6 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   const { data: tenants = [], refetch: refetchTenants } = useTenants();
   const createBooking = useCreateBooking();
   const { data: exchangeRateData } = useExchangeRate();
-
-  const activeBookingsByRoomId = useMemo(() => {
-    const map = new Map<string, Booking>();
-    const today = new Date();
-
-    bookings.forEach(b => {
-      const startDate = new Date(b.date_debut_prevue);
-      const endDate = new Date(b.date_fin_prevue);
-
-      if (
-        (b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS') &&
-        startDate <= today && today <= endDate
-      ) {
-        map.set(b.room_id, b);
-      }
-    });
-    return map;
-  }, [bookings]);
 
   const isControlled = props.open !== undefined && props.onOpenChange !== undefined;
   const open = isControlled ? props.open : internalOpen;
@@ -87,10 +67,9 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     defaultValues: {
       room_id: '',
       tenant_id: '',
-      date_debut_prevue: format(new Date(), 'yyyy-MM-dd'),
-      date_fin_prevue: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      date_debut_prevue: format(new Date(), "yyyy-MM-dd'T'12:00"),
+      date_fin_prevue: format(addDays(new Date(), 1), "yyyy-MM-dd'T'11:00"),
       prix_total: 0,
-      notes: '',
       status: 'CONFIRMED',
       discount_amount: 0,
       initial_payment: 0,
@@ -105,7 +84,6 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   const prixTotal = watch('prix_total'); // Watch prix_total
   const selectedRoom = rooms.find(r => r.id === roomId);
 
-  // États pour le mode de paiement mixte
   // États pour le paiement (Saisie séparée USD/CDF uniquement)
   const [amountUSD, setAmountUSD] = useState<string | number>('');
   const [amountCDF, setAmountCDF] = useState<string | number>('');
@@ -115,19 +93,14 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     if (open && props.initialData) {
       const startDate = new Date(props.initialData.startDate);
       const endDate = new Date(props.initialData.endDate);
-      const numNights = isValid(startDate) && isValid(endDate) && endDate > startDate
-        ? differenceInCalendarDays(endDate, startDate)
-        : 1;
 
-      setNights(numNights);
       reset({
         room_id: props.initialData.roomId,
-        date_debut_prevue: format(startDate, 'yyyy-MM-dd'),
-        date_fin_prevue: format(endDate, 'yyyy-MM-dd'),
-        status: props.initialData.startDate === format(new Date(), 'yyyy-MM-dd') ? 'CONFIRMED' : 'PENDING',
+        date_debut_prevue: format(startDate, "yyyy-MM-dd'T'12:00"),
+        date_fin_prevue: format(endDate, "yyyy-MM-dd'T'11:00"),
+        status: format(startDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd') ? 'CONFIRMED' : 'PENDING',
         tenant_id: '',
         prix_total: 0, // Will be calculated by the effect
-        notes: '',
         discount_amount: 0,
         initial_payment: 0,
       });
@@ -136,7 +109,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
 
   // Logic to determine if it's an immediate check-in
   const isTodayBooking = useMemo(() => {
-    return dateDebut === format(new Date(), 'yyyy-MM-dd');
+    return format(new Date(dateDebut), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
   }, [dateDebut]);
 
   const isImmediate = isTodayBooking;
@@ -150,43 +123,22 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     }
   }, [isImmediate, setValue]);
 
-  // Stabilization: Split synchronization to prevent loops and flickering
-  // 1. Update nights when dates change
+  // Update price whenever dates, room or discount changes
   useEffect(() => {
     const startDate = new Date(dateDebut);
     const endDate = new Date(dateFin);
 
-    if (isValid(startDate) && isValid(endDate) && endDate > startDate) {
+    if (selectedRoom && isValid(startDate) && isValid(endDate) && endDate > startDate) {
       const numNights = differenceInCalendarDays(endDate, startDate);
-      if (nights !== numNights) {
-        setNights(numNights);
-      }
-    }
-  }, [dateDebut, dateFin]);
-
-  // 2. Update dateFin when nights change (manual input)
-  useEffect(() => {
-    const startDate = new Date(dateDebut);
-    if (isValid(startDate) && nights > 0) {
-      const calculatedEndDate = format(addDays(startDate, nights), 'yyyy-MM-dd');
-      if (dateFin !== calculatedEndDate) {
-        setValue('date_fin_prevue', calculatedEndDate, { shouldValidate: true });
-      }
-    }
-  }, [nights, dateDebut, setValue]);
-
-  // 3. Update price whenever dates, nights, room or discount changes
-  useEffect(() => {
-    if (selectedRoom && nights > 0) {
-      const calculatedPrice = nights * selectedRoom.prix_base_nuit;
-      const totalDiscount = nights * (discountAmount || 0);
+      const calculatedPrice = numNights * selectedRoom.prix_base_nuit;
+      const totalDiscount = numNights * (discountAmount || 0);
       const finalPrice = Math.max(0, calculatedPrice - totalDiscount);
 
       if (prixTotal !== finalPrice) {
         setValue('prix_total', finalPrice, { shouldValidate: true });
       }
     }
-  }, [nights, selectedRoom, discountAmount, setValue, prixTotal]);
+  }, [dateDebut, dateFin, selectedRoom, discountAmount, setValue, prixTotal]);
 
   // New effect for handling initial payment based on isPaidInFull
   // Auto-fill initial payment for immediate check-ins (convenience)
@@ -221,6 +173,24 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     }, 500);
     return () => clearTimeout(handler);
   }, [roomId, dateDebut, dateFin]);
+
+  const activeBookingsByRoomId = useMemo(() => {
+    const map = new Map<string, Booking>();
+    const today = new Date();
+
+    bookings.forEach(b => {
+      const startDate = new Date(b.date_debut_prevue);
+      const endDate = new Date(b.date_fin_prevue);
+
+      if (
+        (b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS') &&
+        startDate <= today && today <= endDate
+      ) {
+        map.set(b.room_id, b);
+      }
+    });
+    return map;
+  }, [bookings]);
 
   const bookableRooms = rooms.filter(r => r.status !== 'Maintenance' && r.status !== 'MAINTENANCE');
 
@@ -363,45 +333,30 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                 )} />
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
-                <Label className="text-sm font-bold uppercase tracking-wider text-slate-500">Dates du séjour</Label>
-                <div className="grid grid-cols-1 md:grid-cols-[1fr_80px_1fr] gap-4 items-end">
+                <Label className="text-sm font-bold uppercase tracking-wider text-slate-500">Dates et Heures du séjour</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                   <FormField control={form.control} name="date_debut_prevue" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Arrivée</FormLabel>
                       <FormControl>
                         <Input
-                          type="date"
+                          type="datetime-local"
                           {...field}
                           className="h-11 border-slate-200 focus:border-indigo-500"
-                          min={format(new Date(), 'yyyy-MM-dd')}
                         />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
 
-                  <FormItem>
-                    <FormLabel>Nuits</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={nights}
-                        className="h-11 text-center font-bold border-slate-200"
-                        onChange={(e) => setNights(Math.max(1, parseInt(e.target.value) || 1))}
-                      />
-                    </FormControl>
-                  </FormItem>
-
                   <FormField control={form.control} name="date_fin_prevue" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Départ</FormLabel>
                       <FormControl>
                         <Input
-                          type="date"
+                          type="datetime-local"
                           {...field}
                           className="h-11 border-slate-200 focus:border-indigo-500"
-                          min={dateDebut ? format(addDays(new Date(dateDebut), 1), 'yyyy-MM-dd') : format(addDays(new Date(), 1), 'yyyy-MM-dd')}
                         />
                       </FormControl>
                       <FormMessage />

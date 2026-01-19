@@ -308,7 +308,8 @@ export function ManagePaymentDialog({ booking, open, onClose }: ManagePaymentDia
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-4">
+        <div className="max-h-[70vh] overflow-y-auto pr-4">
+          <div className="space-y-4">
           {overdueInfo.isOverdue && (
             <div className="bg-red-50 border border-red-200 p-3 rounded-xl flex items-center gap-3 animate-pulse">
               <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
@@ -350,7 +351,7 @@ export function ManagePaymentDialog({ booking, open, onClose }: ManagePaymentDia
               {isLoading ? <p>Chargement...</p> : payments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">Aucun paiement enregistré.</p>
               ) : (
-                <div className="border rounded-md max-h-[300px] overflow-y-auto">
+                <div className="border rounded-md max-h-[300px] overflow-y-auto overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -411,6 +412,7 @@ export function ManagePaymentDialog({ booking, open, onClose }: ManagePaymentDia
             </div>
           )}
 
+        </div>
         </div>
 
         <DialogFooter>

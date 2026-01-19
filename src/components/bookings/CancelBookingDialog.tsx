@@ -30,6 +30,11 @@ export function CancelBookingDialog({ booking, open, onOpenChange }: CancelBooki
       await updateBooking.mutateAsync({
         id: booking.id,
         status: 'CANCELLED',
+        // Pass other required fields to satisfy the RPC signature
+        date_debut_prevue: booking.date_debut_prevue,
+        date_fin_prevue: booking.date_fin_prevue,
+        prix_total: booking.prix_total,
+        notes: booking.notes,
       });
 
       // If room was booked for this reservation, make it available again

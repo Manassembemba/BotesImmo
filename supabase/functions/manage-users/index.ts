@@ -107,24 +107,32 @@ Deno.serve(async (req) => {
             case 'UPDATE': {
                 const { userId, role, nom, prenom, location_id, username } = payload;
 
-                if (!username) {
-                    throw new Error("Le nom d'utilisateur est requis.");
-                }
                 if (role !== 'ADMIN' && !location_id) {
                     throw new Error("Une localité est requise pour les rôles non-administrateurs.");
                 }
                 
                 console.log(`Updating user: ${userId}`);
 
+                // Dynamically build the update object to avoid updating username if it's empty
+                const profileUpdateData: {
+                    nom: string;
+                    prenom: string;
+                    location_id: string | null;
+                    username?: string;
+                } = {
+                    nom,
+                    prenom,
+                    location_id: role === 'ADMIN' ? null : location_id
+                };
+
+                if (username) {
+                    profileUpdateData.username = username;
+                }
+
                 // 1. Update profile
                 const { error: profileError } = await adminClient
                     .from('profiles')
-                    .update({
-                        nom,
-                        prenom,
-                        username,
-                        location_id: role === 'ADMIN' ? null : location_id
-                    })
+                    .update(profileUpdateData)
                     .eq('user_id', userId);
 
                 if (profileError) {

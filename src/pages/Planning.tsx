@@ -42,7 +42,9 @@ import {
   isAfter,
   isBefore,
   startOfToday,
-  startOfDay
+  startOfDay,
+  endOfDay,
+  areIntervalsOverlapping
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -232,31 +234,35 @@ const Planning = () => {
     );
   }, [rooms, search, statusFilter, roomTypeFilter, locationFilter, bookings]);
 
-  const getReservationForDay = (roomId: string, day: Date) => {
-    return bookings.find(b => {
-      if (b.room_id !== roomId || b.status === 'CANCELLED') return false;
 
-      const start = startOfDay(parseISO(b.date_debut_prevue));
-      const end = startOfDay(parseISO(b.date_fin_prevue));
 
-      // The day must be on or after the start date AND on or before the end date.
-      return !isBefore(day, start) && !isAfter(day, end);
-    });
-  };
+// ... (other imports)
+
+const getReservationForDay = (bookings: Booking[], roomId: string, day: Date) => {
+  return bookings.find(b => {
+    if (b.room_id !== roomId || b.status === 'CANCELLED') return false;
+    try {
+      const bookingInterval = {
+        start: parseISO(b.date_debut_prevue),
+        end: parseISO(b.date_fin_prevue)
+      };
+      const dayInterval = {
+        start: startOfDay(day),
+        end: endOfDay(day)
+      };
+      
+      // A booking that ends exactly at the start of the day shouldn't count for that day.
+      if (bookingInterval.end.getTime() === dayInterval.start.getTime()) return false;
+
+      return areIntervalsOverlapping(bookingInterval, dayInterval, { inclusive: true });
+    } catch (e) {
+      return false;
+    }
+  });
+};
 
   const handleCellClick = (room: Room, day: Date) => {
     const today = startOfToday();
-
-    // Cannot start a selection on a day that already has a booking
-    if (getReservationForDay(room.id, day)) {
-      toast({
-        title: "Impossible de sélectionner",
-        description: "Cette date est déjà réservée.",
-        variant: "destructive",
-      });
-      setSelection({ start: null, end: null, roomId: null }); // Reset selection if click on booked cell
-      return;
-    }
 
     if (!selection.start || selection.roomId !== room.id) {
       // First click: start selection
@@ -280,18 +286,24 @@ const Planning = () => {
           description: "La date de départ ne peut pas être antérieure à la date d'arrivée.",
           variant: "destructive",
         });
-        // Treat as a new selection start instead of just returning
         setSelection({ start: day, end: null, roomId: room.id });
         return;
       }
+      
+      // Create Date objects with the default times
+      const finalStartDate = new Date(startDate);
+      finalStartDate.setHours(12, 0, 0, 0);
+
+      const finalEndDate = new Date(endDate);
+      finalEndDate.setHours(11, 0, 0, 0);
 
       // Open dialog with pre-filled data
       setBookingDialog({
         open: true,
         initialData: {
           roomId: room.id,
-          startDate: startDate.toISOString(),
-          endDate: addDays(endDate, 1).toISOString(), // Add 1 day as checkout is on the next day
+          startDate: finalStartDate.toISOString(),
+          endDate: finalEndDate.toISOString(),
         },
       });
       // Reset selection
@@ -501,7 +513,7 @@ const Planning = () => {
                       </div>
                     </div>
                     {days.map((day) => {
-                      const reservation = getReservationForDay(room.id, day);
+                      const reservation = getReservationForDay(bookings, room.id, day);
                       const isWeekend = isSaturday(day) || isSunday(day);
                       const isTodayCell = isToday(day);
                       const inSelection = isDayInSelection(day, room.id);
@@ -534,7 +546,6 @@ const Planning = () => {
                                       'border-y border-white/20 backdrop-blur-sm shadow-md',
                                       hasDebt && "ring-2 ring-amber-400 ring-offset-1"
                                     )}
-                                    onClick={(e) => { e.stopPropagation(); setSelectedBooking(reservation); }}
                                   >
                                     <div className="w-full px-2 truncate flex items-center justify-center gap-1">
                                       {isStart && (
@@ -552,7 +563,7 @@ const Planning = () => {
                                       <span className={cn('truncate', STATUS_COLORS[reservation.status]?.text)}>
                                         {(isStart || (days.length <= 14)) && `${reservation.tenants?.prenom} ${reservation.tenants?.nom}`}
                                         {isStart && isOverdue && " (RETARD)"}
-                                        {isStart && hasDebt && !isOverdue && ` (${balanceDue}$)`}
+                                        {isStart && hasDebt && !isOverdue && ` (${balanceDue.toFixed(2)}$)`}
                                       </span>
 
                                       {isEnd && !isStart && (
@@ -561,10 +572,10 @@ const Planning = () => {
                                     </div>
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-white/80 backdrop-blur-md border-indigo-100 shadow-xl p-3">
-                                  <div className="space-y-1">
+                                <TooltipContent className="bg-white/80 backdrop-blur-md border-indigo-100 shadow-xl p-3 w-56">
+                                  <div className="space-y-2">
                                     <p className="font-bold text-indigo-900 border-b pb-1 mb-1">{reservation.tenants?.prenom} {reservation.tenants?.nom}</p>
-                                    <p className="text-xs flex justify-between"><span>Période:</span> <span>{format(parseISO(reservation.date_debut_prevue), 'dd/MM/yy')} - {format(parseISO(reservation.date_fin_prevue), 'dd/MM/yy')}</span></p>
+                                    <p className="text-xs flex justify-between"><span>Période:</span> <span>{format(parseISO(reservation.date_debut_prevue), 'dd/MM/yy HH:mm')} - {format(parseISO(reservation.date_fin_prevue), 'dd/MM/yy HH:mm')}</span></p>
                                     {isOverdue && (
                                       <p className="text-xs font-bold text-red-600 flex items-center gap-1 bg-red-50 p-1 rounded">
                                         <AlertTriangle className="h-3 w-3" /> ATTENTION : Départ dépassé !
@@ -575,6 +586,10 @@ const Planning = () => {
                                         <BadgeCent className="h-3 w-3" /> Solde dû : {balanceDue.toFixed(2)} $
                                       </p>
                                     )}
+                                    <Button size="sm" className="w-full mt-2 h-8 text-xs" onClick={() => setSelectedBooking(reservation)}>
+                                      <Eye className="h-3 w-3 mr-2" />
+                                      Voir les détails
+                                    </Button>
                                   </div>
                                 </TooltipContent>
                               </Tooltip>
