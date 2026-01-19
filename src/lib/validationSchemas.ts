@@ -4,7 +4,7 @@ export const tenantSchema = z.object({
   nom: z.string().trim().min(1, "Le nom est requis").max(100, "Le nom doit faire moins de 100 caractères"),
   prenom: z.string().trim().min(1, "Le prénom est requis").max(100, "Le prénom doit faire moins de 100 caractères"),
   email: z.string().trim().email("Email invalide").max(255, "L'email doit faire moins de 255 caractères").optional().or(z.literal('')),
-  telephone: z.string().trim().max(20, "Le téléphone doit faire moins de 20 caractères").optional().or(z.literal('')),
+  telephone: z.string().trim().min(5, "Le téléphone est requis (min 5 chiffres)").max(20, "Le téléphone doit faire moins de 20 caractères"),
   id_document: z.string().trim().max(50, "L'identifiant doit faire moins de 50 caractères").optional().or(z.literal('')),
   notes: z.string().trim().max(500, "Les notes doivent faire moins de 500 caractères").optional().or(z.literal('')),
   liste_noire: z.boolean(),
