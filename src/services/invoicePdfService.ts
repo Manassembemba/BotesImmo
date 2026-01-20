@@ -226,13 +226,12 @@ export const generateInvoiceHTML = (
     <body>
         <div class="invoice-container">
             <div class="header">
-                <h1>FACTURE</h1>
-                <div class="header-info">
-                    <span class="badge-number">N° ${invoice.invoice_number}</span>
-                    <span class="badge-date">Date: ${invoiceDate}</span>
-                </div>
                 <div class="logo">
                     <img src="/LOGO.jpg" alt="Botes Immo">
+                </div>
+                <div class="header-info">
+                    <span class="badge-number">FACTURE N° ${invoice.invoice_number}</span>
+                    <span class="badge-date">Date: ${invoiceDate}</span>
                 </div>
             </div>
             <div class="client-info">
@@ -284,8 +283,10 @@ export const generateInvoiceHTML = (
                 <p class="warning">Frais non remboursables après réservation</p>
                 <p class="thank-you">MERCI DE VOTRE CONFIANCE</p>
                 <div class="legal-line">
-                    STE BOTES GROUP SARL ID. Nat : 01-H5300-N52168J<br>
-                    RCCM : KNM/RCCM/24-B-00077 IMPOT : A2403025Q<br>
+                    STE BOTES GROUP SARL<br>
+                    ID. Nat : 01-H5300-N52168J<br>
+                    RCCM : KNM/RCCM/24-B-00077<br>
+                    IMPOT : A2403025Q<br>
                     <div class="phone-big">Tél: +243 828 093 878</div>
                 </div>
             </div>
