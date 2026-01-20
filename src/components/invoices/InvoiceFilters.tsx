@@ -15,7 +15,7 @@ interface InvoiceFiltersProps {
     dateRange: { start: string; end: string };
     customer: string;
   }) => void;
-  onActiveFiltersChange: (count: number) => void;
+  onActiveFiltersChange?: (count: number) => void;
 }
 
 export function InvoiceFilters({ invoices, onFilterChange, onActiveFiltersChange }: InvoiceFiltersProps) {
@@ -49,7 +49,7 @@ export function InvoiceFilters({ invoices, onFilterChange, onActiveFiltersChange
   }, [search, status, dateRange, customer, period]);
 
   useEffect(() => {
-    onActiveFiltersChange(activeFilters.length);
+    onActiveFiltersChange?.(activeFilters.length);
   }, [activeFilters, onActiveFiltersChange]);
 
   const clearFilter = (filterName: string) => {
