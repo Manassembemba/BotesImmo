@@ -3,8 +3,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Printer } from 'lucide-react';
-import { downloadInvoicePDF } from '@/services/invoicePdfService';
+import { Share2, Printer } from 'lucide-react';
+import { downloadInvoicePDF, shareInvoice } from '@/services/invoicePdfService';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { usePaymentsByInvoice } from '@/hooks/usePayments';
 import { useMemo } from 'react';
@@ -24,6 +24,7 @@ export function InvoiceView({ invoice }: InvoiceViewProps) {
   // Calcul du breakdown physique
   const totalUSD = payments.reduce((sum, p) => sum + (p.montant_usd || 0), 0);
   const totalCDF = payments.reduce((sum, p) => sum + (p.montant_cdf || 0), 0);
+  const totalPaidAmount = payments.reduce((sum, p) => sum + (p.montant || 0), 0);
 
   // Déterminer le titre en fonction du contenu
   const getInvoiceTitle = () => {
@@ -225,9 +226,9 @@ export function InvoiceView({ invoice }: InvoiceViewProps) {
           <Printer className="mr-2 h-4 w-4" />
           Imprimer
         </Button>
-        <Button onClick={() => downloadInvoicePDF(invoice)}>
-          <Download className="mr-2 h-4 w-4" />
-          Télécharger PDF
+        <Button onClick={() => shareInvoice(invoice, totalPaidAmount)}>
+          <Share2 className="mr-2 h-4 w-4" />
+          Partager
         </Button>
       </div>
     </div>

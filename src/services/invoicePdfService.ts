@@ -335,3 +335,41 @@ export const downloadInvoicePDF = async (invoice: Invoice) => {
         };
     }
 };
+
+export const shareInvoice = async (invoice: Invoice, totalPaid: number) => {
+    const invoiceDate = format(new Date(invoice.date), 'dd/MM/yyyy');
+    const netTotal = invoice.net_total || invoice.total;
+    const remainingBalance = netTotal - totalPaid;
+
+    // Message optimisé pour WhatsApp/Réseaux Sociaux
+    const text = `*FACTURE BOTES IMMO*\n` +
+        `---------------------------\n` +
+        `Ref: ${invoice.invoice_number}\n` +
+        `Client: ${invoice.tenant_name}\n` +
+        `Chambre: ${invoice.room_number} (${invoice.room_type})\n` +
+        `Période: ${invoice.booking_dates ? format(new Date(invoice.booking_dates.start), 'dd/MM/yyyy') : ''} au ${invoice.booking_dates ? format(new Date(invoice.booking_dates.end), 'dd/MM/yyyy') : ''}\n` +
+        `---------------------------\n` +
+        `TOTAL: ${netTotal.toFixed(2)}$\n` +
+        `PAYÉ: ${totalPaid.toFixed(2)}$\n` +
+        `RESTE: ${remainingBalance > 0 ? remainingBalance.toFixed(2) : '0.00'}$` +
+        `\n---------------------------\n` +
+        `Merci de votre confiance!`;
+
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: `Facture ${invoice.invoice_number}`,
+                text: text,
+            });
+        } catch (error) {
+            console.error("Erreur lors du partage:", error);
+        }
+    } else {
+        try {
+            await navigator.clipboard.writeText(text);
+            alert("Détails de la facture copiés dans le presse-papier !");
+        } catch (err) {
+            console.error("Erreur clipboard:", err);
+        }
+    }
+};
