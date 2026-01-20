@@ -92,13 +92,15 @@ export const generateInvoiceHTML = (
             }
 
             .logo img {
-                height: 50px;
-                filter: grayscale(100%) contrast(200%); /* Optimisation pour thermique */
+                height: 80px; /* Logo agrandi */
+                width: auto;
+                margin: 0 auto;
+                display: block;
             }
 
             .client-info { 
                 margin-bottom: 4mm;
-                border: 1.5pt solid #000;
+                border: 2pt solid #000;
                 padding: 2mm;
             }
 
@@ -175,9 +177,11 @@ export const generateInvoiceHTML = (
 
             .footer { 
                 text-align: center; 
-                font-size: 10pt; 
+                font-size: 11pt; 
                 color: #000;
                 font-weight: 900;
+                margin-top: 5mm;
+                padding-bottom: 10mm; /* Espace pour la coupe de l'imprimante */
             }
 
             .footer p { margin: 2mm 0; }
@@ -185,27 +189,31 @@ export const generateInvoiceHTML = (
             .warning { 
                 font-size: 11pt;
                 text-transform: uppercase;
-                border-top: 1pt dashed #000;
-                padding-top: 2mm;
+                border-top: 1.5pt solid #000;
+                padding-top: 3mm;
+                margin-top: 4mm;
             }
 
             .thank-you { 
                 font-size: 12pt;
                 margin-top: 4mm !important;
+                font-weight: 900;
             }
 
             .legal-line { 
-                border-top: 1.5pt solid #000; 
+                border-top: 2pt solid #000; 
                 margin-top: 4mm; 
-                padding-top: 2mm; 
-                line-height: 1.3;
-                font-size: 9pt;
+                padding-top: 3mm; 
+                line-height: 1.4;
+                font-size: 10pt;
             }
 
             .phone-big { 
-                font-size: 13pt; 
+                font-size: 15pt; /* Numéro encore plus grand */
                 font-weight: 900; 
-                margin-top: 2mm; 
+                margin-top: 3mm; 
+                border: 1.5pt solid #000;
+                padding: 2mm;
             }
 
             /* Cacher les éléments non destinés à l'impression si nécessaire */
