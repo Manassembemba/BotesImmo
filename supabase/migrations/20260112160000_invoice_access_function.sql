@@ -22,6 +22,7 @@ BEGIN
     RETURN FALSE;
   END IF;
 
+
   -- 2. Check if user is ADMIN (Direct table check to avoid signature confusion)
   SELECT EXISTS (
     SELECT 1 FROM public.user_roles 
