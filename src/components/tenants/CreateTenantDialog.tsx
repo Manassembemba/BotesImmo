@@ -44,8 +44,6 @@ export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigge
       email: '',
       telephone: '',
       id_document: '',
-      notes: '',
-      liste_noire: false,
     },
   });
 
@@ -58,8 +56,8 @@ export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigge
         email: data.email || null,
         telephone: data.telephone || null,
         id_document: data.id_document || null,
-        notes: data.notes || null,
-        liste_noire: data.liste_noire,
+        notes: null,
+        liste_noire: false,
         location_id: profile?.location_id,
       });
 
@@ -140,35 +138,6 @@ export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigge
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Informations complémentaires..." rows={2} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="liste_noire"
-              render={({ field }) => (
-                <FormItem className="flex items-center justify-between py-2">
-                  <div>
-                    <FormLabel>Liste noire</FormLabel>
-                    <FormDescription>Marquer ce locataire comme indésirable</FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch checked={field.value} onCheckedChange={field.onChange} />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

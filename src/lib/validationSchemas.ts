@@ -7,7 +7,7 @@ export const tenantSchema = z.object({
   telephone: z.string().trim().min(5, "Le téléphone est requis (min 5 chiffres)").max(20, "Le téléphone doit faire moins de 20 caractères"),
   id_document: z.string().trim().max(50, "L'identifiant doit faire moins de 50 caractères").optional().or(z.literal('')),
   notes: z.string().trim().max(500, "Les notes doivent faire moins de 500 caractères").optional().or(z.literal('')),
-  liste_noire: z.boolean(),
+  liste_noire: z.boolean().default(false),
 });
 
 export const roomSchema = z.object({
