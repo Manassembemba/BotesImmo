@@ -31,7 +31,7 @@ export const bookingSchema = z.object({
   notes: z.string().trim().max(500, "Les notes doivent faire moins de 500 caractères").optional().or(z.literal('')),
   status: z.enum(['PENDING', 'CONFIRMED']),
   discount_amount: z.number().min(0, "La réduction ne peut être négative").optional(),
-  initial_payment: z.number().min(0, "Le paiement ne peut être négatif"),
+  initial_payment: z.number().min(0.001, "Un paiement initial est requis"),
 }).refine(data => {
   const start = new Date(data.date_debut_prevue);
   const end = new Date(data.date_fin_prevue);

@@ -447,8 +447,8 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                                 onChangeUsd={(usd) => setAmountUSD(usd)}
                                 onChangeCdf={(cdf) => setAmountCDF(cdf)}
                                 mode="independent"
-                                labelUsd="USD Recu *"
-                                labelCdf="CDF Recu"
+                                labelUsd="Montant USD *"
+                                labelCdf="Montant CDF *"
                                 showStatusIndicator={true}
                                 balanceDue={prixTotal}
                                 className="bg-white border-slate-200"

@@ -201,7 +201,7 @@ export function CurrencyInput({
             {mode === 'independent' && (
                 <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950 p-2 rounded border border-blue-200 dark:border-blue-800 flex items-center gap-2">
                     <span className="text-blue-600 font-semibold">💡</span>
-                    <span>Mode paiement mixte : Saisissez le montant réel reçu dans chaque devise</span>
+                    <span>Mode paiement mixte : Saisissez le montant reçu (USD et/ou CDF). Un champ rempli rend l'autre optionnel.</span>
                 </div>
             )}
 
