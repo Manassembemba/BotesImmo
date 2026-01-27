@@ -69,7 +69,8 @@ const Dashboard = () => {
     const paymentDate = new Date(p.date_paiement);
     return isToday(paymentDate);
   });
-  const todayRevenue = actualPayments.reduce((sum, p) => sum + p.montant, 0);
+  const todayRevenueUsd = actualPayments.reduce((sum, p) => sum + (p.montant_usd || 0), 0);
+  const todayRevenueCdf = actualPayments.reduce((sum, p) => sum + (p.montant_cdf || 0), 0);
 
   // Calcul des revenus par mois
   const monthlyData = useMemo(() => {
@@ -182,14 +183,6 @@ const Dashboard = () => {
           icon={Building2}
           variant="primary"
         />
-        {role === 'ADMIN' && (
-          <StatsCard
-            title="Revenus du mois"
-            value={formatCurrency(monthlyRevenue, rate).usd}
-            subtitle={`Équiv. ${Math.round(monthlyRevenue * rate).toLocaleString('fr-FR')} CDF`}
-            icon={DollarSign}
-          />
-        )}
         <StatsCard
           title="Taux d'occupation"
           value={`${fillRate}%`}
@@ -213,8 +206,10 @@ const Dashboard = () => {
         {role === 'ADMIN' && (
           <div className="bg-card rounded-lg border border-border p-3 sm:p-4">
             <div className={cn("text-xs sm:text-sm text-muted-foreground mb-1")}>Revenus aujourd'hui</div>
-            <div className={cn("font-bold text-foreground", "text-xl sm:text-2xl")}>{formatCurrency(todayRevenue, rate).usd}</div>
-            <div className="text-xs text-muted-foreground">+0 réservations</div>
+            <div className="flex flex-col gap-1">
+              <div className={cn("font-bold text-foreground", "text-lg sm:text-xl")}>{todayRevenueUsd.toFixed(2)} $</div>
+              <div className="text-sm text-muted-foreground">{todayRevenueCdf.toLocaleString('fr-FR')} FC</div>
+            </div>
           </div>
         )}
 
