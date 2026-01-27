@@ -55,7 +55,7 @@ const Dashboard = () => {
   const overdueCount = notifications.filter(n => n.type === 'checkout_overdue').length;
 
   // Calcul des indicateurs de base
-  const availableRooms = rooms.filter(r => r.status === 'Libre').length;
+  const availableRooms = rooms.filter(r => r.status === 'Libre' || r.status === 'Nettoyage').length;
   const occupiedRooms = rooms.filter(r => r.status === 'Occupé').length;
   const bookedRooms = rooms.filter(r => r.status === 'BOOKED').length;
   const totalRooms = rooms.length;
