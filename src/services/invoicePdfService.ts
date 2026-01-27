@@ -343,88 +343,187 @@ import autoTable from 'jspdf-autotable';
 
 export const shareInvoice = async (invoice: Invoice, totalPaid: number) => {
     try {
-        const doc = new jsPDF();
-
-        // Initialisation explicite si nécessaire, bien que l'import par défaut devrait suffire avec les versions récentes
-        // (doc as any).autoTable = autoTable; 
+        // Configuration pour format ticket (80mm de large)
+        // La hauteur est approximative et s'ajustera, mais on part sur une base longue
+        const doc = new jsPDF({
+            orientation: 'p',
+            unit: 'mm',
+            format: [80, 200] // Largeur 80mm fixe
+        });
 
         const invoiceDate = format(new Date(invoice.date), 'dd/MM/yyyy');
         const netTotal = invoice.net_total || invoice.total;
         const remainingBalance = netTotal - totalPaid;
 
-        // Header
-        doc.setFontSize(20);
-        doc.text(`FACTURE N° ${invoice.invoice_number}`, 105, 20, { align: 'center' });
+        // Police style "ticket" (Monospace ou Sans-serif simple)
+        doc.setFont('helvetica');
 
-        doc.setFontSize(10);
-        doc.text('BOTES IMMO', 105, 30, { align: 'center' });
-        doc.text('Gestion des locations', 105, 35, { align: 'center' });
-        doc.text('Kinshasa, RDC', 105, 40, { align: 'center' });
-        doc.text('Tél: +243 828 093 878', 105, 45, { align: 'center' });
+        let y = 10;
+        const centerX = 40; // Centre de 80mm
+        const margin = 4;
 
-        // Client Info
-        doc.setFontSize(12);
-        doc.text('CLIENT:', 20, 60);
-        doc.setFontSize(12);
+        // --- HEADER ---
+        doc.setFontSize(16);
         doc.setFont("helvetica", "bold");
-        doc.text(`${invoice.tenant_name}`, 40, 60);
+        doc.text('BOTES IMMO', centerX, y, { align: 'center' });
+        y += 6;
+
+        doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
+        doc.text('Gestion des locations', centerX, y, { align: 'center' });
+        y += 4;
+        doc.text('Kinshasa, RDC', centerX, y, { align: 'center' });
+        y += 4;
+        doc.setFont("helvetica", "bold");
+        doc.text('Tel: +243 828 093 878', centerX, y, { align: 'center' });
+        y += 8;
 
-        doc.text(`Date: ${invoiceDate}`, 150, 60);
+        // Ligne séparation
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, 80 - margin, y);
+        y += 5;
 
+        // Titre Facture
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text(`FACTURE N ${invoice.invoice_number}`, centerX, y, { align: 'center' });
+        y += 5;
+        doc.setFontSize(9);
+        doc.text(`Date: ${invoiceDate}`, centerX, y, { align: 'center' });
+        y += 8;
+
+        // --- CLIENT INFO ---
+        doc.rect(margin, y, 80 - (margin * 2), 16); // Cadre client
+        y += 4;
+        doc.setFontSize(10);
+        doc.text('CLIENT:', centerX, y, { align: 'center' });
+        y += 5;
+        doc.setFontSize(12);
+        doc.text(invoice.tenant_name.toUpperCase(), centerX, y, { align: 'center' });
+        y += 5;
+        if (invoice.tenant_phone) {
+            doc.setFontSize(9);
+            doc.text(invoice.tenant_phone, centerX, y, { align: 'center' });
+            y += 2;
+        }
+        y += 6;
+
+        // --- PÉRIODE ---
         if (invoice.booking_dates) {
+            doc.setFontSize(9);
             const start = format(new Date(invoice.booking_dates.start), 'dd/MM/yyyy');
             const end = format(new Date(invoice.booking_dates.end), 'dd/MM/yyyy');
-            doc.text(`Période: Du ${start} au ${end}`, 20, 70);
-            doc.text(`Chambre: ${invoice.room_number || 'N/A'} (${invoice.room_type || ''})`, 20, 78);
+
+            // Petit tableau simple pour les dates
+            doc.text(`ARRIVEE: ${start} 12:00`, margin, y);
+            y += 4;
+            doc.text(`SORTIE : ${end} 11:00`, margin, y);
+            y += 6;
         }
 
-        // TableItems
+        // --- ITEMS TABLE ---
         const tableBody = invoice.items.map(item => [
             item.description,
             item.quantity.toString(),
-            `${item.unit_price.toFixed(2)}$`,
-            `${item.total.toFixed(2)}$`
+            item.total.toFixed(0) // On arrondit pour gagner de la place si besoin, ou .toFixed(2) pour précision
         ]);
 
         autoTable(doc, {
-            startY: 90,
-            head: [['Description', 'Qté', 'P.U', 'Total']],
+            startY: y,
+            margin: { left: margin, right: margin },
+            head: [['DESC', 'QTE', 'TOT']],
             body: tableBody,
-            theme: 'striped',
-            headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255] },
-            styles: { fontSize: 10 },
+            theme: 'plain', // Style minimaliste
+            styles: {
+                fontSize: 8,
+                font: 'helvetica',
+                cellPadding: 1,
+                overflow: 'linebreak'
+            },
+            headStyles: {
+                fillColor: [0, 0, 0],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                halign: 'center'
+            },
             columnStyles: {
-                0: { cellWidth: 90 },
-                1: { cellWidth: 20, halign: 'center' },
-                2: { cellWidth: 30, halign: 'right' },
-                3: { cellWidth: 30, halign: 'right' },
-            }
+                0: { cellWidth: 40 }, // Desc
+                1: { cellWidth: 10, halign: 'center' }, // Qte
+                2: { cellWidth: 20, halign: 'right' }, // Total
+            },
         });
 
-        const finalY = (doc as any).lastAutoTable.finalY + 10;
+        const finalY = (doc as any).lastAutoTable.finalY + 5;
+        y = finalY;
 
-        // Totals
-        doc.setFontSize(11);
-        doc.text(`TOTAL FACTURÉ:`, 140, finalY);
-        doc.text(`${netTotal.toFixed(2)}$`, 190, finalY, { align: 'right' });
+        // --- TOTALS ---
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
 
-        doc.text(`DÉJÀ PAYÉ:`, 140, finalY + 8);
-        doc.text(`${totalPaid.toFixed(2)}$`, 190, finalY + 8, { align: 'right' });
+        // Fonction helper pour lignes de totaux
+        const addTotalLine = (label: string, value: string, isBold: boolean = false) => {
+            doc.setFont("helvetica", isBold ? "bold" : "normal");
+            doc.text(label, margin, y);
+            doc.text(value, 80 - margin, y, { align: 'right' });
+            y += 4;
+        };
 
-        if (remainingBalance > 0) {
-            doc.setFont("helvetica", "bold");
-            doc.setTextColor(200, 0, 0); // Red
-            doc.text(`RESTE À PAYER:`, 140, finalY + 18);
-            doc.text(`${remainingBalance.toFixed(2)}$`, 190, finalY + 18, { align: 'right' });
-            doc.setTextColor(0, 0, 0); // Reset color
+        if (invoice.discount_amount) {
+            addTotalLine('Reduction:', `-${invoice.discount_amount.toFixed(2)}$`);
         }
 
-        // Footer
-        const pageHeight = doc.internal.pageSize.height;
+        addTotalLine('Paye:', `${totalPaid.toFixed(2)}$`);
+
+        y += 2;
+        doc.setLineWidth(0.5);
+        doc.line(margin, y, 80 - margin, y);
+        y += 5;
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text(`TOTAL: ${netTotal.toFixed(2)}$`, 80 - margin, y, { align: 'right' });
+        y += 8;
+
+        if (remainingBalance > 0) {
+            doc.setFontSize(10);
+            doc.text(`RESTE A PAYER: ${remainingBalance.toFixed(2)}$`, 80 - margin, y, { align: 'right' });
+            y += 8;
+        }
+
+        // --- FOOTER ---
+        y += 5;
         doc.setFontSize(8);
-        doc.text('Merci de votre confiance', 105, pageHeight - 20, { align: 'center' });
-        doc.text('Frais non remboursables après réservation', 105, pageHeight - 15, { align: 'center' });
+        doc.setFont("helvetica", "normal");
+        doc.text('Frais non remboursables', centerX, y, { align: 'center' });
+        y += 4;
+        doc.setFont("helvetica", "bold");
+        doc.text('MERCI DE VOTRE CONFIANCE', centerX, y, { align: 'center' });
+        y += 6;
+
+        // Legal box
+        doc.rect(margin, y, 80 - (margin * 2), 25);
+        y += 4;
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+
+        const legalLines = [
+            'STE BOTES GROUP SARL',
+            'ID. Nat : 01-H5300-N52168J',
+            'RCCM : KNM/RCCM/24-B-00077',
+            'IMPOT : A2403025Q'
+        ];
+
+        legalLines.forEach(line => {
+            doc.text(line, centerX, y, { align: 'center' });
+            y += 3.5;
+        });
+
+        // Set properties for printing/viewer
+        doc.setProperties({
+            title: `Facture ${invoice.invoice_number}`,
+            subject: 'Facture de location',
+            author: 'Botes Immo',
+        });
 
         // Generate Blob
         const pdfBlob = doc.output('blob');
