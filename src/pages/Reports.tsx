@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Download, FileText, TrendingUp, DollarSign, BedDouble, Calendar as CalendarIcon, Wallet, Hash, Loader2, Scale, Calculator, TrendingDown } from 'lucide-react';
@@ -18,6 +18,7 @@ import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { RevenueChart } from '@/components/reports/RevenueChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
+import { ReportPasswordDialog } from '@/components/reports/ReportPasswordDialog';
 
 
 type Period = 'today' | 'week' | 'month' | 'custom';
@@ -30,8 +31,10 @@ const Reports = () => {
     to: endOfToday(),
   });
   const [isExporting, setIsExporting] = useState(false);
+  // Always start as not authenticated to require password on each visit
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // --- DATA FETCHING ---
+  // --- DATA FETCHING (must be before any conditional returns) ---
   const { data: payments = [], isLoading: paymentsLoading } = useAllPayments();
   const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
   const bookings = bookingsResult?.data || [];
@@ -41,7 +44,7 @@ const Reports = () => {
   const { data: exchangeRateData } = useExchangeRate();
   const rate = exchangeRateData?.usd_to_cdf || 2800;
 
-  // --- CALCULATIONS ---
+  // --- CALCULATIONS (must be before any conditional returns) ---
   const stats = useMemo(() => {
     if (!dateRange?.from || !dateRange?.to || !rooms || rooms.length === 0) {
       return { totalRevenue: 0, numberOfPayments: 0, averagePayment: 0, totalUsdDirect: 0, totalCdfDirect: 0, occupancyRate: 0, totalNightsOccupied: 0, chartData: [], trends: { revenue: 0, occupancy: 0 } };
@@ -116,9 +119,27 @@ const Reports = () => {
     return "Analyses et exports de données.";
   }, [role, profile]);
 
+  const handlePasswordSuccess = () => {
+    setIsAuthenticated(true);
+  };
+
+  // Show password dialog if not authenticated
+  if (!isAuthenticated) {
+    return <ReportPasswordDialog open={true} onSuccess={handlePasswordSuccess} />;
+  }
+
   // --- HANDLERS ---
   const handlePeriodChange = (selectedPeriod: Period) => {
-    // ... (logique existante)
+    setPeriod(selectedPeriod);
+    const today = new Date();
+
+    if (selectedPeriod === 'today') {
+      setDateRange({ from: startOfToday(), to: endOfToday() });
+    } else if (selectedPeriod === 'week') {
+      setDateRange({ from: startOfWeek(today, { weekStartsOn: 1 }), to: endOfWeek(today, { weekStartsOn: 1 }) });
+    } else if (selectedPeriod === 'month') {
+      setDateRange({ from: startOfMonth(today), to: endOfMonth(today) });
+    }
   };
 
   const handleFinancialReportCsvExport = () => {
@@ -185,13 +206,6 @@ const Reports = () => {
       icon: BedDouble,
       color: 'text-orange-500',
       path: '/reports/occupancy',
-    },
-    {
-      title: 'Grand Livre',
-      description: 'Vue détaillée de toutes les transactions comptables.',
-      icon: FileText,
-      color: 'text-indigo-500',
-      path: '/reports/general-ledger',
     }
   ];
 
@@ -199,7 +213,100 @@ const Reports = () => {
 
   return (
     <MainLayout title="Rapports" subtitle={subtitle}>
-      {/* ... (UI des filtres) ... */}
+      <div className="flex flex-wrap gap-4 items-end mb-8 bg-card/50 backdrop-blur-sm p-4 rounded-xl border shadow-soft">
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-muted-foreground">Période d'analyse</label>
+          <div className="flex gap-2 p-1 bg-secondary/30 rounded-lg w-fit">
+            <Button
+              variant={period === 'today' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handlePeriodChange('today')}
+              className="px-4 text-xs h-8"
+            >
+              Aujourd'hui
+            </Button>
+            <Button
+              variant={period === 'week' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handlePeriodChange('week')}
+              className="px-4 text-xs h-8"
+            >
+              Semaine
+            </Button>
+            <Button
+              variant={period === 'month' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handlePeriodChange('month')}
+              className="px-4 text-xs h-8"
+            >
+              Mois
+            </Button>
+            <Button
+              variant={period === 'custom' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setPeriod('custom')}
+              className="px-4 text-xs h-8"
+            >
+              Personnalisé
+            </Button>
+          </div>
+        </div>
+
+        {period === 'custom' && (
+          <div className="space-y-2 animate-in slide-in-from-left-2 duration-200">
+            <label className="text-xs font-medium text-muted-foreground">Sélectionner la plage</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant={"outline"}
+                  className={cn(
+                    "w-[260px] justify-start text-left font-normal h-8",
+                    !dateRange && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateRange?.from ? (
+                    dateRange.to ? (
+                      <>
+                        {format(dateRange.from, "dd/MM/yyyy")} -{" "}
+                        {format(dateRange.to, "dd/MM/yyyy")}
+                      </>
+                    ) : (
+                      format(dateRange.from, "dd/MM/yyyy")
+                    )
+                  ) : (
+                    <span>Choisir une date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={dateRange?.from}
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        )}
+
+        <div className="ml-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFinancialReportCsvExport}
+            disabled={isExporting}
+            className="flex items-center gap-2 h-8"
+          >
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Exporter CSV
+          </Button>
+        </div>
+      </div>
 
       {/* Cartes de Statistiques */}
       <div className="mb-8">
@@ -243,8 +350,8 @@ const Reports = () => {
         )}
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3 mb-8">
-        <Card className="md:col-span-3 overflow-hidden border-none shadow-medium bg-gradient-to-br from-card to-secondary/30">
+      <div className="grid gap-6 mb-8">
+        <Card className="overflow-hidden border-none shadow-medium bg-gradient-to-br from-card to-secondary/30">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <div>
               <CardTitle className="text-lg font-bold">Évolution des Revenus</CardTitle>
@@ -254,35 +361,6 @@ const Reports = () => {
           </CardHeader>
           <CardContent className="pt-4">
             <RevenueChart data={stats.chartData} />
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-medium bg-gradient-to-br from-indigo-500/10 to-purple-500/5 border-l-4 border-l-indigo-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-md font-bold flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-indigo-500" />
-              Intelligence Botes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-3 rounded-lg bg-background/50 border border-indigo-100">
-                <p className="text-sm font-medium text-foreground">Performance Revenus</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats.trends.revenue >= 0
-                    ? `Félicitations ! Vos revenus sont en hausse de ${stats.trends.revenue}% par rapport à la période précédente.`
-                    : `Attention, vos revenus ont baissé de ${Math.abs(stats.trends.revenue)}% par rapport à la période précédente.`}
-                </p>
-              </div>
-              <div className="p-3 rounded-lg bg-background/50 border border-indigo-100">
-                <p className="text-sm font-medium text-foreground">Focus Occupation</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stats.occupancyRate > 70
-                    ? "Excellent taux d'occupation ! Pensez à optimiser vos tarifs pour les périodes de haute demande."
-                    : "Votre taux d'occupation est modéré. Envisagez une promotion ciblée pour booster les réservations."}
-                </p>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
