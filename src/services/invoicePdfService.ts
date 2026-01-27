@@ -336,40 +336,134 @@ export const downloadInvoicePDF = async (invoice: Invoice) => {
     }
 };
 
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+// ... (existing imports and generateInvoiceHTML function) ...
+
 export const shareInvoice = async (invoice: Invoice, totalPaid: number) => {
-    const invoiceDate = format(new Date(invoice.date), 'dd/MM/yyyy');
-    const netTotal = invoice.net_total || invoice.total;
-    const remainingBalance = netTotal - totalPaid;
+    try {
+        const doc = new jsPDF();
 
-    // Message optimisé pour WhatsApp/Réseaux Sociaux
-    const text = `*FACTURE BOTES IMMO*\n` +
-        `---------------------------\n` +
-        `Ref: ${invoice.invoice_number}\n` +
-        `Client: ${invoice.tenant_name}\n` +
-        `Chambre: ${invoice.room_number} (${invoice.room_type})\n` +
-        `Période: ${invoice.booking_dates ? format(new Date(invoice.booking_dates.start), 'dd/MM/yyyy') : ''} au ${invoice.booking_dates ? format(new Date(invoice.booking_dates.end), 'dd/MM/yyyy') : ''}\n` +
-        `---------------------------\n` +
-        `TOTAL: ${netTotal.toFixed(2)}$\n` +
-        `PAYÉ: ${totalPaid.toFixed(2)}$\n` +
-        `RESTE: ${remainingBalance > 0 ? remainingBalance.toFixed(2) : '0.00'}$` +
-        `\n---------------------------\n` +
-        `Merci de votre confiance!`;
+        // Initialisation explicite si nécessaire, bien que l'import par défaut devrait suffire avec les versions récentes
+        // (doc as any).autoTable = autoTable; 
 
-    if (navigator.share) {
-        try {
-            await navigator.share({
-                title: `Facture ${invoice.invoice_number}`,
-                text: text,
-            });
-        } catch (error) {
-            console.error("Erreur lors du partage:", error);
+        const invoiceDate = format(new Date(invoice.date), 'dd/MM/yyyy');
+        const netTotal = invoice.net_total || invoice.total;
+        const remainingBalance = netTotal - totalPaid;
+
+        // Header
+        doc.setFontSize(20);
+        doc.text(`FACTURE N° ${invoice.invoice_number}`, 105, 20, { align: 'center' });
+
+        doc.setFontSize(10);
+        doc.text('BOTES IMMO', 105, 30, { align: 'center' });
+        doc.text('Gestion des locations', 105, 35, { align: 'center' });
+        doc.text('Kinshasa, RDC', 105, 40, { align: 'center' });
+        doc.text('Tél: +243 828 093 878', 105, 45, { align: 'center' });
+
+        // Client Info
+        doc.setFontSize(12);
+        doc.text('CLIENT:', 20, 60);
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${invoice.tenant_name}`, 40, 60);
+        doc.setFont("helvetica", "normal");
+
+        doc.text(`Date: ${invoiceDate}`, 150, 60);
+
+        if (invoice.booking_dates) {
+            const start = format(new Date(invoice.booking_dates.start), 'dd/MM/yyyy');
+            const end = format(new Date(invoice.booking_dates.end), 'dd/MM/yyyy');
+            doc.text(`Période: Du ${start} au ${end}`, 20, 70);
+            doc.text(`Chambre: ${invoice.room_number || 'N/A'} (${invoice.room_type || ''})`, 20, 78);
         }
-    } else {
-        try {
-            await navigator.clipboard.writeText(text);
-            alert("Détails de la facture copiés dans le presse-papier !");
-        } catch (err) {
-            console.error("Erreur clipboard:", err);
+
+        // TableItems
+        const tableBody = invoice.items.map(item => [
+            item.description,
+            item.quantity.toString(),
+            `${item.unit_price.toFixed(2)}$`,
+            `${item.total.toFixed(2)}$`
+        ]);
+
+        autoTable(doc, {
+            startY: 90,
+            head: [['Description', 'Qté', 'P.U', 'Total']],
+            body: tableBody,
+            theme: 'striped',
+            headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255] },
+            styles: { fontSize: 10 },
+            columnStyles: {
+                0: { cellWidth: 90 },
+                1: { cellWidth: 20, halign: 'center' },
+                2: { cellWidth: 30, halign: 'right' },
+                3: { cellWidth: 30, halign: 'right' },
+            }
+        });
+
+        const finalY = (doc as any).lastAutoTable.finalY + 10;
+
+        // Totals
+        doc.setFontSize(11);
+        doc.text(`TOTAL FACTURÉ:`, 140, finalY);
+        doc.text(`${netTotal.toFixed(2)}$`, 190, finalY, { align: 'right' });
+
+        doc.text(`DÉJÀ PAYÉ:`, 140, finalY + 8);
+        doc.text(`${totalPaid.toFixed(2)}$`, 190, finalY + 8, { align: 'right' });
+
+        if (remainingBalance > 0) {
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(200, 0, 0); // Red
+            doc.text(`RESTE À PAYER:`, 140, finalY + 18);
+            doc.text(`${remainingBalance.toFixed(2)}$`, 190, finalY + 18, { align: 'right' });
+            doc.setTextColor(0, 0, 0); // Reset color
         }
+
+        // Footer
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(8);
+        doc.text('Merci de votre confiance', 105, pageHeight - 20, { align: 'center' });
+        doc.text('Frais non remboursables après réservation', 105, pageHeight - 15, { align: 'center' });
+
+        // Generate Blob
+        const pdfBlob = doc.output('blob');
+        const pdfFile = new File([pdfBlob], `Facture_${invoice.invoice_number}.pdf`, { type: 'application/pdf' });
+
+        // Vérifier si le partage de fichiers est supporté
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            try {
+                await navigator.share({
+                    files: [pdfFile],
+                    title: `Facture ${invoice.invoice_number}`,
+                    text: `Voici votre facture ${invoice.invoice_number} de chez Botes Immo.`
+                });
+            } catch (shareError) {
+                console.warn("Le partage a été annulé ou a échoué, tentative de téléchargement...", shareError);
+                // Si l'utilisateur annule ou si ça échoue, on propose le téléchargement
+                if ((shareError as Error).name !== 'AbortError') {
+                    downloadFile(pdfBlob, `Facture_${invoice.invoice_number}.pdf`);
+                }
+            }
+        } else {
+            // Fallback pour les navigateurs ne supportant pas le partage de fichiers
+            console.log("Partage de fichier non supporté, lancement du téléchargement.");
+            downloadFile(pdfBlob, `Facture_${invoice.invoice_number}.pdf`);
+        }
+    } catch (error) {
+        console.error("Erreur critique lors de la génération/partage du PDF:", error);
+        alert(`Une erreur est survenue : ${(error as Error).message}`);
     }
+};
+
+// Helper pour le téléchargement
+const downloadFile = (blob: Blob, fileName: string) => {
+    const pdfUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = pdfUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(pdfUrl);
 };
