@@ -3,7 +3,23 @@ import { Database as GeneratedDatabase } from './types';
 type PublicDatabase = GeneratedDatabase['public'];
 
 export type Database = Omit<GeneratedDatabase, 'public'> & {
-    public: Omit<PublicDatabase, 'Views' | 'Functions'> & {
+    public: Omit<PublicDatabase, 'Tables' | 'Views' | 'Functions'> & {
+        Tables: PublicDatabase['Tables'] & {
+            payments: PublicDatabase['Tables']['payments'] & {
+                Row: PublicDatabase['Tables']['payments']['Row'] & {
+                    montant_usd: number | null;
+                    montant_cdf: number | null;
+                };
+                Insert: PublicDatabase['Tables']['payments']['Insert'] & {
+                    montant_usd?: number | null;
+                    montant_cdf?: number | null;
+                };
+                Update: PublicDatabase['Tables']['payments']['Update'] & {
+                    montant_usd?: number | null;
+                    montant_cdf?: number | null;
+                };
+            };
+        };
         Views: PublicDatabase['Views'] & {
             [key: string]: any;
             caisse_daily_summary: {

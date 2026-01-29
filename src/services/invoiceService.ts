@@ -30,7 +30,7 @@ export const calculateInvoiceItems = (booking: Booking, room: Room): InvoiceLine
       unit_price: room.prix_base_nuit // Utiliser directement le prix de base de la chambre
     });
   }
-  
+
   if (booking.caution_encaissee && booking.caution_encaissee > 0) {
     items.push({
       description: 'Caution',
@@ -43,8 +43,8 @@ export const calculateInvoiceItems = (booking: Booking, room: Room): InvoiceLine
 };
 
 // Calcule les totaux d'une facture
-export const calculateInvoiceTotals = ( 
-  items: InvoiceLineItem[], 
+export const calculateInvoiceTotals = (
+  items: InvoiceLineItem[],
   tax_rate?: number,
   discount_amount?: number,
   discount_percentage?: number
@@ -86,22 +86,33 @@ export const generateInvoiceFromBooking = (
     // 2. Calculer la réduction totale (réduction par nuit * nombre de nuits)
     const perNightDiscount = formData?.discount_amount || 0;
     const totalDiscount = nights * perNightDiscount;
-    
+
     // 3. Calculer tous les totaux en utilisant la réduction totale
-    const { 
-      subtotal, 
-      tax_amount, 
-      total, 
-      discount_amount: appliedDiscount, 
-      net_total 
+    const {
+      subtotal,
+      tax_amount,
+      total,
+      discount_amount: appliedDiscount,
+      net_total
     } = calculateInvoiceTotals(
-      items, 
-      formData?.tax_rate, 
+      items,
+      formData?.tax_rate,
       totalDiscount // Utiliser la réduction totale ici
     );
 
     // 4. Déterminer le statut de la facture
-    const status: Invoice['status'] = formData?.status || ((formData?.initial_payment ?? 0) >= net_total ? 'PAID' : 'DRAFT');
+    let status: Invoice['status'] = formData?.status;
+
+    if (!status) {
+      const paidAmount = formData?.initial_payment ?? 0;
+      if (paidAmount <= 0) {
+        status = 'DRAFT';
+      } else if (paidAmount >= net_total) {
+        status = 'PAID';
+      } else {
+        status = 'PARTIALLY_PAID';
+      }
+    }
 
     const invoice: Invoice = {
       id: crypto.randomUUID(),
@@ -126,6 +137,7 @@ export const generateInvoiceFromBooking = (
       discount_percentage: total > 0 ? (appliedDiscount / total) * 100 : 0,
       net_total, // Total net après réduction
       amount_paid: formData?.initial_payment || 0, // Initialisation de amount_paid
+      balance_due: net_total - (formData?.initial_payment || 0),
       currency: 'USD',
       notes: formData?.notes,
       created_at: new Date().toISOString(),
@@ -168,7 +180,7 @@ export const exportInvoiceData = (invoices: Invoice[]): any[] => {
     'Email Client': invoice.tenant_email || '',
     'Téléphone Client': invoice.tenant_phone || '',
     'Chambre': `${invoice.room_number} (${invoice.room_type})`,
-    'Période de séjour': invoice.booking_dates 
+    'Période de séjour': invoice.booking_dates
       ? `${format(new Date(invoice.booking_dates.start), 'dd/MM/yyyy')} - ${format(new Date(invoice.booking_dates.end), 'dd/MM/yyyy')}`
       : '',
     'Montant TTC': invoice.total,
@@ -190,7 +202,8 @@ const translateStatus = (status: Invoice['status']): string => {
     DRAFT: 'Brouillon',
     ISSUED: 'Émise',
     PAID: 'Payée',
-    CANCELLED: 'Annulée'
+    CANCELLED: 'Annulée',
+    PARTIALLY_PAID: 'Partiellement payée'
   };
   return translations[status] || status;
 };

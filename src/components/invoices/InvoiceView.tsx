@@ -3,8 +3,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Share2, Printer } from 'lucide-react';
-import { downloadInvoicePDF, shareInvoice } from '@/services/invoicePdfService';
+import { Printer, Share2, FileDown } from 'lucide-react';
+import { downloadInvoicePDF, shareInvoiceAsPDF } from '@/services/invoicePdfService';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { usePaymentsByInvoice } from '@/hooks/usePayments';
 import { useMemo } from 'react';
@@ -226,9 +226,9 @@ export function InvoiceView({ invoice }: InvoiceViewProps) {
           <Printer className="mr-2 h-4 w-4" />
           Imprimer
         </Button>
-        <Button onClick={() => shareInvoice(invoice, totalPaidAmount)}>
-          <Share2 className="mr-2 h-4 w-4" />
-          Partager
+        <Button onClick={() => shareInvoiceAsPDF(invoice)}>
+          <FileDown className="mr-2 h-4 w-4" />
+          Partager PDF
         </Button>
       </div>
     </div>

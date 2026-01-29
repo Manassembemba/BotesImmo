@@ -102,7 +102,7 @@ export const invoiceDbService = {
     }
     return {
       ...data,
-      items: (data.items as any) || []
+      items: ((data as any).items as any) || []
     } as Invoice;
   },
 
@@ -134,7 +134,7 @@ export const invoiceDbService = {
 
     return {
       ...data,
-      items: (data.items as any) || []
+      items: ((data as any).items as any) || []
     } as Invoice;
   },
 
@@ -159,7 +159,7 @@ export const invoiceDbService = {
     }
     return {
       ...data,
-      items: (data.items as any) || []
+      items: ((data as any).items as any) || []
     } as Invoice;
   },
 

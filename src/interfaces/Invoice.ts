@@ -46,6 +46,7 @@ export interface InvoiceFormData {
   discount_amount?: number;
   discount_percentage?: number;
   status?: 'DRAFT' | 'ISSUED' | 'PAID' | 'CANCELLED' | 'PARTIALLY_PAID';
+  initial_payment?: number;
 }
 
 export interface InvoiceLineItem {
