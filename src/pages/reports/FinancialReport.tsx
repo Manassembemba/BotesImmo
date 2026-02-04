@@ -13,6 +13,7 @@ import { exportFinancialReportToCsv, exportFinancialReportToPdf } from '@/servic
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CashReport } from '@/components/reports/CashReport';
 import { DebtsReport } from '@/components/reports/DebtsReport';
+import { Badge } from '@/components/ui/badge';
 
 const FinancialReport = () => {
   const { role } = useAuth();
@@ -77,6 +78,7 @@ const FinancialReport = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>TYPE</TableHead>
                     <TableHead>N° FACTURE</TableHead>
                     <TableHead>CLIENT</TableHead>
                     <TableHead>DATE</TableHead>
@@ -84,17 +86,23 @@ const FinancialReport = () => {
                     <TableHead>PAYÉ</TableHead>
                     <TableHead>DÛ</TableHead>
                     <TableHead>STATUT</TableHead>
-                    <TableHead className="text-right">ACTIONS</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isLoading ? (
-                    <TableRow><TableCell colSpan={8} className="h-24 text-center">Chargement...</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="h-24 text-center">Chargement...</TableCell></TableRow>
                   ) : invoices.length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="h-24 text-center">Aucune facture trouvée.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="h-24 text-center">Aucune facture trouvée.</TableCell></TableRow>
                   ) : (
                     invoices.map((invoice) => (
                       <TableRow key={invoice.id}>
+                        <TableCell>
+                          {invoice.invoice_number.startsWith('INV-EXT-') ? (
+                            <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Prolongation</Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">Réservation</Badge>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                         <TableCell>{invoice.tenant_name}</TableCell>
                         <TableCell>{format(new Date(invoice.date), 'dd/MM/yyyy')}</TableCell>

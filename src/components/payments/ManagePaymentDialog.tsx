@@ -85,9 +85,13 @@ function PaymentForm({
     setAmountUSD(initialUsd);
     setAmountCDF(initialCdf);
 
+    // Priorité aux factures d'extension impayées pour la sélection par défaut
+    const defaultInvoice = invoices.find(inv => inv.invoice_number?.startsWith('INV-EXT-') && inv.status !== 'PAID')
+      || invoices.find(inv => inv.status !== 'PAID' && inv.status !== 'CANCELLED');
+
     form.reset({
       ...form.getValues(),
-      invoice_id: payment?.invoice_id || invoices.find(inv => inv.status !== 'PAID' && inv.status !== 'CANCELLED')?.id || undefined,
+      invoice_id: payment?.invoice_id || defaultInvoice?.id || undefined,
       montant: payment?.montant || 0,
     });
   }, [payment, invoices, form]);
@@ -158,11 +162,18 @@ function PaymentForm({
                       <SelectTrigger className="h-8 text-sm bg-white"><SelectValue placeholder="Choisir une facture..." /></SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {payableInvoices.map(inv => (
-                        <SelectItem key={inv.id} value={inv.id}>
-                          {inv.invoice_number} (Reste: ${inv.balance_due?.toFixed(2)}$)
-                        </SelectItem>
-                      ))}
+                      {payableInvoices
+                        .sort((a, b) => {
+                          const aExt = a.invoice_number?.startsWith('INV-EXT-') ? 0 : 1;
+                          const bExt = b.invoice_number?.startsWith('INV-EXT-') ? 0 : 1;
+                          return aExt - bExt;
+                        })
+                        .map(inv => (
+                          <SelectItem key={inv.id} value={inv.id}>
+                            {inv.invoice_number?.startsWith('INV-EXT-') ? '[PROLONGATION] ' : ''}
+                            {inv.invoice_number} (Reste: ${inv.balance_due?.toFixed(2)}$)
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -310,109 +321,109 @@ export function ManagePaymentDialog({ booking, open, onClose }: ManagePaymentDia
 
         <div className="max-h-[70vh] overflow-y-auto pr-4">
           <div className="space-y-4">
-          {overdueInfo.isOverdue && (
-            <div className="bg-red-50 border border-red-200 p-3 rounded-xl flex items-center gap-3 animate-pulse">
-              <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
-              <div className="text-sm">
-                <p className="font-bold text-red-800">Dépassement de séjour détecté ({overdueInfo.lateNights} nuits)</p>
-                <p className="text-red-700 text-xs">Une dette supplémentaire de <span className="font-black">${overdueInfo.lateStayDebt.toFixed(2)}</span> a été ajoutée au total.</p>
+            {overdueInfo.isOverdue && (
+              <div className="bg-red-50 border border-red-200 p-3 rounded-xl flex items-center gap-3 animate-pulse">
+                <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-bold text-red-800">Dépassement de séjour détecté ({overdueInfo.lateNights} nuits)</p>
+                  <p className="text-red-700 text-xs">Une dette supplémentaire de <span className="font-black">${overdueInfo.lateStayDebt.toFixed(2)}</span> a été ajoutée au total.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-4 text-center p-4 rounded-lg bg-muted/50 border">
+              <div>
+                <Label className="text-xs text-muted-foreground">{overdueInfo.isOverdue ? 'Nouveau Total' : 'Total à payer'}</Label>
+                <p className="text-lg font-bold">${totalWithDebt.toLocaleString('fr-FR')}</p>
+                {overdueInfo.isOverdue && <p className="text-[10px] text-muted-foreground line-through opacity-50">${booking.prix_total.toLocaleString('fr-FR')}</p>}
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Total versé</Label>
+                <p className="text-lg font-bold text-green-600">${totalPaid.toLocaleString('fr-FR')}</p>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Solde restant</Label>
+                <p className="text-lg font-bold text-red-600">${Math.max(0, remaining).toLocaleString('fr-FR')}</p>
+                {remaining > 0 && <p className="text-xs text-muted-foreground">~ {(remaining * (exchangeRateData?.usd_to_cdf || 2800)).toLocaleString()} FC</p>}
               </div>
             </div>
-          )}
 
-          <div className="grid grid-cols-3 gap-4 text-center p-4 rounded-lg bg-muted/50 border">
-            <div>
-              <Label className="text-xs text-muted-foreground">{overdueInfo.isOverdue ? 'Nouveau Total' : 'Total à payer'}</Label>
-              <p className="text-lg font-bold">${totalWithDebt.toLocaleString('fr-FR')}</p>
-              {overdueInfo.isOverdue && <p className="text-[10px] text-muted-foreground line-through opacity-50">${booking.prix_total.toLocaleString('fr-FR')}</p>}
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Total versé</Label>
-              <p className="text-lg font-bold text-green-600">${totalPaid.toLocaleString('fr-FR')}</p>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">Solde restant</Label>
-              <p className="text-lg font-bold text-red-600">${Math.max(0, remaining).toLocaleString('fr-FR')}</p>
-              {remaining > 0 && <p className="text-xs text-muted-foreground">~ {(remaining * (exchangeRateData?.usd_to_cdf || 2800)).toLocaleString()} FC</p>}
-            </div>
-          </div>
-
-          {!(isAdding || editingPayment) ? (
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg flex justify-between items-center">
-                Historique des paiements
-                {(role === 'ADMIN' || role === 'AGENT_RES') && remaining > 0.01 && (
-                  <Button size="sm" variant="outline" onClick={() => { setIsAdding(true); setEditingPayment(null); }}>
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Ajouter un paiement
-                  </Button>
+            {!(isAdding || editingPayment) ? (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg flex justify-between items-center">
+                  Historique des paiements
+                  {(role === 'ADMIN' || role === 'AGENT_RES') && remaining > 0.01 && (
+                    <Button size="sm" variant="outline" onClick={() => { setIsAdding(true); setEditingPayment(null); }}>
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Ajouter un paiement
+                    </Button>
+                  )}
+                </h3>
+                {isLoading ? <p>Chargement...</p> : payments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Aucun paiement enregistré.</p>
+                ) : (
+                  <div className="border rounded-md max-h-[300px] overflow-y-auto overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Montant</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>Méthode</TableHead>
+                          <TableHead>Facture</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {payments.map(p => {
+                          const relatedInvoice = invoices.find(inv => inv.id === p.invoice_id);
+                          return (
+                            <TableRow key={p.id}>
+                              <TableCell className="font-medium p-2">
+                                <div>${p.montant.toLocaleString('fr-FR')}</div>
+                                <div className="text-[10px] text-muted-foreground font-normal">
+                                  ({(p.montant_usd || 0).toFixed(2)}$
+                                  {p.montant_cdf > 0 ? ` + ${(p.montant_cdf || 0).toLocaleString()} FC` : ''})
+                                </div>
+                              </TableCell>
+                              <TableCell className="p-2">{format(new Date(p.date_paiement), "dd/MM/yyyy")}</TableCell>
+                              <TableCell className="p-2">{p.methode}</TableCell>
+                              <TableCell className="p-2 truncate max-w-[100px] text-[10px]">{relatedInvoice?.invoice_number || '-'}</TableCell>
+                              <TableCell className="space-x-1 p-2">
+                                {(role === 'ADMIN' || role === 'AGENT_RES') && (
+                                  <>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingPayment(p); setIsAdding(false); }}>
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(p.id)}>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
-              </h3>
-              {isLoading ? <p>Chargement...</p> : payments.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Aucun paiement enregistré.</p>
-              ) : (
-                <div className="border rounded-md max-h-[300px] overflow-y-auto overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Montant</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Méthode</TableHead>
-                        <TableHead>Facture</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payments.map(p => {
-                        const relatedInvoice = invoices.find(inv => inv.id === p.invoice_id);
-                        return (
-                          <TableRow key={p.id}>
-                            <TableCell className="font-medium p-2">
-                              <div>${p.montant.toLocaleString('fr-FR')}</div>
-                              <div className="text-[10px] text-muted-foreground font-normal">
-                                ({(p.montant_usd || 0).toFixed(2)}$
-                                {p.montant_cdf > 0 ? ` + ${(p.montant_cdf || 0).toLocaleString()} FC` : ''})
-                              </div>
-                            </TableCell>
-                            <TableCell className="p-2">{format(new Date(p.date_paiement), "dd/MM/yyyy")}</TableCell>
-                            <TableCell className="p-2">{p.methode}</TableCell>
-                            <TableCell className="p-2 truncate max-w-[100px] text-[10px]">{relatedInvoice?.invoice_number || '-'}</TableCell>
-                            <TableCell className="space-x-1 p-2">
-                              {(role === 'ADMIN' || role === 'AGENT_RES') && (
-                                <>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditingPayment(p); setIsAdding(false); }}>
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(p.id)}>
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-4 pt-2 border-t border-slate-100">
-              <h3 className="font-bold text-indigo-700 flex items-center gap-2">
-                <PlusCircle className="h-4 w-4" />
-                Saisie du paiement
-              </h3>
-              <PaymentForm
-                booking={booking}
-                payment={editingPayment}
-                invoices={invoices}
-                onFinished={handleFinishEditing}
-              />
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="space-y-4 pt-2 border-t border-slate-100">
+                <h3 className="font-bold text-indigo-700 flex items-center gap-2">
+                  <PlusCircle className="h-4 w-4" />
+                  Saisie du paiement
+                </h3>
+                <PaymentForm
+                  booking={booking}
+                  payment={editingPayment}
+                  invoices={invoices}
+                  onFinished={handleFinishEditing}
+                />
+              </div>
+            )}
 
-        </div>
+          </div>
         </div>
 
         <DialogFooter>

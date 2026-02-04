@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Filter, X, Calendar, User, Clock } from 'lucide-react';
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format as formatDate } from 'date-fns';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, format as formatDate, subDays } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Invoice } from '@/interfaces/Invoice';
 
@@ -41,7 +41,7 @@ export function InvoiceFilters({ invoices, onFilterChange, onActiveFiltersChange
     if (dateRange.end) active.push(`Au: ${dateRange.end}`);
     if (customer !== 'all') active.push(`Client: ${customer}`);
     if (period !== 'all' && period !== 'custom') {
-      const label = period === 'today' ? "Aujourd'hui" : period === 'week' ? "Cette semaine" : "Ce mois";
+      const label = period === 'today' ? "Aujourd'hui" : period === 'yesterday' ? "Hier" : period === 'week' ? "Cette semaine" : "Ce mois";
       active.push(`Période: ${label}`);
     }
 
@@ -99,6 +99,11 @@ export function InvoiceFilters({ invoices, onFilterChange, onActiveFiltersChange
       const start = formatDate(startOfDay(today), 'yyyy-MM-dd');
       const end = formatDate(endOfDay(today), 'yyyy-MM-dd');
       setDateRange({ start, end });
+    } else if (value === 'yesterday') {
+      const yesterday = subDays(today, 1);
+      const start = formatDate(startOfDay(yesterday), 'yyyy-MM-dd');
+      const end = formatDate(endOfDay(yesterday), 'yyyy-MM-dd');
+      setDateRange({ start, end });
     } else if (value === 'week') {
       const start = formatDate(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
       const end = formatDate(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
@@ -112,14 +117,19 @@ export function InvoiceFilters({ invoices, onFilterChange, onActiveFiltersChange
     }
   };
 
-  const applyFilters = () => {
-    onFilterChange({
-      search,
-      status,
-      dateRange,
-      customer,
-    });
-  };
+  // Application automatique des filtres avec debounce pour la recherche
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      onFilterChange({
+        search,
+        status,
+        dateRange,
+        customer,
+      });
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [search, status, dateRange, customer, onFilterChange]);
 
   return (
     <div className="space-y-4">
@@ -170,16 +180,12 @@ export function InvoiceFilters({ invoices, onFilterChange, onActiveFiltersChange
           <SelectContent>
             <SelectItem value="all">Toutes les dates</SelectItem>
             <SelectItem value="today">Aujourd'hui</SelectItem>
+            <SelectItem value="yesterday">Hier</SelectItem>
             <SelectItem value="week">Cette semaine</SelectItem>
             <SelectItem value="month">Ce mois</SelectItem>
             <SelectItem value="custom">Personnalisé...</SelectItem>
           </SelectContent>
         </Select>
-
-        <Button onClick={applyFilters} className="w-full">
-          <Filter className="h-4 w-4 mr-2" />
-          Filtrer
-        </Button>
       </div>
 
       {/* Filtre de date personnalisé */}

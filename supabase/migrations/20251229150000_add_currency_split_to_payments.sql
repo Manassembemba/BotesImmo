@@ -7,13 +7,14 @@ ALTER TABLE public.payments
   ADD COLUMN IF NOT EXISTS montant_usd DECIMAL(10, 2),
   ADD COLUMN IF NOT EXISTS montant_cdf DECIMAL(12, 2);
 
--- 2. Migrer les données existantes
--- Assumer que tous les paiements actuels sont en USD pur
+-- 2. Migrer/Corriger les données existantes (Nettoyage)
+-- Pour toutes les lignes où la somme (USD + CDF/2800) ne correspond pas au montant total,
+-- on réinitialise en considérant que tout était en USD.
 UPDATE public.payments
 SET 
   montant_usd = montant,
   montant_cdf = 0
-WHERE montant_usd IS NULL;
+WHERE ABS(montant - (montant_usd + montant_cdf / 2800.0)) >= 1.00;
 
 -- 3. Rendre les colonnes NOT NULL maintenant qu'elles sont remplies
 ALTER TABLE public.payments
@@ -22,9 +23,9 @@ ALTER TABLE public.payments
   ALTER COLUMN montant_usd SET NOT NULL,
   ALTER COLUMN montant_cdf SET NOT NULL;
 
--- 4. Ajouter contrainte de cohérence
--- Le montant total doit être égal à montant_usd + (montant_cdf / taux)
--- Tolérance de 1 USD pour les arrondis
+-- 4. Ajouter contrainte de cohérence (Idempotent)
+ALTER TABLE public.payments
+  DROP CONSTRAINT IF EXISTS check_montant_coherence;
 ALTER TABLE public.payments
   ADD CONSTRAINT check_montant_coherence
   CHECK (
@@ -45,19 +46,29 @@ COMMENT ON COLUMN public.payments.montant_usd IS 'Montant réellement payé en U
 COMMENT ON COLUMN public.payments.montant_cdf IS 'Montant réellement payé en CDF (caisse physique)';
 COMMENT ON COLUMN public.payments.montant IS 'Total équivalent en USD pour calculs et factures';
 
--- 7. Créer vue pour rapport de caisse
+-- 7. Créer vue pour rapport de caisse améliorée avec types (V2)
 CREATE OR REPLACE VIEW public.caisse_daily_summary AS
 SELECT
-  DATE(date_paiement) as date,
-  SUM(montant_usd) as total_usd,
-  SUM(montant_cdf) as total_cdf,
-  SUM(montant) as total_equivalent_usd,
+  DATE(p.date_paiement) as date,
+  CASE 
+    WHEN i.invoice_number ILIKE 'INV-EXT-%' THEN 'PROLONGATION'
+    WHEN i.invoice_number ILIKE 'FACT-%' THEN 'RESERVATION'
+    -- Si pas de facture direct, on vérifie si la réservation a été prolongée
+    WHEN EXISTS (SELECT 1 FROM public.invoices inv2 WHERE inv2.booking_id = p.booking_id AND inv2.invoice_number ILIKE 'INV-EXT-%') 
+         AND p.created_at > (SELECT MIN(created_at) FROM public.payments p2 WHERE p2.booking_id = p.booking_id)
+         THEN 'PROLONGATION'
+    ELSE 'RESERVATION'
+  END as type,
+  SUM(p.montant_usd) as total_usd,
+  SUM(p.montant_cdf) as total_cdf,
+  SUM(p.montant) as total_equivalent_usd,
   COUNT(*) as nombre_paiements,
-  ARRAY_AGG(DISTINCT methode) as methodes_utilisees
-FROM public.payments
-WHERE date_paiement >= CURRENT_DATE - INTERVAL '90 days'
-GROUP BY DATE(date_paiement)
-ORDER BY date DESC;
+  ARRAY_AGG(DISTINCT p.methode) as methodes_utilisees
+FROM public.payments p
+LEFT JOIN public.invoices i ON p.invoice_id = i.id
+WHERE p.date_paiement >= CURRENT_DATE - INTERVAL '90 days'
+GROUP BY DATE(p.date_paiement), type
+ORDER BY date DESC, type ASC;
 
 COMMENT ON VIEW public.caisse_daily_summary IS 'Résumé quotidien de la caisse avec montants séparés USD/CDF';
 

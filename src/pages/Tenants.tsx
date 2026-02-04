@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Input } from '@/components/ui/input';
 import { CreateTenantDialog } from '@/components/tenants/CreateTenantDialog';
-import { Search, Mail, Phone, Calendar, Filter, Plus } from 'lucide-react';
+import { TenantBookingsDialog } from '@/components/tenants/TenantBookingsDialog';
+import { Search, Mail, Phone, Calendar, Filter, Plus, Eye, History } from 'lucide-react';
 import { useTenants } from '@/hooks/useTenants';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -23,9 +24,10 @@ const Tenants = () => {
   const { selectedLocationId } = useLocationFilter();
   const { data: locations } = useLocations();
   const { data: tenants = [], isLoading } = useTenants();
-  
+
   const [search, setSearch] = useState('');
   const [blacklistFilter, setBlacklistFilter] = useState('all');
+  const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
 
   const filteredTenants = useMemo(() => {
     return tenants.filter(tenant => {
@@ -125,9 +127,13 @@ const Tenants = () => {
               return (
                 <div
                   key={tenant.id}
-                  className="rounded-xl border bg-card p-5 shadow-soft hover:shadow-medium transition-all cursor-pointer animate-fade-in"
+                  className="rounded-xl border bg-card p-5 shadow-soft hover:shadow-medium transition-all cursor-pointer animate-fade-in group relative"
                   style={{ animationDelay: `${index * 50}ms` }}
+                  onClick={() => setSelectedTenant({ id: tenant.id, name: `${tenant.prenom} ${tenant.nom}` })}
                 >
+                  <div className="absolute top-4 right-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    <History className="h-5 w-5" />
+                  </div>
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-lg">
                       {tenant.prenom.charAt(0)}{tenant.nom.charAt(0)}
@@ -162,16 +168,28 @@ const Tenants = () => {
                       <span className="font-medium text-foreground">{reservationCount}</span>
                       <span className="text-muted-foreground ml-1">réservation{reservationCount > 1 ? 's' : ''}</span>
                     </div>
-                    {tenant.liste_noire && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive font-medium">
-                        Liste noire
-                      </span>
-                    )}
-                    {tenant.notes && !tenant.liste_noire && (
-                      <span className="text-xs px-2 py-1 rounded-full bg-secondary text-muted-foreground truncate max-w-[120px]">
-                        {tenant.notes}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {tenant.liste_noire && (
+                        <span className="text-xs px-2 py-1 rounded-full bg-destructive/10 text-destructive font-medium">
+                          Liste noire
+                        </span>
+                      )}
+                      <div className="text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                        Détails <Eye className="h-3 w-3" />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 gap-1.5 text-primary hover:text-primary hover:bg-primary/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedTenant({ id: tenant.id, name: `${tenant.prenom} ${tenant.nom}` });
+                        }}
+                      >
+                        <History className="h-3.5 w-3.5" />
+                        Réservations
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );
@@ -179,6 +197,14 @@ const Tenants = () => {
           </div>
         )}
       </div>
+      {selectedTenant && (
+        <TenantBookingsDialog
+          tenantId={selectedTenant.id}
+          tenantName={selectedTenant.name}
+          open={!!selectedTenant}
+          onOpenChange={(open) => !open && setSelectedTenant(null)}
+        />
+      )}
     </MainLayout>
   );
 };

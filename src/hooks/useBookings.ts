@@ -47,6 +47,7 @@ export interface BookingFilters {
   status?: string[];
   startDate?: string;
   endDate?: string;
+  tenantId?: string;
 }
 
 import { useLocationFilter } from '@/context/LocationFilterContext';
@@ -70,7 +71,8 @@ export function useBookings(filters?: BookingFilters, pagination?: { pageIndex: 
         p_end_date: filters?.endDate || null,
         p_offset: rangeFrom,
         p_limit: pageSize,
-        p_location_id: selectedLocationId || null
+        p_location_id: selectedLocationId || null,
+        p_tenant_id: filters?.tenantId || null
       }, { count: 'exact' });
 
       if (error) {

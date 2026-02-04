@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 
 interface CaisseSummary {
     date: string;
+    type: 'RESERVATION' | 'PROLONGATION';
     total_usd: number;
     total_cdf: number;
     total_equivalent_usd: number;
@@ -149,6 +150,7 @@ export function CashReport({ filters }: CashReportProps) {
                             <thead>
                                 <tr className="border-b text-muted-foreground text-left">
                                     <th className="py-3 px-4 font-medium">Date</th>
+                                    <th className="py-3 px-4 font-medium">Type</th>
                                     <th className="py-3 px-4 font-medium text-right">USD Physique</th>
                                     <th className="py-3 px-4 font-medium text-right">CDF Physique</th>
                                     <th className="py-3 px-4 font-medium text-right">Total (USD Equiv.)</th>
@@ -172,6 +174,13 @@ export function CashReport({ filters }: CashReportProps) {
                                                 <div className="text-xs text-muted-foreground md:hidden">
                                                     {day.nombre_paiements} paiement(s)
                                                 </div>
+                                            </td>
+                                            <td className="py-3 px-4">
+                                                {day.type === 'PROLONGATION' ? (
+                                                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Prolongation</Badge>
+                                                ) : (
+                                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">Réservation</Badge>
+                                                )}
                                             </td>
                                             <td className="py-3 px-4 text-right text-green-600 font-semibold">
                                                 {day.total_usd.toFixed(2)} $
