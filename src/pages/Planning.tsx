@@ -122,9 +122,6 @@ const getRoomStatusColor = (status: string) => {
   switch (status) {
     case 'Libre': return 'bg-emerald-500';
     case 'Occupé': return 'bg-blue-500';
-    case 'Nettoyage':
-    case 'PENDING_CLEANING':
-      return 'bg-purple-500';
     case 'Maintenance':
     case 'MAINTENANCE':
       return 'bg-slate-500';
@@ -140,9 +137,6 @@ const getRoomBgTint = (status: string) => {
   switch (status) {
     case 'Libre': return 'bg-emerald-50/20';
     case 'Occupé': return 'bg-blue-50/30';
-    case 'Nettoyage':
-    case 'PENDING_CLEANING':
-      return 'bg-purple-50/20';
     case 'Maintenance':
     case 'MAINTENANCE':
       return 'bg-slate-50/30';
@@ -236,30 +230,30 @@ const Planning = () => {
 
 
 
-// ... (other imports)
+  // ... (other imports)
 
-const getReservationForDay = (bookings: Booking[], roomId: string, day: Date) => {
-  return bookings.find(b => {
-    if (b.room_id !== roomId || b.status === 'CANCELLED') return false;
-    try {
-      const bookingInterval = {
-        start: parseISO(b.date_debut_prevue),
-        end: parseISO(b.date_fin_prevue)
-      };
-      const dayInterval = {
-        start: startOfDay(day),
-        end: endOfDay(day)
-      };
-      
-      // A booking that ends exactly at the start of the day shouldn't count for that day.
-      if (bookingInterval.end.getTime() === dayInterval.start.getTime()) return false;
+  const getReservationForDay = (bookings: Booking[], roomId: string, day: Date) => {
+    return bookings.find(b => {
+      if (b.room_id !== roomId || b.status === 'CANCELLED') return false;
+      try {
+        const bookingInterval = {
+          start: parseISO(b.date_debut_prevue),
+          end: parseISO(b.date_fin_prevue)
+        };
+        const dayInterval = {
+          start: startOfDay(day),
+          end: endOfDay(day)
+        };
 
-      return areIntervalsOverlapping(bookingInterval, dayInterval, { inclusive: true });
-    } catch (e) {
-      return false;
-    }
-  });
-};
+        // A booking that ends exactly at the start of the day shouldn't count for that day.
+        if (bookingInterval.end.getTime() === dayInterval.start.getTime()) return false;
+
+        return areIntervalsOverlapping(bookingInterval, dayInterval, { inclusive: true });
+      } catch (e) {
+        return false;
+      }
+    });
+  };
 
   const handleCellClick = (room: Room, day: Date) => {
     const today = startOfToday();
@@ -289,7 +283,7 @@ const getReservationForDay = (bookings: Booking[], roomId: string, day: Date) =>
         setSelection({ start: day, end: null, roomId: room.id });
         return;
       }
-      
+
       // Create Date objects with the default times
       const finalStartDate = new Date(startDate);
       finalStartDate.setHours(12, 0, 0, 0);

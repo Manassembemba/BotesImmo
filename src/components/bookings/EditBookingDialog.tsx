@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Booking, useUpdateBooking } from '@/hooks/useBookings';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -41,6 +42,7 @@ import { useRooms } from '@/hooks/useRooms';
 // ... (imports)
 
 export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDialogProps) {
+  const { role } = useAuth();
   const updateBooking = useUpdateBooking();
   const [conflictError, setConflictError] = useState<string | null>(null);
   const { data: rooms = [] } = useRooms(); // Charger les chambres
@@ -103,7 +105,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
         date_debut_prevue: formatDate(booking.date_debut_prevue),
         date_fin_prevue: formatDate(booking.date_fin_prevue),
         prix_total: Number(booking.prix_total) || 0,
-        discount_amount: Number(booking.discount_amount) || 0,
+        discount_amount: Number((booking as any).discount_amount) || 0,
 
         status: booking.status as 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED',
       });
@@ -216,129 +218,129 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
           </div>
 
           <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="date_debut_prevue"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date d'arrivée</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="date_fin_prevue"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date de départ</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {conflictError && (
-              <div className="flex items-center gap-2 text-sm text-destructive font-medium">
-                <AlertCircle className="h-4 w-4" />
-                <p>{conflictError}</p>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="date_debut_prevue"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date d'arrivée</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="date_fin_prevue"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date de départ</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            )}
 
-            {/* Prix Total - Affichage simple (pas d'input pour l'utilisateur, mais gardé en hidden pour le form) */}
-            <div className="bg-muted p-4 rounded-lg flex justify-between items-center mb-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Nouveau Prix Total</p>
-                <p className="text-2xl font-bold">
-                  {prixTotal ? prixTotal.toFixed(2) : '0.00'} $
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-medium text-muted-foreground">Équivalent CDF</p>
-                <p className="text-xl font-bold text-blue-600">
-                  {((prixTotal || 0) * (exchangeRateData?.usd_to_cdf || 2800)).toLocaleString()} FC
-                </p>
-              </div>
-            </div>
-
-            {/* Champ caché pour que le formulaire soumette la valeur */}
-            <FormField control={form.control} name="prix_total" render={({ field }) => (<input type="hidden" {...field} value={field.value || 0} />)} />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="discount_amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Réduction / nuit ($)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        placeholder="0.00"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Statut</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PENDING">En attente</SelectItem>
-                        <SelectItem value="CONFIRMED">Confirmée</SelectItem>
-                        <SelectItem value="IN_PROGRESS">En cours</SelectItem>
-                        <SelectItem value="COMPLETED">Terminée</SelectItem>
-                        <SelectItem value="CANCELLED">Annulée</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              {conflictError && (
+                <div className="flex items-center gap-2 text-sm text-destructive font-medium">
+                  <AlertCircle className="h-4 w-4" />
+                  <p>{conflictError}</p>
+                </div>
               )}
-            />
+
+              {/* Prix Total - Affichage simple (pas d'input pour l'utilisateur, mais gardé en hidden pour le form) */}
+              <div className="bg-muted p-4 rounded-lg flex justify-between items-center mb-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Nouveau Prix Total</p>
+                  <p className="text-2xl font-bold">
+                    {prixTotal ? prixTotal.toFixed(2) : '0.00'} $
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium text-muted-foreground">Équivalent CDF</p>
+                  <p className="text-xl font-bold text-blue-600">
+                    {((prixTotal || 0) * (exchangeRateData?.usd_to_cdf || 2800)).toLocaleString()} FC
+                  </p>
+                </div>
+              </div>
+
+              {/* Champ caché pour que le formulaire soumette la valeur */}
+              <FormField control={form.control} name="prix_total" render={({ field }) => (<input type="hidden" {...field} value={field.value || 0} />)} />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="discount_amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Réduction / nuit ($)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          placeholder="0.00"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Statut</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PENDING">En attente</SelectItem>
+                          <SelectItem value="CONFIRMED">Confirmée</SelectItem>
+                          <SelectItem value="IN_PROGRESS">En cours</SelectItem>
+                          <SelectItem value="COMPLETED">Terminée</SelectItem>
+                          <SelectItem value="CANCELLED">Annulée</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
 
 
-            <div className="flex justify-end gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={updateBooking.isPending}
-              >
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                disabled={updateBooking.isPending || !!conflictError}
-              >
-                {updateBooking.isPending ? 'Enregistrement...' : 'Enregistrer'}
-              </Button>
-            </div>
-          </form>
-        </Form>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={updateBooking.isPending}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={updateBooking.isPending || (role !== 'ADMIN' && !!conflictError)}
+                >
+                  {updateBooking.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </div> {/* Closing tag for the scrollable content wrapper */}
       </DialogContent>
     </Dialog>

@@ -64,7 +64,7 @@ const Reservations = () => {
   const { data: bookingsResult, isLoading: bookingsLoading } = useBookings(bookingFilters, pagination);
   const bookingsData = bookingsResult?.data || [];
   const pageCount = bookingsResult?.count ? Math.ceil(bookingsResult.count / pagination.pageSize) : 0;
-  
+
   const { data: exchangeRateData } = useExchangeRate();
   const rate = exchangeRateData?.usd_to_cdf || 2800;
 
@@ -85,7 +85,7 @@ const Reservations = () => {
       const summary = b.booking_financial_summary?.[0];
       const totalPaid = summary?.total_paid || 0;
       const totalInvoiced = summary?.total_invoiced || 0;
-      
+
       // Real-time late stay calculation, as this is dynamic
       const endDate = startOfDay(parseISO(b.date_fin_prevue));
       let lateStayDebt = 0;
@@ -98,16 +98,16 @@ const Reservations = () => {
         const dailyRate = plannedNights > 0 ? b.prix_total / plannedNights : (b.rooms?.type ? (rooms.find(r => r.type === b.rooms?.type)?.prix_base_nuit || 0) : (rooms.find(r => r.id === b.room_id)?.prix_base_nuit || 0));
         lateStayDebt = lateNights * dailyRate;
       }
-      
+
       const currentTotalDue = totalInvoiced + lateStayDebt;
-      
+
       let paymentStatus: PaymentStatus;
-      if(summary?.payment_summary_status) {
-          paymentStatus = summary.payment_summary_status as PaymentStatus;
+      if (summary?.payment_summary_status) {
+        paymentStatus = summary.payment_summary_status as PaymentStatus;
       } else {
         paymentStatus = 'UNPAID';
         if (totalPaid > 0) {
-            paymentStatus = totalPaid >= currentTotalDue - 0.01 ? 'PAID' : 'PARTIAL';
+          paymentStatus = totalPaid >= currentTotalDue - 0.01 ? 'PAID' : 'PARTIAL';
         }
       }
 
@@ -123,7 +123,7 @@ const Reservations = () => {
       };
     });
   }, [bookingsData, rooms]);
-  
+
   const subtitle = useMemo(() => {
     if (role === 'ADMIN') {
       if (selectedLocationId && locations) {
@@ -187,7 +187,7 @@ const Reservations = () => {
     return {
       canCheckIn: (booking.status === 'PENDING' || booking.status === 'CONFIRMED') && canPerformCheckIn,
       canCheckOut: (booking.status === 'CONFIRMED' || booking.status === 'IN_PROGRESS') && !!booking.check_in_reel && !booking.check_out_reel,
-      canEdit: !isOver,
+      canEdit: role === 'ADMIN' ? true : !isOver,
       canCancel: !isOver && !booking.check_in_reel,
       canDelete: isOver,
     };
@@ -220,12 +220,12 @@ const Reservations = () => {
                 )}
               </Button>
             </CollapsibleTrigger>
-            
+
             <div className="hidden md:flex items-center gap-2 border-l pl-2 ml-auto">
               <span className="text-sm text-muted-foreground">Dates rapides:</span>
-                <Button variant="outline" size="sm" onClick={setTodayFilter} className="text-xs h-9">Aujourd'hui</Button>
-                <Button variant="outline" size="sm" onClick={setWeekFilter} className="text-xs h-9">Cette semaine</Button>
-                <Button variant="outline" size="sm" onClick={setMonthFilter} className="text-xs h-9">Ce mois</Button>
+              <Button variant="outline" size="sm" onClick={setTodayFilter} className="text-xs h-9">Aujourd'hui</Button>
+              <Button variant="outline" size="sm" onClick={setWeekFilter} className="text-xs h-9">Cette semaine</Button>
+              <Button variant="outline" size="sm" onClick={setMonthFilter} className="text-xs h-9">Ce mois</Button>
             </div>
 
             <div className="flex-grow sm:flex-grow-0">
@@ -236,13 +236,13 @@ const Reservations = () => {
           <CollapsibleContent className="space-y-4 pt-2">
             <div className="border rounded-lg p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                   <SelectTrigger><SelectValue placeholder="Statut de la réservation" /></SelectTrigger>
-                   <SelectContent>
-                     <SelectItem value="all">Tous les statuts</SelectItem>
-                     {Object.entries(STATUS_CONFIG).map(([status, { label }]) => <SelectItem key={status} value={status}>{label}</SelectItem>)}
-                   </SelectContent>
-                 </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger><SelectValue placeholder="Statut de la réservation" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tous les statuts</SelectItem>
+                    {Object.entries(STATUS_CONFIG).map(([status, { label }]) => <SelectItem key={status} value={status}>{label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <div className="grid grid-cols-2 gap-2">
                   <Popover>
                     <PopoverTrigger asChild><Button variant="outline" className={cn('justify-start text-left font-normal', !dateRange.from && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange.from ? format(dateRange.from, 'dd/MM/yy') : <span>Date de début</span>}</Button></PopoverTrigger>
@@ -253,16 +253,16 @@ const Reservations = () => {
                     <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateRange.to} onSelect={(day) => setDateRange(prev => ({ ...prev, to: day as Date }))} initialFocus /></PopoverContent>
                   </Popover>
                 </div>
-                 <div className="flex items-center justify-end gap-2 md:col-span-2 lg:col-span-1">
-                    <Button variant="ghost" size="sm" onClick={resetFilters}><X className="h-4 w-4 mr-2" />Réinitialiser les filtres</Button>
+                <div className="flex items-center justify-end gap-2 md:col-span-2 lg:col-span-1">
+                  <Button variant="ghost" size="sm" onClick={resetFilters}><X className="h-4 w-4 mr-2" />Réinitialiser les filtres</Button>
                 </div>
               </div>
-                <div className="flex md:hidden items-center gap-2 border-t pt-4 mt-4">
-                    <span className="text-sm text-muted-foreground">Dates rapides:</span>
-                    <Button variant="outline" size="sm" onClick={setTodayFilter} className="text-xs h-9">Aujourd'hui</Button>
-                    <Button variant="outline" size="sm" onClick={setWeekFilter} className="text-xs h-9">Cette semaine</Button>
-                    <Button variant="outline" size="sm" onClick={setMonthFilter} className="text-xs h-9">Ce mois</Button>
-                </div>
+              <div className="flex md:hidden items-center gap-2 border-t pt-4 mt-4">
+                <span className="text-sm text-muted-foreground">Dates rapides:</span>
+                <Button variant="outline" size="sm" onClick={setTodayFilter} className="text-xs h-9">Aujourd'hui</Button>
+                <Button variant="outline" size="sm" onClick={setWeekFilter} className="text-xs h-9">Cette semaine</Button>
+                <Button variant="outline" size="sm" onClick={setMonthFilter} className="text-xs h-9">Ce mois</Button>
+              </div>
             </div>
           </CollapsibleContent>
         </Collapsible>

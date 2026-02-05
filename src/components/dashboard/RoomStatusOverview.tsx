@@ -12,7 +12,7 @@ export function RoomStatusOverview({ rooms }: RoomStatusOverviewProps) {
     return acc;
   }, {} as Record<RoomStatus, number>);
 
-  const statuses: RoomStatus[] = ['Libre', 'Occupé', 'Nettoyage', 'Maintenance'];
+  const statuses: RoomStatus[] = ['Libre', 'Occupé', 'Maintenance'];
 
   return (
     <div className="rounded-xl border bg-card p-5 shadow-soft animate-fade-in">
@@ -24,7 +24,7 @@ export function RoomStatusOverview({ rooms }: RoomStatusOverviewProps) {
           {statuses.map((status) => {
             const count = statusCounts[status] || 0;
             const percentage = rooms.length > 0 ? (count / rooms.length) * 100 : 0;
-            
+
             return (
               <div key={status} className="space-y-1.5">
                 <div className="flex items-center justify-between text-sm">
@@ -34,11 +34,10 @@ export function RoomStatusOverview({ rooms }: RoomStatusOverviewProps) {
                   <span className="text-muted-foreground">{count} chambre{count > 1 ? 's' : ''}</span>
                 </div>
                 <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                  <div 
+                  <div
                     className={cn('h-full rounded-full transition-all duration-500', {
-                      'bg-status-available': status === 'Libre',
+                      'bg-status-available': status === 'Libre' || status === 'Nettoyage',
                       'bg-status-occupied': status === 'Occupé',
-                      'bg-status-pending-cleaning': status === 'Nettoyage',
                       'bg-status-out-of-service': status === 'Maintenance',
                     })}
                     style={{ width: `${percentage}%` }}

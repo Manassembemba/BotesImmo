@@ -36,7 +36,6 @@ export function RoomFilters({ onSearchChange, onStatusChange, onTypeChange }: Ro
           <SelectItem value="all">Tous les statuts</SelectItem>
           <SelectItem value="Libre">Disponible</SelectItem>
           <SelectItem value="Occupé">Occupée</SelectItem>
-          <SelectItem value="Nettoyage">Nettoyage</SelectItem>
           <SelectItem value="Maintenance">Maintenance</SelectItem>
         </SelectContent>
       </Select>

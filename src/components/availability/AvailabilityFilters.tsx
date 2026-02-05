@@ -167,7 +167,6 @@ export function AvailabilityFilters({ rooms, onFilterChange }: AvailabilityFilte
             <SelectItem value="all">Tous statuts</SelectItem>
             <SelectItem value="Libre">Disponible</SelectItem>
             <SelectItem value="Occupé">Occupé</SelectItem>
-            <SelectItem value="Nettoyage">Nettoyage</SelectItem>
             <SelectItem value="Maintenance">Maintenance</SelectItem>
           </SelectContent>
         </Select>

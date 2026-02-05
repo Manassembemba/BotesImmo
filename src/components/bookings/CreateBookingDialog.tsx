@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCreateBooking, useBookings, Booking } from '@/hooks/useBookings';
+import { useAuth } from '@/hooks/useAuth';
 import { useRooms } from '@/hooks/useRooms';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenants, Tenant } from '@/hooks/useTenants';
@@ -46,6 +47,7 @@ const statusTranslations: Record<string, string> = {
 };
 
 export function CreateBookingDialog(props: CreateBookingDialogProps) {
+  const { role } = useAuth();
   const [internalOpen, setInternalOpen] = useState(false);
   const [isCreatingTenant, setIsCreatingTenant] = useState(false);
   const [conflictError, setConflictError] = useState<string | null>(null);
@@ -270,17 +272,17 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                 <FormField control={form.control} name="room_id" render={({ field }) => (<FormItem><FormLabel>Chambre</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionner une chambre" /></SelectTrigger></FormControl><SelectContent>{bookableRooms.map(room => (
                   <SelectItem key={room.id} value={room.id} className="flex justify-between items-center w-full">
                     <span>Ch. {room.numero} - {room.type} ({room.prix_base_nuit}$/nuit)</span>
-                    {room.status === 'Nettoyage' && (
-                      <Badge variant="destructive" className="ml-2 text-[10px] h-5">Nettoyage</Badge>
-                    )}
-                    {room.status === 'Occupé' && (() => {
+                    {(() => {
                       const currentActiveBooking = activeBookingsByRoomId.get(room.id);
                       const endDate = currentActiveBooking ? format(new Date(currentActiveBooking.date_fin_prevue), 'dd/MM') : '';
-                      return (
-                        <Badge variant="secondary" className="ml-2 text-[10px] h-5">
-                          Occupé {endDate && `jusqu'au ${endDate}`}
-                        </Badge>
-                      );
+                      if (currentActiveBooking || room.status === 'Occupé') {
+                        return (
+                          <Badge variant="secondary" className="ml-2 text-[10px] h-5">
+                            Occupé {endDate && `jusqu'au ${endDate}`}
+                          </Badge>
+                        );
+                      }
+                      return null;
                     })()}
                   </SelectItem>
                 ))}</SelectContent></Select><FormMessage /></FormItem>)} />
@@ -353,7 +355,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                           type="date"
                           {...field}
                           className="h-11 border-slate-200 focus:border-indigo-500"
-                          min={format(new Date(), 'yyyy-MM-dd')}
+                          min={role === 'ADMIN' ? undefined : format(new Date(), 'yyyy-MM-dd')}
                         />
                       </FormControl>
                       <FormMessage />
@@ -381,7 +383,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                           type="date"
                           {...field}
                           className="h-11 border-slate-200 focus:border-indigo-500"
-                          min={dateDebut ? format(addDays(new Date(dateDebut), 1), 'yyyy-MM-dd') : format(addDays(new Date(), 1), 'yyyy-MM-dd')}
+                          min={role === 'ADMIN' ? undefined : (dateDebut ? format(addDays(new Date(dateDebut), 1), 'yyyy-MM-dd') : format(addDays(new Date(), 1), 'yyyy-MM-dd'))}
                         />
                       </FormControl>
                       <FormMessage />
@@ -464,6 +466,35 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
               </div>
 
 
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Statut</FormLabel>
+                    <FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                        disabled={isImmediate} // Bloqué sur CONFIRMED si direct
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PENDING">En attente</SelectItem>
+                          <SelectItem value="CONFIRMED">Confirmée</SelectItem>
+                          <SelectItem value="IN_PROGRESS">En cours</SelectItem>
+                          <SelectItem value="COMPLETED">Terminée</SelectItem>
+                          <SelectItem value="CANCELLED">Annulée</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="flex justify-end gap-3 pt-6 border-t">
                 <Button
                   type="button"
@@ -475,7 +506,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={!isFormValid || createBooking.isPending || !!conflictError}
+                  disabled={createBooking.isPending || (role !== 'ADMIN' && (!isFormValid || !!conflictError))}
                   className={cn(
                     "px-8 h-12 font-black uppercase tracking-widest shadow-lg transition-all",
                     isImmediate ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"

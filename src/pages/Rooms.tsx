@@ -12,6 +12,10 @@ import { useLocations } from '@/hooks/useLocations';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocationFilter } from '@/context/LocationFilterContext';
+import { useBookings } from '@/hooks/useBookings';
+import { getEffectiveRoomStatus } from '@/lib/statusUtils';
+import { differenceInDays, parseISO, isWithinInterval, format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import {
   Table,
   TableBody,
@@ -46,10 +50,7 @@ const getStatusBadge = (status: RoomStatus) => {
   const config = {
     Libre: { label: 'DISPONIBLE', className: 'status-available' },
     Occupé: { label: 'OCCUPÉ', className: 'status-occupied' },
-    Nettoyage: { label: 'NETTOYAGE', className: 'status-pending-cleaning' },
-    Maintenance: { label: 'MAINTENANCE', className: 'status-out-of-service' },
     BOOKED: { label: 'RÉSERVÉ', className: 'status-booked' },
-    PENDING_CLEANING: { label: 'NETTOYAGE REQUIS', className: 'status-pending-cleaning' },
     PENDING_CHECKOUT: { label: 'DÉPART PRÉVU', className: 'status-pending-checkout' },
   };
   const { label, className } = config[status] || { label: status, className: 'bg-gray-400' };
@@ -63,6 +64,8 @@ const getStatusBadge = (status: RoomStatus) => {
 const Rooms = () => {
   const { role, profile } = useAuth();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
+  const { data: bookingsData } = useBookings();
+  const bookings = bookingsData?.data || [];
   const { data: locations } = useLocations();
   const { selectedLocationId } = useLocationFilter();
   const { data: exchangeRateData } = useExchangeRate();
@@ -106,8 +109,42 @@ const Rooms = () => {
 
   const uniqueRoomTypes = useMemo(() => Array.from(new Set(rooms.map(room => room.type))), [rooms]);
 
+  const roomsWithEffectiveStatus = useMemo(() => {
+    const today = new Date();
+    return rooms.map(room => {
+      const effectiveStatus = getEffectiveRoomStatus(room, bookings);
+
+      // Calcul des infos de disponibilité
+      const roomBookings = bookings
+        .filter(b => b.room_id === room.id && ['CONFIRMED', 'IN_PROGRESS'].includes(b.status))
+        .sort((a, b) => new Date(a.date_fin_prevue).getTime() - new Date(b.date_fin_prevue).getTime());
+
+      const currentOrNextBooking = roomBookings.find(b => {
+        const start = parseISO(b.date_debut_prevue);
+        const end = parseISO(b.date_fin_prevue);
+        return isWithinInterval(today, { start, end });
+      }) || roomBookings[0];
+
+      const isAvailableNow = effectiveStatus === 'Libre' || effectiveStatus === 'Nettoyage';
+      const nextAvailableDate = isAvailableNow ? today : (currentOrNextBooking ? parseISO(currentOrNextBooking.date_fin_prevue) : today);
+
+      const diff = differenceInDays(nextAvailableDate, today);
+      const isOverdue = !isAvailableNow && diff < 0;
+      const daysRemaining = isAvailableNow ? 0 : diff;
+
+      return {
+        ...room,
+        status: effectiveStatus,
+        nextAvailableDate,
+        daysRemaining,
+        isOverdue,
+        isAvailableNow
+      };
+    });
+  }, [rooms, bookings]);
+
   const filteredRooms = useMemo(() => {
-    return rooms.filter(room => {
+    return roomsWithEffectiveStatus.filter(room => {
       const searchLower = options.searchTerm?.toLowerCase() || '';
       const matchesSearch = !searchLower || (
         room.numero.toLowerCase().includes(searchLower) ||
@@ -121,7 +158,7 @@ const Rooms = () => {
         (priceRange.max === null || room.prix_base_nuit <= priceRange.max);
       return matchesSearch && matchesType && matchesStatus && matchesPrice;
     });
-  }, [rooms, options.searchTerm, roomTypeFilter, statusFilter, priceRange]);
+  }, [roomsWithEffectiveStatus, options.searchTerm, roomTypeFilter, statusFilter, priceRange]);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -195,7 +232,6 @@ const Rooms = () => {
                     <SelectItem value="all">Tous statuts</SelectItem>
                     <SelectItem value="Libre">Disponible</SelectItem>
                     <SelectItem value="Occupé">Occupé</SelectItem>
-                    <SelectItem value="Nettoyage">Nettoyage</SelectItem>
                     <SelectItem value="Maintenance">Maintenance</SelectItem>
                   </SelectContent>
                 </Select>
@@ -228,20 +264,63 @@ const Rooms = () => {
             ) : (
               <div className="bg-card rounded-lg border shadow-soft overflow-x-auto">
                 <Table>
-                  <TableHeader><TableRow className="bg-primary hover:bg-primary"><TableHead className="text-primary-foreground font-semibold">N°</TableHead><TableHead className="text-primary-foreground font-semibold">NOM & NUMÉRO</TableHead><TableHead className="text-primary-foreground font-semibold">STATUT</TableHead><TableHead className="text-primary-foreground font-semibold">TYPE</TableHead><TableHead className="text-primary-foreground font-semibold">LOCALITÉ</TableHead><TableHead className="text-primary-foreground font-semibold">PRIX</TableHead>{role === 'ADMIN' && <TableHead className="text-primary-foreground font-semibold text-right">ACTIONS</TableHead>}</TableRow></TableHeader>
+                  <TableHeader>
+                    <TableRow className="bg-primary hover:bg-primary">
+                      <TableHead className="text-primary-foreground font-semibold">N°</TableHead>
+                      <TableHead className="text-primary-foreground font-semibold">NOM & NUMÉRO</TableHead>
+                      <TableHead className="text-primary-foreground font-semibold">STATUT</TableHead>
+                      <TableHead className="text-primary-foreground font-semibold">LOCALITÉ</TableHead>
+                      <TableHead className="text-primary-foreground font-semibold text-center">PROCHAINE DISPO.</TableHead>
+                      <TableHead className="text-primary-foreground font-semibold text-center">JOURS RESTANTS</TableHead>
+                      <TableHead className="text-primary-foreground font-semibold">PRIX / NUIT</TableHead>
+                      {role === 'ADMIN' && <TableHead className="text-primary-foreground font-semibold text-right">ACTIONS</TableHead>}
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
                     {filteredRooms.map((room, index) => (
                       <TableRow key={room.id} className="hover:bg-secondary/50">
-                        <TableCell className="font-medium">{index + 1}</TableCell>
-                        <TableCell><span className="font-medium">APPARTEMENT - {room.numero}</span></TableCell>
+                        <TableCell className="font-medium">{filteredRooms.indexOf(room) + 1}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-foreground">APPARTEMENT - {room.numero}</span>
+                            <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-tighter">{room.type} • Étage {room.etage}</span>
+                          </div>
+                        </TableCell>
                         <TableCell>{getStatusBadge(room.status)}</TableCell>
-                        <TableCell>{room.type}</TableCell>
                         <TableCell>{room.locations?.nom || <span className="text-muted-foreground">N/A</span>}</TableCell>
-                        <TableCell><div className="text-sm"><p>USD : {room.prix_base_nuit.toFixed(2)}</p><p className="text-muted-foreground">CDF : {Math.round(room.prix_base_nuit * rate).toLocaleString('fr-FR')}</p></div></TableCell>
+                        <TableCell className="text-center font-medium">
+                          {room.isAvailableNow ? (
+                            <span className="text-emerald-600">Maintenant</span>
+                          ) : (
+                            <span className="text-foreground">{format(room.nextAvailableDate, 'dd MMM yyyy', { locale: fr })}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {room.isAvailableNow ? (
+                            <span className="text-emerald-600">—</span>
+                          ) : (
+                            <span className={cn(
+                              "font-bold px-2 py-0.5 rounded text-xs transition-colors",
+                              room.isOverdue
+                                ? "bg-red-600 text-white animate-pulse shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+                                : room.daysRemaining <= 1
+                                  ? "bg-rose-100 text-rose-700 animate-pulse"
+                                  : "bg-blue-100 text-blue-700"
+                            )}>
+                              {room.isOverdue ? `- ${Math.abs(room.daysRemaining)} jour${Math.abs(room.daysRemaining) > 1 ? 's' : ''}` : `${room.daysRemaining} jour${room.daysRemaining > 1 ? 's' : ''}`}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm font-medium">
+                            <p className="text-foreground">{room.prix_base_nuit.toFixed(2)} $</p>
+                            <p className="text-muted-foreground text-[10px] font-bold">({Math.round(room.prix_base_nuit * rate).toLocaleString('fr-FR')} FC)</p>
+                          </div>
+                        </TableCell>
                         {role === 'ADMIN' && (
                           <TableCell>
                             <div className="flex items-center justify-end gap-2">
-                              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setEditingRoom(room)}><Pencil className="h-4 w-4" /></Button>
+                              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setEditingRoom(room as any)}><Pencil className="h-4 w-4" /></Button>
                               <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => setDeletingRoomId(room.id)}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           </TableCell>

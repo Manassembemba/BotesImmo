@@ -10,7 +10,7 @@ export interface Payment {
   montant: number; // Total équivalent USD
   montant_usd: number; // 🔥 Physique USD
   montant_cdf: number; // 🔥 Physique CDF
-  taux_change: number; // 🔥 Taux utilisé au moment du paiement
+  exchange_rate: number; // 🔥 Taux utilisé au moment du paiement
   date_paiement: string;
   methode: string; // Changed to string to match RPC return type
   notes: string | null;

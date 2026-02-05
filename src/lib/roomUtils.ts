@@ -7,15 +7,15 @@ import { RoomStatus } from '@/types/room';
 export const statusTranslations: { [key in RoomStatus]: string } = {
   Libre: 'Disponible',
   Occupé: 'Occupé',
-  Nettoyage: 'Nettoyage',
   Maintenance: 'En maintenance',
+  Nettoyage: 'Disponible', // Redirection
 };
 
 export const statusColors: { [key in RoomStatus]: string } = {
   Libre: 'status-available',
   Occupé: 'status-occupied',
-  Nettoyage: 'status-pending-cleaning',
   Maintenance: 'status-out-of-service',
+  Nettoyage: 'status-available', // Même couleur que libre
 };
 
 export const getStatusLabel = (status: RoomStatus): string => {

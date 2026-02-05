@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useRooms } from '@/hooks/useRooms';
 import { useBookings } from '@/hooks/useBookings';
-import { format, addDays, differenceInDays, isAfter, isBefore, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { format, addDays, differenceInDays, isAfter, isBefore, parseISO, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { CurrencyDisplay } from '@/components/CurrencyDisplay';
 import { AvailabilityFilters } from '@/components/availability/AvailabilityFilters';
@@ -12,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Download, List, Grid, Calendar as CalendarIcon } from 'lucide-react';
 import { exportAvailabilityData } from '@/services/availabilityExportService';
 import { DateFilterType } from '@/hooks/useGlobalFilters';
+import { getEffectiveRoomStatus } from '@/lib/statusUtils';
 
 const Availability = () => {
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-      const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
   const bookings = bookingsResult?.data || [];
 
   const [currentView, setCurrentView] = useState<'table' | 'calendar' | 'card'>('table');
@@ -34,8 +35,16 @@ const Availability = () => {
 
   const isLoading = roomsLoading || bookingsLoading;
 
+  // Calcul des statuts effectifs (dynamiques)
+  const roomsWithEffectiveStatus = useMemo(() => {
+    return rooms.map(room => ({
+      ...room,
+      status: getEffectiveRoomStatus(room, bookings)
+    }));
+  }, [rooms, bookings]);
+
   // Filter rooms based on filter criteria
-  const filteredRooms = rooms.filter(room => {
+  const filteredRooms = roomsWithEffectiveStatus.filter(room => {
     const matchesSearch = !filters.search ||
       room.numero.toLowerCase().includes(filters.search.toLowerCase()) ||
       room.type.toLowerCase().includes(filters.search.toLowerCase());
@@ -69,19 +78,26 @@ const Availability = () => {
       };
     }
 
-    // Find the last booking's end date
-    const lastBooking = roomBookings[roomBookings.length - 1];
-    const endDate = parseISO(lastBooking.date_fin_prevue);
+    const range = { start, end };
+    const currentOrNextBooking = roomBookings.find(b => {
+      const start = parseISO(b.date_debut_prevue);
+      const end = parseISO(b.date_fin_prevue);
+      return isWithinInterval(today, { start, end });
+    }) || roomBookings[0];
 
     const isAvailableNow = room.status === 'Libre';
-    const daysUntilAvailable = isAvailableNow ? 0 : Math.max(0, differenceInDays(endDate, today));
+    const endDate = parseISO(currentOrNextBooking.date_fin_prevue);
+    const diff = differenceInDays(endDate, today);
+    const isOverdue = !isAvailableNow && diff < 0;
+    const daysUntilAvailable = isAvailableNow ? 0 : diff;
 
     return {
       ...room,
       nextAvailableDate: isAvailableNow ? today : endDate,
       isAvailableNow,
+      isOverdue,
       daysUntilAvailable,
-      currentBooking: isAvailableNow ? null : lastBooking
+      currentBooking: isAvailableNow ? null : currentOrNextBooking
     };
   });
 
@@ -248,12 +264,17 @@ const Availability = () => {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-sm">
+                    <td className="px-4 py-4 text-sm font-bold">
                       {room.isAvailableNow ? (
-                        <span className="text-green-600">—</span>
+                        <span className="text-emerald-600">—</span>
                       ) : (
-                        <span className="font-medium text-orange-600">
-                          {room.daysUntilAvailable} jour{room.daysUntilAvailable > 1 ? 's' : ''}
+                        <span className={cn(
+                          "px-2 py-0.5 rounded transition-colors",
+                          room.isOverdue
+                            ? "bg-red-600 text-white animate-pulse"
+                            : "text-orange-600"
+                        )}>
+                          {room.isOverdue ? `- ${Math.abs(room.daysUntilAvailable)} j` : `${room.daysUntilAvailable} j`}
                         </span>
                       )}
                     </td>

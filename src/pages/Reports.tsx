@@ -168,7 +168,7 @@ const Reports = () => {
         p.montant.toFixed(2),
         (p.montant_usd || 0).toFixed(2),
         (p.montant_cdf || 0).toFixed(2),
-        (p.taux_change || rate).toFixed(2),
+        (p.exchange_rate || rate).toFixed(2),
         p.methode,
         invoice?.invoice_number || 'N/A',
         booking?.tenants ? `"${booking.tenants.prenom} ${booking.tenants.nom}"` : 'N/A',

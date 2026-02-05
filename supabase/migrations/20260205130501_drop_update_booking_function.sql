@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.update_booking_with_invoice_atomic(UUID, TIMESTAMPTZ, TIMESTAMPTZ, NUMERIC, TEXT, TEXT);

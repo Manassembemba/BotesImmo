@@ -117,7 +117,7 @@ function PaymentForm({
         invoice_id: data.invoice_id ?? null,
         montant_usd: amountUSD,
         montant_cdf: amountCDF,
-        taux_change: exchangeRate, // 🔥 Nouveau: on enregistre le taux utilisé
+        exchange_rate: exchangeRate, // 🔥 Nouveau: on enregistre le taux utilisé
         montant: data.montant,
         date_paiement: data.date_paiement,
         methode: data.methode,

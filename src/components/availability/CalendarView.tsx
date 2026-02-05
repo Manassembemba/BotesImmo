@@ -13,6 +13,7 @@ import {
 import { fr } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getEffectiveRoomStatus } from '@/lib/statusUtils';
 import { Badge } from '@/components/ui/badge';
 import { Booking } from '@/hooks/useBookings';
 import { Room } from '@/hooks/useRooms';
@@ -72,15 +73,14 @@ export function CalendarView({ rooms, bookings, currentMonth, onMonthChange, sel
       const roomAvailability: Record<string, { status: 'available' | 'booked' | 'maintenance' }> = {};
 
       rooms.forEach(room => {
-        // Par défaut, supposons disponible
-        roomAvailability[room.id] = { status: 'available' };
+        const effectiveStatus = getEffectiveRoomStatus(room, dayBookings, date);
 
-        // Vérifier si la chambre a des réservations pour cette date
-        const roomBookings = dayBookings.filter(b => b.room_id === room.id);
-        if (roomBookings.length > 0) {
+        if (effectiveStatus === 'Occupé' || effectiveStatus === 'BOOKED') {
           roomAvailability[room.id] = { status: 'booked' };
-        } else if (room.status === 'MAINTENANCE') {
+        } else if (effectiveStatus === 'Maintenance') {
           roomAvailability[room.id] = { status: 'maintenance' };
+        } else {
+          roomAvailability[room.id] = { status: 'available' };
         }
       });
 

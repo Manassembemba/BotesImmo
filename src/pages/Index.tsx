@@ -38,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { useAppNotifications } from '@/hooks/useAppNotifications';
 import { useLocationFilter } from '@/context/LocationFilterContext';
 import { useLocations } from '@/hooks/useLocations';
+import { getEffectiveRoomStatus } from '@/lib/statusUtils';
 
 const Dashboard = () => {
   const { role, profile } = useAuth();
@@ -54,11 +55,19 @@ const Dashboard = () => {
 
   const overdueCount = notifications.filter(n => n.type === 'checkout_overdue').length;
 
-  // Calcul des indicateurs de base
-  const availableRooms = rooms.filter(r => r.status === 'Libre' || r.status === 'Nettoyage').length;
-  const occupiedRooms = rooms.filter(r => r.status === 'Occupé').length;
-  const bookedRooms = rooms.filter(r => r.status === 'BOOKED').length;
-  const totalRooms = rooms.length;
+  // Calcul des statuts effectifs (dynamiques)
+  const roomsWithEffectiveStatus = useMemo(() => {
+    return rooms.map(room => ({
+      ...room,
+      status: getEffectiveRoomStatus(room, bookings)
+    }));
+  }, [rooms, bookings]);
+
+  // Calcul des indicateurs basés sur le statut effectif
+  const availableRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Libre' || r.status === 'Nettoyage').length;
+  const occupiedRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Occupé').length;
+  const bookedRooms = roomsWithEffectiveStatus.filter(r => r.status === 'BOOKED').length;
+  const totalRooms = roomsWithEffectiveStatus.length;
 
   // Calcul des arrivées et départs du jour
   const todayArrivals = bookings.filter(b => isToday(new Date(b.date_debut_prevue)) && b.status !== 'CANCELLED');
@@ -292,7 +301,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <RoomStatusOverview rooms={rooms} />
+        <RoomStatusOverview rooms={roomsWithEffectiveStatus} />
       </div>
 
       {/* Pending Checkouts */}
