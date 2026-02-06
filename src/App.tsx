@@ -17,7 +17,6 @@ import Incidents from "./pages/Incidents";
 import Tasks from "./pages/Tasks";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
-import Availability from "./pages/Availability";
 import Notifications from "./pages/Notifications";
 import Invoices from "./pages/Invoices";
 import FinancialReport from "./pages/reports/FinancialReport";
@@ -54,7 +53,6 @@ const App = () => (
                 {/* New accounting routes */}
                 <Route path="/reports/general-ledger" element={<ProtectedRoute allowedRoles={['ADMIN']}><GeneralLedger /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/availability" element={<ProtectedRoute><Availability /></ProtectedRoute>} />
                 <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
                 <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />

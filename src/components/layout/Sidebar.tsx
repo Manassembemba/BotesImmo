@@ -40,7 +40,6 @@ const getNavigation = (notificationCount: number, role: string | null) => {
     { name: 'Factures', href: '/invoices', icon: FileText },
     { name: 'Appartements', href: '/rooms', icon: BedDouble },
     { name: 'Calendrier des locations', href: '/planning', icon: Calendar },
-    { name: 'Disponibilité', href: '/availability', icon: BarChart3 },
     { name: 'Rapports', href: '/reports', icon: BarChart3, roles: ['ADMIN'] },
     { name: 'Locataires', href: '/tenants', icon: Users },
     { name: 'Notifications', href: '/notifications', icon: Bell, badgeCount: notificationCount },
