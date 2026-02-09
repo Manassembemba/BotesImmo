@@ -57,14 +57,27 @@ const Dashboard = () => {
 
   // Calcul des statuts effectifs (dynamiques)
   const roomsWithEffectiveStatus = useMemo(() => {
-    return rooms.map(room => ({
-      ...room,
-      status: getEffectiveRoomStatus(room, bookings)
-    }));
+    const today = new Date();
+    return rooms.map(room => {
+      try {
+        const { status: effectiveStatus } = getEffectiveRoomStatus(room, bookings, today);
+        return {
+          ...room,
+          status: effectiveStatus
+        };
+      } catch (error) {
+        console.error('Error calculating effective room status:', error);
+        return {
+          ...room,
+          status: room.status // fallback to original status
+        };
+      }
+    });
   }, [rooms, bookings]);
 
   // Calcul des indicateurs basés sur le statut effectif
-  const availableRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Libre' || r.status === 'Nettoyage').length;
+  const freeRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Libre').length;
+  const cleaningRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Nettoyage').length;
   const occupiedRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Occupé').length;
   const bookedRooms = roomsWithEffectiveStatus.filter(r => r.status === 'BOOKED').length;
   const totalRooms = roomsWithEffectiveStatus.length;
@@ -179,9 +192,9 @@ const Dashboard = () => {
       {/* KPI Cards */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6 sm:mb-8">
         <StatsCard
-          title="Chambres disponibles"
-          value={availableRooms}
-          subtitle={`${totalRooms > 0 ? `${Math.round((availableRooms / totalRooms) * 100)}%` : '0%'} du parc`}
+          title="Chambres libres"
+          value={freeRooms}
+          subtitle={`${totalRooms > 0 ? `${Math.round((freeRooms / totalRooms) * 100)}%` : '0%'} du parc`}
           icon={Building2}
           variant="success"
         />

@@ -28,8 +28,8 @@ export interface Booking {
     type: string;
   };
   tenants?: {
-    nom: string;
-    prenom: string;
+    nom: string | null;
+    prenom: string | null;
     email: string | null;
     telephone: string | null;
     id_document: string | null;

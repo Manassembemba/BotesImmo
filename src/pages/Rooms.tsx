@@ -13,7 +13,7 @@ import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocationFilter } from '@/context/LocationFilterContext';
 import { useBookings } from '@/hooks/useBookings';
-import { getEffectiveRoomStatus } from '@/lib/statusUtils';
+import { getEffectiveRoomStatus, RoomStatusResult, EffectiveRoomStatus } from '@/lib/statusUtils';
 import { differenceInDays, parseISO, isWithinInterval, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -46,12 +46,29 @@ import { useGlobalFilters } from '@/hooks/useGlobalFilters';
 
 type RoomStatus = 'Libre' | 'Occupé' | 'Nettoyage' | 'Maintenance' | 'BOOKED' | 'MAINTENANCE' | 'PENDING_CLEANING' | 'PENDING_CHECKOUT';
 
+// Define an interface for the processed room to include active tenant info
+interface ProcessedRoom extends Room {
+  effectiveStatus: EffectiveRoomStatus; // The dynamically calculated status
+  nextAvailableDate: Date;
+  daysRemaining: number;
+  isOverdue: boolean;
+  isAvailableNow: boolean;
+  activeTenant?: { // Add optional active tenant information
+    id: string;
+    nom: string;
+    prenom: string;
+    telephone?: string;
+    email?: string;
+  };
+}
+
 const getStatusBadge = (status: RoomStatus) => {
   const config = {
     Libre: { label: 'DISPONIBLE', className: 'status-available' },
     Occupé: { label: 'OCCUPÉ', className: 'status-occupied' },
     BOOKED: { label: 'RÉSERVÉ', className: 'status-booked' },
     PENDING_CHECKOUT: { label: 'DÉPART PRÉVU', className: 'status-pending-checkout' },
+    Maintenance: { label: 'MAINTENANCE', className: 'bg-yellow-500 text-white' }, // Add Maintenance status badge
   };
   const { label, className } = config[status] || { label: status, className: 'bg-gray-400' };
   return (
@@ -109,21 +126,17 @@ const Rooms = () => {
 
   const uniqueRoomTypes = useMemo(() => Array.from(new Set(rooms.map(room => room.type))), [rooms]);
 
-  const roomsWithEffectiveStatus = useMemo(() => {
+  const roomsWithEffectiveStatus: ProcessedRoom[] = useMemo(() => {
     const today = new Date();
     return rooms.map(room => {
-      const effectiveStatus = getEffectiveRoomStatus(room, bookings);
+      const { status: effectiveStatus, activeBooking } = getEffectiveRoomStatus(room, bookings, today);
 
-      // Calcul des infos de disponibilité
+      // Calcul des infos de disponibilité (peut être révisé pour utiliser activeBooking)
       const roomBookings = bookings
         .filter(b => b.room_id === room.id && ['CONFIRMED', 'IN_PROGRESS'].includes(b.status))
         .sort((a, b) => new Date(a.date_fin_prevue).getTime() - new Date(b.date_fin_prevue).getTime());
 
-      const currentOrNextBooking = roomBookings.find(b => {
-        const start = parseISO(b.date_debut_prevue);
-        const end = parseISO(b.date_fin_prevue);
-        return isWithinInterval(today, { start, end });
-      }) || roomBookings[0];
+      const currentOrNextBooking = activeBooking || roomBookings[0]; // Prioritize activeBooking
 
       const isAvailableNow = effectiveStatus === 'Libre' || effectiveStatus === 'Nettoyage';
       const nextAvailableDate = isAvailableNow ? today : (currentOrNextBooking ? parseISO(currentOrNextBooking.date_fin_prevue) : today);
@@ -132,13 +145,26 @@ const Rooms = () => {
       const isOverdue = !isAvailableNow && diff < 0;
       const daysRemaining = isAvailableNow ? 0 : diff;
 
+      let activeTenantInfo: ProcessedRoom['activeTenant'] | undefined;
+      if (activeBooking && activeBooking.tenants && (activeBooking.tenants.nom || activeBooking.tenants.prenom)) {
+        activeTenantInfo = {
+          id: activeBooking.tenant_id,
+          nom: activeBooking.tenants.nom || 'Inconnu', // Provide default if null
+          prenom: activeBooking.tenants.prenom || 'Client', // Provide default if null
+          telephone: activeBooking.tenants.telephone,
+          email: activeBooking.tenants.email,
+        };
+      }
+
       return {
         ...room,
-        status: effectiveStatus,
+        effectiveStatus,
+        status: effectiveStatus, // Override the static status with the effective one
         nextAvailableDate,
         daysRemaining,
         isOverdue,
-        isAvailableNow
+        isAvailableNow,
+        activeTenant: activeTenantInfo,
       };
     });
   }, [rooms, bookings]);
@@ -210,7 +236,7 @@ const Rooms = () => {
               <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Rechercher un appartement (numéro, type)..."
+                  placeholder="Rechercher un appartement (numéro, type, occupant)..."
                   value={options.searchTerm || ''}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
@@ -269,6 +295,7 @@ const Rooms = () => {
                       <TableHead className="text-primary-foreground font-semibold">N°</TableHead>
                       <TableHead className="text-primary-foreground font-semibold">NOM & NUMÉRO</TableHead>
                       <TableHead className="text-primary-foreground font-semibold">STATUT</TableHead>
+                      <TableHead className="text-primary-foreground font-semibold">CLIENT ACTUEL</TableHead> {/* NEW COLUMN */}
                       <TableHead className="text-primary-foreground font-semibold">LOCALITÉ</TableHead>
                       <TableHead className="text-primary-foreground font-semibold text-center">PROCHAINE DISPO.</TableHead>
                       <TableHead className="text-primary-foreground font-semibold text-center">JOURS RESTANTS</TableHead>
@@ -283,10 +310,20 @@ const Rooms = () => {
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-bold text-foreground">APPARTEMENT - {room.numero}</span>
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-tighter">{room.type} • Étage {room.etage}</span>
+                            <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-tighter">{room.type} • Étage {room.floor}</span>
                           </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(room.status)}</TableCell>
+                        <TableCell> {/* NEW CELL FOR ACTIVE TENANT */}
+                          {room.activeTenant ? (
+                            <div className="flex flex-col">
+                              <span className="font-bold">{room.activeTenant.prenom} {room.activeTenant.nom?.toUpperCase()}</span>
+                              {room.activeTenant.telephone && <span className="text-xs text-muted-foreground">{room.activeTenant.telephone}</span>}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
+                        </TableCell>
                         <TableCell>{room.locations?.nom || <span className="text-muted-foreground">N/A</span>}</TableCell>
                         <TableCell className="text-center font-medium">
                           {room.isAvailableNow ? (

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,8 @@ import { useExchangeRate } from '@/hooks/useExchangeRate'; // Import pour conver
 import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, isAfter } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { useBookingCounts } from '@/hooks/useBookingCounts';
+import { useBookingCount } from '@/hooks/useBookingCount';
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'En attente', className: 'status-badge bg-yellow-100 text-foreground dark:bg-yellow-900/30' },
@@ -48,22 +50,80 @@ const Reservations = () => {
   const { selectedLocationId } = useLocationFilter();
   const { data: locations } = useLocations();
 
+  const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'inprogress' | 'completed' | 'cancelled'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dateRange, setDateRange] = useState<{ from: Date | undefined, to: Date | undefined }>({ from: undefined, to: undefined });
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 15 });
 
-  const bookingFilters: BookingFilters = useMemo(() => ({
-    searchTerm,
-    status: statusFilter === 'all' ? [] : [statusFilter],
-    startDate: dateRange.from?.toISOString(),
-    endDate: dateRange.to?.toISOString(),
-  }), [searchTerm, statusFilter, dateRange]);
+  // Déterminer les statuts en fonction de l'onglet actif
+  const getStatusFilter = (): string[] => {
+    switch (activeTab) {
+      case 'upcoming':
+        return ['PENDING', 'CONFIRMED']; // Réservations futures
+      case 'inprogress':
+        return ['IN_PROGRESS']; // Réservations en cours
+      case 'completed':
+        return ['COMPLETED']; // Réservations terminées
+      case 'cancelled':
+        return ['CANCELLED']; // Réservations annulées
+      case 'all':
+      default:
+        return []; // Tous les statuts
+    }
+  };
 
+  const bookingFilters: BookingFilters = useMemo(() => {
+    // Pour l'onglet "Tous", ne pas appliquer de filtres
+    if (activeTab === 'all') {
+      return {
+        searchTerm: '',  // Ne pas appliquer le filtre de recherche non plus
+        status: [],
+        startDate: undefined,
+        endDate: undefined,
+      };
+    }
+
+    // Pour les autres onglets, appliquer les filtres normalement
+    return {
+      searchTerm,
+      status: getStatusFilter(),
+      startDate: dateRange.from?.toISOString(),
+      endDate: dateRange.to?.toISOString(),
+    };
+  }, [activeTab, searchTerm, dateRange]);
+
+  // Réinitialiser la pagination quand les filtres changent
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, pageIndex: 0 }));
+  }, [searchTerm, activeTab, dateRange.from, dateRange.to]);
+
+  // Charger les données pour l'onglet actif
   const { data: bookingsResult, isLoading: bookingsLoading } = useBookings(bookingFilters, pagination);
   const bookingsData = bookingsResult?.data || [];
-  const pageCount = bookingsResult?.count ? Math.ceil(bookingsResult.count / pagination.pageSize) : 0;
+
+  // Charger le nombre total de réservations correspondant aux filtres (pour la pagination)
+  const { data: totalCount, isLoading: totalCountLoading } = useBookingCount(bookingFilters);
+  const pageCount = totalCount ? Math.ceil(totalCount / pagination.pageSize) : 0;
+
+  // Charger les totaux complets pour les badges de notification (sans filtres)
+  const { data: totalBookingCounts, isLoading: totalCountsLoading } = useBookingCounts({});
+
+  // Charger les totaux pour chaque catégorie avec les filtres de date (sauf pour l'onglet "Tous")
+  const { data: filteredBookingCounts, isLoading: filteredCountsLoading } = useBookingCounts({
+    startDate: activeTab === 'all' ? undefined : dateRange.from?.toISOString(),
+    endDate: activeTab === 'all' ? undefined : dateRange.to?.toISOString(),
+  });
+
+  // Pour les badges, utiliser les totaux complets pour "Tous", mais les totaux filtrés pour les autres onglets
+  const allBookingsCount = totalBookingCounts?.all || 0;
+  const upcomingBookingsCount = activeTab === 'all' ? totalBookingCounts?.upcoming || 0 : filteredBookingCounts?.upcoming || 0;
+  const inProgressBookingsCount = activeTab === 'all' ? totalBookingCounts?.inProgress || 0 : filteredBookingCounts?.inProgress || 0;
+  const completedBookingsCount = activeTab === 'all' ? totalBookingCounts?.completed || 0 : filteredBookingCounts?.completed || 0;
+  const cancelledBookingsCount = activeTab === 'all' ? totalBookingCounts?.cancelled || 0 : filteredBookingCounts?.cancelled || 0;
+
+  // Déterminer si les données sont en cours de chargement
+  const isLoading = bookingsLoading || totalCountsLoading || totalCountLoading || filteredCountsLoading;
 
   const { data: exchangeRateData } = useExchangeRate();
   const rate = exchangeRateData?.usd_to_cdf || 2800;
@@ -144,8 +204,9 @@ const Reservations = () => {
 
   const resetFilters = () => {
     setSearchTerm('');
-    setStatusFilter('all');
     setDateRange({ from: undefined, to: undefined });
+    // Réinitialiser aussi l'onglet à "Tous" si nécessaire
+    setActiveTab('all');
   };
 
   const setTodayFilter = () => {
@@ -166,10 +227,9 @@ const Reservations = () => {
   const activeFiltersCount = useMemo(() => {
     let count = 0;
     if (searchTerm) count++;
-    if (statusFilter !== 'all') count++;
     if (dateRange.from || dateRange.to) count++;
     return count;
-  }, [searchTerm, statusFilter, dateRange]);
+  }, [searchTerm, dateRange]);
 
   const handleDelete = async () => {
     if (deleteBookingId) {
@@ -193,11 +253,68 @@ const Reservations = () => {
     };
   };
 
-  const isLoading = bookingsLoading;
-
   return (
     <MainLayout title="GESTION DES RÉSERVATIONS" subtitle={subtitle}>
       <div className="space-y-4">
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-border">
+          <button
+            className={`pb-3 px-4 font-medium text-sm ${activeTab === 'all' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setActiveTab('all')}
+          >
+            Tous
+            {totalBookingCounts?.all !== undefined && totalBookingCounts.all > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs h-5 w-5">
+                {totalBookingCounts.all}
+              </span>
+            )}
+          </button>
+          <button
+            className={`pb-3 px-4 font-medium text-sm ${activeTab === 'upcoming' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setActiveTab('upcoming')}
+          >
+            À venir
+            {totalBookingCounts?.upcoming !== undefined && totalBookingCounts.upcoming > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-blue-500 text-white text-xs h-5 w-5">
+                {totalBookingCounts.upcoming}
+              </span>
+            )}
+          </button>
+          <button
+            className={`pb-3 px-4 font-medium text-sm ${activeTab === 'inprogress' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setActiveTab('inprogress')}
+          >
+            En cours
+            {totalBookingCounts?.inProgress !== undefined && totalBookingCounts.inProgress > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-green-500 text-white text-xs h-5 w-5">
+                {totalBookingCounts.inProgress}
+              </span>
+            )}
+          </button>
+          <button
+            className={`pb-3 px-4 font-medium text-sm ${activeTab === 'completed' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setActiveTab('completed')}
+          >
+            Terminées
+            {totalBookingCounts?.completed !== undefined && totalBookingCounts.completed > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-gray-500 text-white text-xs h-5 w-5">
+                {totalBookingCounts.completed}
+              </span>
+            )}
+          </button>
+          <button
+            className={`pb-3 px-4 font-medium text-sm ${activeTab === 'cancelled' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setActiveTab('cancelled')}
+          >
+            Annulées
+            {totalBookingCounts?.cancelled !== undefined && totalBookingCounts.cancelled > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-red-500 text-white text-xs h-5 w-5">
+                {totalBookingCounts.cancelled}
+              </span>
+            )}
+          </button>
+        </div>
+
         <Collapsible
           open={isFiltersOpen}
           onOpenChange={setIsFiltersOpen}
@@ -206,7 +323,7 @@ const Reservations = () => {
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative flex-grow sm:flex-grow-0 sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+              <Input placeholder={`Rechercher ${activeTab === 'all' ? 'toutes les réservations' : activeTab === 'upcoming' ? 'réservations à venir' : activeTab === 'inprogress' ? 'réservations en cours' : activeTab === 'completed' ? 'réservations terminées' : 'réservations annulées'}...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
             </div>
 
             <CollapsibleTrigger asChild>
@@ -236,14 +353,7 @@ const Reservations = () => {
           <CollapsibleContent className="space-y-4 pt-2">
             <div className="border rounded-lg p-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger><SelectValue placeholder="Statut de la réservation" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Tous les statuts</SelectItem>
-                    {Object.entries(STATUS_CONFIG).map(([status, { label }]) => <SelectItem key={status} value={status}>{label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2 md:col-span-2">
                   <Popover>
                     <PopoverTrigger asChild><Button variant="outline" className={cn('justify-start text-left font-normal', !dateRange.from && 'text-muted-foreground')}><CalendarIcon className="mr-2 h-4 w-4" />{dateRange.from ? format(dateRange.from, 'dd/MM/yy') : <span>Date de début</span>}</Button></PopoverTrigger>
                     <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateRange.from} onSelect={(day) => setDateRange(prev => ({ ...prev, from: day as Date }))} initialFocus /></PopoverContent>
@@ -253,7 +363,7 @@ const Reservations = () => {
                     <PopoverContent className="w-auto p-0"><Calendar mode="single" selected={dateRange.to} onSelect={(day) => setDateRange(prev => ({ ...prev, to: day as Date }))} initialFocus /></PopoverContent>
                   </Popover>
                 </div>
-                <div className="flex items-center justify-end gap-2 md:col-span-2 lg:col-span-1">
+                <div className="flex items-center justify-end gap-2">
                   <Button variant="ghost" size="sm" onClick={resetFilters}><X className="h-4 w-4 mr-2" />Réinitialiser les filtres</Button>
                 </div>
               </div>
@@ -399,11 +509,55 @@ const Reservations = () => {
             </div>
           </>
         )}
-        <div className="flex items-center justify-end space-x-2 py-4">
-          <Button variant="outline" size="sm" onClick={() => setPagination(prev => ({ ...prev, pageIndex: Math.max(0, prev.pageIndex - 1) }))} disabled={pagination.pageIndex === 0}>Précédent</Button>
-          <span className="text-sm text-muted-foreground">Page {pagination.pageIndex + 1} sur {pageCount || 1}</span>
-          <Button variant="outline" size="sm" onClick={() => setPagination(prev => ({ ...prev, pageIndex: prev.pageIndex + 1 }))} disabled={pagination.pageIndex >= pageCount - 1}>Suivant</Button>
-        </div>
+        {bookingsData.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between py-4 gap-4">
+            <div className="text-sm text-muted-foreground">
+              Affichage de {(pagination.pageIndex * pagination.pageSize) + 1} à {Math.min((pagination.pageIndex + 1) * pagination.pageSize, (bookingsResult?.count || 0))} sur {bookingsResult?.count || 0} réservation{bookingsResult?.count !== 1 ? 's' : ''}
+            </div>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-muted-foreground">Lignes par page:</span>
+                <select
+                  value={pagination.pageSize}
+                  onChange={(e) => {
+                    setPagination(prev => ({ ...prev, pageIndex: 0, pageSize: Number(e.target.value) }));
+                  }}
+                  className="h-8 border rounded-md px-2 text-sm bg-background"
+                >
+                  <option value="10">10</option>
+                  <option value="15">15</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                </select>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPagination(prev => ({ ...prev, pageIndex: Math.max(0, prev.pageIndex - 1) }));
+                  }}
+                  disabled={pagination.pageIndex === 0}
+                >
+                  Précédent
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {pagination.pageIndex + 1} sur {pageCount || 1}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setPagination(prev => ({ ...prev, pageIndex: prev.pageIndex + 1 }));
+                  }}
+                  disabled={pagination.pageIndex >= pageCount - 1 || pageCount <= 1 || !bookingsResult?.count}
+                >
+                  Suivant
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       {checkInBooking && <CheckInDialog booking={checkInBooking} open={!!checkInBooking} onOpenChange={(open) => !open && setCheckInBooking(null)} />}
       {checkOutBooking && getCheckoutRoom(checkOutBooking) && <CheckoutDecisionDialog booking={checkOutBooking} room={getCheckoutRoom(checkOutBooking)!} open={!!checkOutBooking} onOpenChange={(open) => !open && setCheckOutBooking(null)} />}
