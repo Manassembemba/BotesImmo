@@ -2,7 +2,7 @@ import { Room } from '@/hooks/useRooms';
 
 export type RoomStatus = Room['status'];
 
-import { RoomStatus } from '@/types/room';
+
 
 export const statusTranslations: { [key in RoomStatus]: string } = {
   Libre: 'Disponible',

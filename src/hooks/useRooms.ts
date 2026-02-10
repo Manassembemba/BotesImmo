@@ -85,6 +85,7 @@ export function useCreateRoom() {
       toast({ title: 'Chambre créée', description: 'La chambre a été créée avec succès' });
     },
     onError: (error) => {
+      console.error("Error creating room:", error); // Added log
       toast({ variant: 'destructive', title: 'Erreur', description: error.message });
     },
   });
@@ -111,6 +112,7 @@ export function useUpdateRoom() {
       toast({ title: 'Chambre mise à jour', description: 'Les modifications ont été enregistrées' });
     },
     onError: (error) => {
+      console.error("Error updating room:", error); // Added log
       toast({ variant: 'destructive', title: 'Erreur', description: error.message });
     },
   });
@@ -136,6 +138,7 @@ export function useUpdateRoomStatus() {
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
     },
     onError: (error) => {
+      console.error("Error updating room status:", error); // Added log
       toast({ variant: 'destructive', title: 'Erreur', description: error.message });
     },
   });
@@ -159,6 +162,7 @@ export function useDeleteRoom() {
       toast({ title: 'Appartement supprimé', description: "L'appartement a été supprimé avec succès." });
     },
     onError: (error) => {
+      console.error("Error deleting room:", error); // Added log
       toast({ variant: 'destructive', title: 'Erreur', description: error.message });
     },
   });

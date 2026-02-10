@@ -71,50 +71,39 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 
 // High-contrast colors
-// Premium Nguma Colors with deeper gradients
-// Premium Nguma Colors with deeper, more vibrant gradients
-const STATUS_COLORS: Record<string, { label: string; bg: string; text: string; light: string; border: string }> = {
-  PENDING: {
-    label: 'En attente',
-    bg: 'bg-gradient-to-br from-amber-400 via-orange-400 to-orange-500',
-    text: 'text-white shadow-sm',
-    light: 'bg-amber-100/50',
-    border: 'border-amber-400/50'
+// Improved color scheme with better differentiation
+const STATUS_COLORS: Record<string, { label: string; bg: string; text: string; light: string; border: string; icon: string }> = {
+  UPCOMING: { // PENDING, CONFIRMED
+    label: 'À venir',
+    bg: 'bg-yellow-500',
+    text: 'text-black',
+    light: 'bg-yellow-100',
+    border: 'border-yellow-600',
+    icon: 'border-yellow-500'
   },
-  CONFIRMED: {
-    label: 'Confirmé',
-    bg: 'bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600',
-    text: 'text-white shadow-sm',
-    light: 'bg-sky-100/50',
-    border: 'border-sky-400/50'
-  },
-  IN_PROGRESS: {
+  IN_PROGRESS: { // IN_PROGRESS, PENDING_CHECKOUT
     label: 'En cours',
-    bg: 'bg-gradient-to-br from-emerald-400 via-emerald-500 to-teal-600',
-    text: 'text-white shadow-sm',
-    light: 'bg-emerald-100/50',
-    border: 'border-emerald-400/50'
-  },
-  PENDING_CHECKOUT: {
-    label: 'Départ imminent',
-    bg: 'bg-gradient-to-br from-rose-400 via-rose-500 to-pink-600',
-    text: 'text-white shadow-sm',
-    light: 'bg-rose-100/50',
-    border: 'border-rose-400/50'
-  },
-  COMPLETED: {
-    label: 'Terminé',
-    bg: 'bg-gradient-to-br from-slate-400 via-slate-500 to-slate-600',
+    bg: 'bg-blue-600',
     text: 'text-white',
-    light: 'bg-slate-100/30',
-    border: 'border-slate-300'
+    light: 'bg-blue-100',
+    border: 'border-blue-700',
+    icon: 'border-blue-600'
   },
-  CANCELLED: {
-    label: 'Annulé',
-    bg: 'bg-gradient-to-br from-red-500 via-red-600 to-red-700',
+  COMPLETED: { // COMPLETED
+    label: 'Terminées',
+    bg: 'bg-gray-600',
     text: 'text-white',
-    light: 'bg-red-100/30',
-    border: 'border-red-300'
+    light: 'bg-gray-100',
+    border: 'border-gray-700',
+    icon: 'border-gray-600'
+  },
+  CANCELLED: { // CANCELLED
+    label: 'Annulées',
+    bg: 'bg-black',
+    text: 'text-white',
+    light: 'bg-gray-200',
+    border: 'border-gray-800',
+    icon: 'border-black'
   },
 };
 
@@ -189,10 +178,19 @@ const Planning = () => {
     };
   }, [days]);
 
+  // Convert simplified status filter to original booking statuses
+  const bookingsFilterStatus = useMemo(() => {
+    if (statusFilter === 'all') return [];
+    if (statusFilter === 'UPCOMING') return ['PENDING', 'CONFIRMED'];
+    if (statusFilter === 'IN_PROGRESS') return ['IN_PROGRESS', 'PENDING_CHECKOUT'];
+    return [statusFilter]; // For COMPLETED, CANCELLED
+  }, [statusFilter]);
+
   // Charger uniquement les réservations nécessaires pour la période visible
   const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({
     startDate: queryStartDate?.toISOString(),
     endDate: queryEndDate?.toISOString(),
+    status: bookingsFilterStatus.length > 0 ? bookingsFilterStatus : undefined, // Pass the mapped status
   });
   const bookings = bookingsResult?.data || [];
 
@@ -203,6 +201,7 @@ const Planning = () => {
   // State for creating a booking from the calendar
   const [selection, setSelection] = useState<Selection>({ start: null, end: null, roomId: null });
   const [bookingDialog, setBookingDialog] = useState<{ open: boolean; initialData?: any }>({ open: false });
+  const [highContrastMode, setHighContrastMode] = useState(false);
 
 
 
@@ -348,6 +347,53 @@ const Planning = () => {
     return { isStart, isEnd, ...anomalies };
   };
 
+  // Fonction pour ajouter des motifs de fond pour distinguer les statuts similaires
+  const getStatusPattern = (status: string) => {
+    return ''; // Return empty string to disable patterns as they create confusion
+  };
+
+  // Fonction pour obtenir les couleurs en mode contraste élevé
+  const getEnhancedStatusColor = (status: string) => {
+    let finalStatusKey: string;
+
+    // Check if the status is already a simplified category (e.g., from STATUS_COLORS keys for the legend)
+    if (STATUS_COLORS.hasOwnProperty(status)) {
+      finalStatusKey = status;
+    } else {
+      // It's an original booking status (e.g., PENDING, CONFIRMED), so map it to a simplified category
+      switch (status) {
+        case 'PENDING':
+        case 'CONFIRMED':
+          finalStatusKey = 'UPCOMING';
+          break;
+        case 'IN_PROGRESS':
+        case 'PENDING_CHECKOUT':
+          finalStatusKey = 'IN_PROGRESS';
+          break;
+        case 'COMPLETED':
+          finalStatusKey = 'COMPLETED';
+          break;
+        case 'CANCELLED':
+          finalStatusKey = 'CANCELLED';
+          break;
+        default:
+          finalStatusKey = 'COMPLETED'; // Fallback for any unhandled status
+      }
+    }
+
+    if (!highContrastMode) return STATUS_COLORS[finalStatusKey];
+    
+    // Version à contraste élevé (matching new simplified categories and colors)
+    const highContrastColors: Record<string, any> = {
+      UPCOMING: { bg: 'bg-yellow-600', text: 'text-black', border: 'border-yellow-700' }, // Yellow
+      IN_PROGRESS: { bg: 'bg-blue-700', text: 'text-white', border: 'border-blue-800' }, // Blue
+      COMPLETED: { bg: 'bg-gray-700', text: 'text-white', border: 'border-gray-900' }, // Gray
+      CANCELLED: { bg: 'bg-black', text: 'text-white', border: 'border-gray-900' }, // Black
+    };
+    
+    return { ...STATUS_COLORS[finalStatusKey], ...highContrastColors[finalStatusKey] };
+  };
+
   const goToPrevious = () => {
     const numDays = parseInt(viewDays);
     if (numDays === 30) setCurrentDate(subMonths(currentDate, 1));
@@ -376,13 +422,18 @@ const Planning = () => {
     <MainLayout title="CALENDRIER DES LOCATIONS">
       <div className="space-y-6 bg-slate-50 -m-6 p-6 min-h-screen">
         <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-300">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 w-full">
-            {Object.entries(STATUS_COLORS).map(([status, { label, bg }]) => (
-              <div key={status} className="flex items-center gap-2 text-sm py-1">
-                <div className={cn('w-4 h-4 rounded-sm', bg)} />
-                <span className="text-slate-600 capitalize font-medium">{label}</span>
-              </div>
-            ))}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 w-full">
+            {Object.entries(STATUS_COLORS).map(([status, { label }]) => {
+              const enhancedColor = getEnhancedStatusColor(status);
+              return (
+                <div key={status} className="flex items-center gap-2 text-sm py-1">
+                  <div className={cn('w-4 h-4 rounded-sm', enhancedColor.bg, 'flex items-center justify-center')}>
+                    <div className={cn('w-2 h-2 rounded-full', enhancedColor.icon)} />
+                  </div>
+                  <span className={cn('font-medium', highContrastMode ? 'text-white' : 'text-slate-700')}>{label}</span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
@@ -402,11 +453,10 @@ const Planning = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous statuts</SelectItem>
-                <SelectItem value="PENDING">En attente</SelectItem>
-                <SelectItem value="CONFIRMED">Confirmé</SelectItem>
+                <SelectItem value="UPCOMING">À venir</SelectItem>
                 <SelectItem value="IN_PROGRESS">En cours</SelectItem>
-                <SelectItem value="COMPLETED">Terminé</SelectItem>
-                <SelectItem value="CANCELLED">Annulé</SelectItem>
+                <SelectItem value="COMPLETED">Terminées</SelectItem>
+                <SelectItem value="CANCELLED">Annulées</SelectItem>
               </SelectContent>
             </Select>
 
@@ -436,8 +486,18 @@ const Planning = () => {
           </div>
 
           <div className="flex items-center justify-between w-full">
-            <div className="text-sm text-slate-500">
-              {filteredRooms.length} / {rooms.length} appartements
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-slate-500">
+                {filteredRooms.length} / {rooms.length} appartements
+              </div>
+              <Button 
+                variant={highContrastMode ? "default" : "outline"} 
+                size="sm" 
+                onClick={() => setHighContrastMode(!highContrastMode)}
+                className="text-xs"
+              >
+                {highContrastMode ? "Désactiver le mode contraste" : "Activer le mode contraste"}
+              </Button>
             </div>
             {(role === 'ADMIN' || role === 'AGENT_RES') && (
               <Button className="gap-2 shadow-sm hover:shadow-md transition-all bg-indigo-600 hover:bg-indigo-700" onClick={() => setBookingDialog({ open: true })}>
@@ -519,6 +579,9 @@ const Planning = () => {
                             isWeekend && 'bg-slate-100',
                             isTodayCell && 'bg-indigo-100',
                             inSelection && 'bg-indigo-100',
+                            reservation && reservation.status === 'PENDING_CHECKOUT' && 'ring-2 ring-amber-400',
+                            reservation && getBookingAnomalies(reservation).isOverdue && 'animate-pulse ring-2 ring-red-500',
+                            reservation && getBookingAnomalies(reservation).hasDebt && 'ring-1 ring-dashed ring-amber-400'
                           )}
                           onClick={() => handleCellClick(room, day)}
                           onMouseEnter={() => handleCellMouseEnter(room, day)}
@@ -536,7 +599,7 @@ const Planning = () => {
                                       !isStart && !isEnd ? 'rounded-none border-x-0' : '',
                                       isOverdue
                                         ? "bg-gradient-to-br from-red-600 via-rose-700 to-red-800 animate-pulse border-2 border-white shadow-lg shadow-red-500/50"
-                                        : STATUS_COLORS[reservation.status]?.bg || "bg-slate-400",
+                                        : cn(getEnhancedStatusColor(reservation.status)?.bg, highContrastMode ? '' : getStatusPattern(reservation.status)) || "bg-slate-400",
                                       'border-y border-white/20 backdrop-blur-sm shadow-md',
                                       hasDebt && "ring-2 ring-amber-400 ring-offset-1"
                                     )}
@@ -545,16 +608,16 @@ const Planning = () => {
                                       {isStart && (
                                         <>
                                           {isOverdue ? (
-                                            <AlertTriangle className="h-3 w-3 text-white shrink-0" />
+                                            <div className="w-2 h-2 rounded-full bg-red-300 animate-pulse shrink-0" />
                                           ) : hasDebt ? (
-                                            <BadgeCent className="h-3 w-3 text-white shrink-0" />
+                                            <div className="w-2 h-2 rounded-full bg-amber-300 shrink-0" />
                                           ) : (
                                             <div className="w-2 h-2 rounded-full bg-white animate-pulse shrink-0" />
                                           )}
                                         </>
                                       )}
 
-                                      <span className={cn('truncate', STATUS_COLORS[reservation.status]?.text)}>
+                                      <span className={cn('truncate', getEnhancedStatusColor(reservation.status)?.text)}>
                                         {(isStart || (days.length <= 14)) && `${reservation.tenants?.prenom} ${reservation.tenants?.nom}`}
                                         {isStart && isOverdue && " (RETARD)"}
                                         {isStart && hasDebt && !isOverdue && ` (${balanceDue.toFixed(2)}$)`}
@@ -566,9 +629,18 @@ const Planning = () => {
                                     </div>
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent className="bg-white/80 backdrop-blur-md border-indigo-100 shadow-xl p-3 w-56">
+                                <TooltipContent className="bg-white/90 backdrop-blur-md border-indigo-100 shadow-xl p-3 w-64">
                                   <div className="space-y-2">
-                                    <p className="font-bold text-indigo-900 border-b pb-1 mb-1">{reservation.tenants?.prenom} {reservation.tenants?.nom}</p>
+                                    <div className="flex items-center gap-2">
+                                      <div className={cn('w-3 h-3 rounded-full', getEnhancedStatusColor(reservation.status)?.bg)} />
+                                      <p className="font-bold text-indigo-900 border-b pb-1 mb-1">{reservation.tenants?.prenom} {reservation.tenants?.nom}</p>
+                                    </div>
+                                    <p className="text-xs flex justify-between">
+                                      <span>Statut:</span> 
+                                      <span className={cn('font-bold', getEnhancedStatusColor(reservation.status)?.text, getEnhancedStatusColor(reservation.status)?.bg)}>
+                                        {getEnhancedStatusColor(reservation.status)?.label}
+                                      </span>
+                                    </p>
                                     <p className="text-xs flex justify-between"><span>Période:</span> <span>{format(parseISO(reservation.date_debut_prevue), 'dd/MM/yy HH:mm')} - {format(parseISO(reservation.date_fin_prevue), 'dd/MM/yy HH:mm')}</span></p>
                                     {isOverdue && (
                                       <p className="text-xs font-bold text-red-600 flex items-center gap-1 bg-red-50 p-1 rounded">
@@ -637,10 +709,10 @@ const Planning = () => {
                   </div>
                   <span className={cn(
                     'px-2 py-1 rounded-full text-xs font-medium',
-                    STATUS_COLORS[selectedBooking.status]?.bg,
-                    STATUS_COLORS[selectedBooking.status]?.text
+                    getEnhancedStatusColor(selectedBooking.status)?.bg,
+                    getEnhancedStatusColor(selectedBooking.status)?.text
                   )}>
-                    {selectedBooking.status.replace('_', ' ').toLowerCase()}
+                    {getEnhancedStatusColor(selectedBooking.status)?.label}
                   </span>
                 </div>
 

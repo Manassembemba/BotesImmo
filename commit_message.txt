@@ -1,0 +1,23 @@
+feat: Implement and enhance room reservation viewing; Refine planning page colors
+
+This commit introduces the ability to view all reservations (current, future, and past) related to a specific apartment, directly accessible from the main "Appartements" listing. Additionally, it addresses several issues and improves the visual clarity of the planning calendar's status indicators.
+
+- **feat(rooms): Add detailed reservation viewing for apartments**
+    - Introduced a calendar icon button on the `Rooms.tsx` page table to open an apartment's reservation history.
+    - Enhanced `EditRoomDialog.tsx` with a tabbed interface ("Détails" and "Réservations") to display various apartment-related information.
+    - Created `RoomBookingsHistory.tsx` component to present a filtered list of bookings for a given room.
+    - Configured `Rooms.tsx` to control the `EditRoomDialog`'s initial active tab, allowing direct access to reservation history.
+
+- **fix(types): Resolve `RoomStatus` type inconsistency**
+    - Corrected a conflicting `RoomStatus` type definition in `src/lib/roomUtils.ts` to ensure consistency with the authoritative definition in `useRooms.ts`.
+
+- **fix(debugging): Improve error logging for mutations and rendering**
+    - Added `console.error` logs to `onError` callbacks in `useRooms.ts` mutations (`useCreateRoom`, `useUpdateRoom`, `useUpdateRoomStatus`, `useDeleteRoom`) for better error visibility.
+    - Integrated defensive checks and `console.error` logs within `RoomBookingsHistory.tsx` to pinpoint rendering issues related to booking data.
+
+- **feat(planning): Simplify and clarify booking status color scheme**
+    - Updated `src/pages/Planning.tsx` to use a simplified and more distinct color scheme for booking statuses, based on user feedback.
+    - Modified `STATUS_COLORS` to replace gradient backgrounds with solid, clear colors for: 'À venir' (yellow), 'En cours' (blue), 'Terminées' (gray), 'Annulées' (black).
+    - Disabled all visual patterns (`getStatusPattern`) to reduce visual confusion.
+    - Adjusted `getEnhancedStatusColor` to correctly map original booking statuses to the new simplified categories and ensure proper high-contrast mode functionality.
+    - Fixed an issue where the status badge in the `selectedBooking` details dialog and the legend at the top of the planning page incorrectly displayed gray colors for some statuses by ensuring `getEnhancedStatusColor` is used consistently.

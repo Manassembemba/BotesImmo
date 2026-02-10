@@ -6,7 +6,7 @@ import { LocationManagement } from '@/components/locations/LocationManagement';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Pencil, Trash2, Filter, Bed, DollarSign, Building2, X } from 'lucide-react';
+import { Search, Pencil, Trash2, Filter, Bed, DollarSign, Building2, X, CalendarDays } from 'lucide-react';
 import { useRooms, useDeleteRoom, type Room } from '@/hooks/useRooms';
 import { useLocations } from '@/hooks/useLocations';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
@@ -96,6 +96,7 @@ const Rooms = () => {
 
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  const [editDialogActiveTab, setEditDialogActiveTab] = useState('details'); // New state for active tab
 
   const { options, setSearchTerm } = useGlobalFilters(rooms);
 
@@ -200,6 +201,16 @@ const Rooms = () => {
       await deleteRoom.mutateAsync(deletingRoomId);
       setDeletingRoomId(null);
     }
+  };
+
+  const handleEditRoom = (room: Room) => {
+    setEditDialogActiveTab('details'); // Default to details tab for editing
+    setEditingRoom(room);
+  };
+
+  const handleViewReservations = (room: Room) => {
+    setEditDialogActiveTab('reservations'); // Switch to reservations tab
+    setEditingRoom(room);
   };
 
   if (roomsLoading) {
@@ -357,7 +368,8 @@ const Rooms = () => {
                         {role === 'ADMIN' && (
                           <TableCell>
                             <div className="flex items-center justify-end gap-2">
-                              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setEditingRoom(room as any)}><Pencil className="h-4 w-4" /></Button>
+                              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => handleViewReservations(room)}><CalendarDays className="h-4 w-4" /></Button>
+                              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => handleEditRoom(room)}><Pencil className="h-4 w-4" /></Button>
                               <Button size="icon" variant="destructive" className="h-8 w-8" onClick={() => setDeletingRoomId(room.id)}><Trash2 className="h-4 w-4" /></Button>
                             </div>
                           </TableCell>
@@ -374,7 +386,16 @@ const Rooms = () => {
         {currentView === 'locations' && (<div className="space-y-6"><LocationManagement /></div>)}
       </div>
 
-      <EditRoomDialog room={editingRoom} open={!!editingRoom} onOpenChange={(open) => !open && setEditingRoom(null)} />
+      <EditRoomDialog
+        room={editingRoom}
+        open={!!editingRoom}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingRoom(null);
+          }
+        }}
+        initialActiveTab={editDialogActiveTab} // Pass the initial active tab
+      />
       <AlertDialog open={!!deletingRoomId} onOpenChange={() => setDeletingRoomId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Êtes-vous sûr de vouloir supprimer cet appartement ?</AlertDialogTitle><AlertDialogDescription>Cette action est irréversible et supprimera l'appartement définitivement.</AlertDialogDescription></AlertDialogHeader>
