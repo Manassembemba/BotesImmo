@@ -43,7 +43,7 @@ import { getEffectiveRoomStatus } from '@/lib/statusUtils';
 const Dashboard = () => {
   const { role, profile } = useAuth();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({}, { pageIndex: 0, pageSize: 2000 });
   const bookings = bookingsResult?.data || [];
   const { data: payments = [], isLoading: paymentsLoading } = useAllPayments();
   const { data: exchangeRateData } = useExchangeRate();

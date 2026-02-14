@@ -184,9 +184,14 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     }
   }, [isImmediate, prixTotal, setValue]);
 
+  const [conflictingBooking, setConflictingBooking] = useState<{ tenant_name: string; date_debut_prevue: string; date_fin_prevue: string } | null>(null);
+  const [bypassConflict, setBypassConflict] = useState(false);
+
   useEffect(() => {
     if (!roomId || !dateDebut || !dateFin) {
       setConflictError(null);
+      setConflictingBooking(null);
+      setBypassConflict(false);
       return;
     }
     const handler = setTimeout(async () => {
@@ -194,14 +199,34 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         setConflictError("La date de départ doit être après la date d'arrivée.");
         return;
       }
-      const { data, error } = await supabase.rpc('check_booking_conflict', {
+
+      const { data: conflictData, error: conflictError } = await supabase.rpc('check_booking_conflict', {
         p_room_id: roomId,
         p_start_date: new Date(dateDebut).toISOString(),
         p_end_date: new Date(dateFin).toISOString(),
       });
-      if (error) setConflictError('Erreur lors de la vérification des conflits.');
-      else if (data) setConflictError('Conflit détecté ! Cette chambre est déjà réservée sur cette période.');
-      else setConflictError(null);
+
+      if (conflictError) {
+        setConflictError('Erreur lors de la vérification des conflits.');
+      } else if (conflictData) {
+        // Conflit détecté, récupérer les détails
+        const { data: details, error: detailsError } = await supabase.rpc('get_conflicting_booking', {
+          p_room_id: roomId,
+          p_start_date: new Date(dateDebut).toISOString(),
+          p_end_date: new Date(dateFin).toISOString(),
+        });
+
+        if (details && details.length > 0) {
+          setConflictingBooking(details[0]);
+          setConflictError(`Conflit détecté avec ${details[0].tenant_name}`);
+        } else {
+          setConflictError('Conflit détecté ! Cette chambre est déjà réservée sur cette période.');
+        }
+      } else {
+        setConflictError(null);
+        setConflictingBooking(null);
+        setBypassConflict(false); // Reset bypass if no conflict
+      }
     }, 500);
     return () => clearTimeout(handler);
   }, [roomId, dateDebut, dateFin]);
@@ -215,7 +240,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   };
 
   const onSubmit = async (data: BookingFormData) => {
-    if (conflictError) return;
+    if (conflictError && !bypassConflict) return;
     const finalInitialPaymentUSD = Number(amountUSD);
     const finalInitialPaymentCDF = Number(amountCDF);
 
@@ -237,7 +262,9 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         initialPaymentAmount: data.initial_payment,
         discountAmount: data.discount_amount,
         initialPaymentUSD: finalInitialPaymentUSD,
+        initialPaymentUSD: finalInitialPaymentUSD,
         initialPaymentCDF: finalInitialPaymentCDF,
+        bypassConflict: bypassConflict,
       });
       onOpenChange(false);
     } catch (error) {
@@ -391,7 +418,36 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                   )} />
                 </div>
               </div>
-              {conflictError && <div className="flex items-center gap-2 text-sm text-destructive font-medium"><AlertCircle className="h-4 w-4" /><p>{conflictError}</p></div>}
+              {conflictError && (
+                <div className="rounded-md bg-destructive/10 p-3">
+                  <div className="flex items-center gap-2 text-sm text-destructive font-medium">
+                    <AlertCircle className="h-4 w-4" />
+                    <p>{conflictError}</p>
+                  </div>
+                  {conflictingBooking && (
+                    <div className="mt-2 ml-6 text-sm text-destructive/80">
+                      <p>Réservé par : <span className="font-semibold">{conflictingBooking.tenant_name}</span></p>
+                      <p>Du : {format(new Date(conflictingBooking.date_debut_prevue), 'dd/MM/yyyy')} au {format(new Date(conflictingBooking.date_fin_prevue), 'dd/MM/yyyy')}</p>
+                    </div>
+                  )}
+                  {role === 'ADMIN' && (
+                    <div className="mt-3 flex items-center space-x-2">
+                      <Checkbox
+                        id="bypass"
+                        checked={bypassConflict}
+                        onCheckedChange={(checked) => setBypassConflict(checked as boolean)}
+                        className="data-[state=checked]:bg-destructive data-[state=checked]:border-destructive"
+                      />
+                      <label
+                        htmlFor="bypass"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-destructive"
+                      >
+                        Forcer la réservation (Ignorer le conflit)
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="border-t pt-4 space-y-4">
 
@@ -506,7 +562,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createBooking.isPending || (role !== 'ADMIN' && (!isFormValid || !!conflictError))}
+                  disabled={createBooking.isPending || (role !== 'ADMIN' && (!isFormValid || !!conflictError)) || (role === 'ADMIN' && !isFormValid) || (role === 'ADMIN' && !!conflictError && !bypassConflict)}
                   className={cn(
                     "px-8 h-12 font-black uppercase tracking-widest shadow-lg transition-all",
                     isImmediate ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"

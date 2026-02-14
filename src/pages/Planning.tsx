@@ -191,7 +191,7 @@ const Planning = () => {
     startDate: queryStartDate?.toISOString(),
     endDate: queryEndDate?.toISOString(),
     status: bookingsFilterStatus.length > 0 ? bookingsFilterStatus : undefined, // Pass the mapped status
-  });
+  }, { pageIndex: 0, pageSize: 1000 });
   const bookings = bookingsResult?.data || [];
 
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -382,7 +382,7 @@ const Planning = () => {
     }
 
     if (!highContrastMode) return STATUS_COLORS[finalStatusKey];
-    
+
     // Version à contraste élevé (matching new simplified categories and colors)
     const highContrastColors: Record<string, any> = {
       UPCOMING: { bg: 'bg-yellow-600', text: 'text-black', border: 'border-yellow-700' }, // Yellow
@@ -390,7 +390,7 @@ const Planning = () => {
       COMPLETED: { bg: 'bg-gray-700', text: 'text-white', border: 'border-gray-900' }, // Gray
       CANCELLED: { bg: 'bg-black', text: 'text-white', border: 'border-gray-900' }, // Black
     };
-    
+
     return { ...STATUS_COLORS[finalStatusKey], ...highContrastColors[finalStatusKey] };
   };
 
@@ -490,9 +490,9 @@ const Planning = () => {
               <div className="text-sm text-slate-500">
                 {filteredRooms.length} / {rooms.length} appartements
               </div>
-              <Button 
-                variant={highContrastMode ? "default" : "outline"} 
-                size="sm" 
+              <Button
+                variant={highContrastMode ? "default" : "outline"}
+                size="sm"
                 onClick={() => setHighContrastMode(!highContrastMode)}
                 className="text-xs"
               >
@@ -636,7 +636,7 @@ const Planning = () => {
                                       <p className="font-bold text-indigo-900 border-b pb-1 mb-1">{reservation.tenants?.prenom} {reservation.tenants?.nom}</p>
                                     </div>
                                     <p className="text-xs flex justify-between">
-                                      <span>Statut:</span> 
+                                      <span>Statut:</span>
                                       <span className={cn('font-bold', getEnhancedStatusColor(reservation.status)?.text, getEnhancedStatusColor(reservation.status)?.bg)}>
                                         {getEnhancedStatusColor(reservation.status)?.label}
                                       </span>

@@ -81,7 +81,10 @@ const getStatusBadge = (status: RoomStatus) => {
 const Rooms = () => {
   const { role, profile } = useAuth();
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
-  const { data: bookingsData } = useBookings();
+  const { data: bookingsData } = useBookings(
+    { status: ['CONFIRMED', 'PENDING', 'IN_PROGRESS', 'COMPLETED', 'PENDING_CHECKOUT'] },
+    { pageIndex: 0, pageSize: 1000 }
+  );
   const bookings = bookingsData?.data || [];
   const { data: locations } = useLocations();
   const { selectedLocationId } = useLocationFilter();

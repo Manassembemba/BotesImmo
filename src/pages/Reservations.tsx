@@ -1,4 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvoiceListForBooking } from '@/components/invoices/InvoiceListForBooking';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle, SlidersHorizontal, RefreshCw } from 'lucide-react';
 import { useBookings, Booking, useDeleteBooking, BookingFilters } from '@/hooks/useBookings';
 import { useExchangeRate } from '@/hooks/useExchangeRate'; // Import pour conversion
 import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, isAfter } from 'date-fns';
@@ -127,6 +130,34 @@ const Reservations = () => {
 
   const { data: exchangeRateData } = useExchangeRate();
   const rate = exchangeRateData?.usd_to_cdf || 2800;
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { toast } = useToast(); // Make sure toast is available
+  const queryClient = useQueryClient(); // Add this hook
+
+  const handleSyncStatuses = async () => {
+    try {
+      setIsSyncing(true);
+      const { data, error } = await supabase.rpc('sync_room_statuses');
+
+      if (error) throw error;
+
+      toast({
+        title: "Synchronisation réussie",
+        description: `${data} chambre(s) mise(s) à jour.`,
+      });
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Erreur de synchronisation",
+        description: error.message,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const { data: rooms = [] } = useRooms();
   const deleteBooking = useDeleteBooking();
@@ -345,7 +376,11 @@ const Reservations = () => {
               <Button variant="outline" size="sm" onClick={setMonthFilter} className="text-xs h-9">Ce mois</Button>
             </div>
 
-            <div className="flex-grow sm:flex-grow-0">
+            <div className="flex-grow sm:flex-grow-0 flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={handleSyncStatuses} disabled={isSyncing}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                Synchroniser
+              </Button>
               {(role === 'ADMIN' || role === 'AGENT_RES') && <CreateBookingDialog />}
             </div>
           </div>

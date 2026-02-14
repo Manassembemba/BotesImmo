@@ -139,7 +139,8 @@ export function useCreateBooking() {
       initialPaymentAmount,
       discountAmount,
       initialPaymentUSD,
-      initialPaymentCDF
+      initialPaymentCDF,
+      bypassConflict
     }: {
       booking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'rooms' | 'agent_id' | 'tenants'>;
       isImmediate: boolean;
@@ -147,6 +148,7 @@ export function useCreateBooking() {
       discountAmount?: number;
       initialPaymentUSD?: number;
       initialPaymentCDF?: number;
+      bypassConflict?: boolean;
     }) => {
       if (!user) throw new Error('Non authentifié');
 
@@ -169,7 +171,8 @@ export function useCreateBooking() {
         p_initial_payment_cdf: initialPaymentCDF || 0,
         p_exchange_rate: exchangeRate,
         p_payment_method: 'CASH',
-        p_is_immediate_checkin: isImmediate
+        p_is_immediate_checkin: isImmediate,
+        p_bypass_conflict: bypassConflict || false
       });
 
       if (error) throw error;

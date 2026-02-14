@@ -24,10 +24,11 @@ export function getEffectiveRoomStatus(
         return { status: 'Maintenance' };
     }
 
-    // Chercher une réservation active (CONFIRMED ou IN_PROGRESS) couvrant la date
+    // Chercher une réservation active (CONFIRMED, PENDING ou IN_PROGRESS) couvrant la date
     const activeBooking = bookings.find(b => {
         if (b.room_id !== room.id) return false;
-        if (b.status !== 'CONFIRMED' && b.status !== 'IN_PROGRESS' && b.status !== 'COMPLETED') return false;
+        // Include PENDING status
+        if (b.status !== 'CONFIRMED' && b.status !== 'IN_PROGRESS' && b.status !== 'COMPLETED' && b.status !== 'PENDING') return false;
 
         // Pour COMPLETED, on vérifie si le check-out n'est pas encore fait ou s'il est très récent
         if (b.status === 'COMPLETED' && b.check_out_reel) {
@@ -39,13 +40,22 @@ export function getEffectiveRoomStatus(
             const start = parseISO(b.date_debut_prevue);
             const end = parseISO(b.date_fin_prevue);
 
-            return isWithinInterval(checkDate, { start, end });
+            // Check if we are strictly within the interval
+            const isInside = isWithinInterval(checkDate, { start, end });
+
+            // Check if it's the day of arrival (even if time hasn't passed yet)
+            // This ensures rooms show as Occupied/Booked on the day guests are arriving
+            const isArrivalDay = b.status !== 'COMPLETED' && start.getDate() === checkDate.getDate() && start.getMonth() === checkDate.getMonth() && start.getFullYear() === checkDate.getFullYear();
+
+            return isInside || isArrivalDay;
         } catch (e) {
             return false;
         }
     });
 
     if (activeBooking) {
+        // If the booking is confirmed/in-progress and we are inside the interval (or it's check-in day), it's occupied.
+        // We treat PENDING bookings starting today as effectively Occupied to prevent double bookings.
         return { status: 'Occupé', activeBooking };
     }
 
