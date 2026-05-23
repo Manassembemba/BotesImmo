@@ -22,6 +22,7 @@ import Invoices from "./pages/Invoices";
 import FinancialReport from "./pages/reports/FinancialReport";
 import RevenueReport from "./pages/reports/RevenueReport";
 import OccupancyReport from "./pages/reports/OccupancyReport";
+import SyncDashboard from "./pages/SyncDashboard";
 import NotFound from "./pages/NotFound";
 // Import new accounting components
 import GeneralLedger from "./components/accounting/GeneralLedger";
@@ -50,6 +51,8 @@ const App = () => (
                 <Route path="/reports/revenue" element={<ProtectedRoute allowedRoles={['ADMIN']}><RevenueReport /></ProtectedRoute>} />
                 <Route path="/reports/occupancy" element={<ProtectedRoute allowedRoles={['ADMIN']}><OccupancyReport /></ProtectedRoute>} />
                 <Route path="/reports/financial-report" element={<ProtectedRoute allowedRoles={['ADMIN']}><FinancialReport /></ProtectedRoute>} />
+                {/* Synchronization Dashboard */}
+                <Route path="/sync-dashboard" element={<ProtectedRoute allowedRoles={['ADMIN']}><SyncDashboard /></ProtectedRoute>} />
                 {/* New accounting routes */}
                 <Route path="/reports/general-ledger" element={<ProtectedRoute allowedRoles={['ADMIN']}><GeneralLedger /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

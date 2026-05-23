@@ -165,8 +165,8 @@ export function CashReport({ filters }: CashReportProps) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    cashStatus?.map((day) => (
-                                        <tr key={day.date} className="border-b hover:bg-muted/30 transition-colors">
+                                    cashStatus?.map((day, index) => (
+                                        <tr key={`${day.date}-${day.type}-${index}`} className="border-b hover:bg-muted/30 transition-colors">
                                             <td className="py-3 px-4">
                                                 <div className="font-medium">
                                                     {format(new Date(day.date), 'EEEE dd MMMM yyyy', { locale: fr })}

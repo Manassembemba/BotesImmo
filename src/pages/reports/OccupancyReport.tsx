@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, differenceInCalendarDays, max, min, startOfDay, endOfDay, startOfToday, endOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, differenceInCalendarDays, max, min, startOfDay, endOfDay, startOfToday, endOfToday, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subDays } from 'date-fns';
 import { Calendar as CalendarIcon, TrendingUp, BedDouble, Percent, Download, BarChart2, PieChart as PieChartIcon, Clock } from 'lucide-react';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, PieChart, Pie } from 'recharts';
 import { exportOccupancyReportToCsv, exportOccupancyReportToPdf } from '@/services/financialReportExportService';
 
-type Period = 'today' | 'week' | 'month';
+type Period = 'today' | 'yesterday' | 'week' | 'month';
 
 const OccupancyReport = () => {
   const [period, setPeriod] = useState<string>('today');
@@ -89,6 +89,9 @@ const OccupancyReport = () => {
 
     if (value === 'today') {
       setDateRange({ from: startOfToday(), to: endOfToday() });
+    } else if (value === 'yesterday') {
+      const yesterday = subDays(today, 1);
+      setDateRange({ from: startOfDay(yesterday), to: endOfDay(yesterday) });
     } else if (value === 'week') {
       setDateRange({ from: startOfWeek(today, { weekStartsOn: 1 }), to: endOfWeek(today, { weekStartsOn: 1 }) });
     } else if (value === 'month') {
@@ -147,6 +150,7 @@ const OccupancyReport = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">Aujourd'hui</SelectItem>
+                  <SelectItem value="yesterday">Hier</SelectItem>
                   <SelectItem value="week">Cette semaine</SelectItem>
                   <SelectItem value="month">Ce mois-ci</SelectItem>
                   <SelectItem value="custom">Plage personnalisée...</SelectItem>

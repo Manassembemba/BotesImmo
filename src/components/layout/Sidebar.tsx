@@ -31,7 +31,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocationFilter } from '@/context/LocationFilterContext';
 import { useLocations } from '@/hooks/useLocations';
-import { MapPin } from 'lucide-react';
+import { MapPin, Activity } from 'lucide-react';
 
 const getNavigation = (notificationCount: number, role: string | null) => {
   const items = [
@@ -41,6 +41,7 @@ const getNavigation = (notificationCount: number, role: string | null) => {
     { name: 'Appartements', href: '/rooms', icon: BedDouble },
     { name: 'Calendrier des locations', href: '/planning', icon: Calendar },
     { name: 'Rapports', href: '/reports', icon: BarChart3, roles: ['ADMIN'] },
+    { name: 'Synchronisation', href: '/sync-dashboard', icon: Activity, roles: ['ADMIN'] },
     { name: 'Locataires', href: '/tenants', icon: Users },
     { name: 'Notifications', href: '/notifications', icon: Bell, badgeCount: notificationCount },
     { name: 'Réglages', href: '/settings', icon: Settings },

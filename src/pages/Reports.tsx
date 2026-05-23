@@ -7,7 +7,7 @@ import { DateRange } from 'react-day-picker';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
-import { format, startOfToday, startOfWeek, startOfMonth, endOfToday, endOfWeek, endOfMonth, isWithinInterval, parseISO, differenceInCalendarDays, max, min } from 'date-fns';
+import { format, startOfToday, startOfWeek, startOfMonth, endOfToday, endOfWeek, endOfMonth, isWithinInterval, parseISO, differenceInCalendarDays, max, min, subDays, startOfDay, endOfDay } from 'date-fns';
 import { useAllPayments } from '@/hooks/usePayments';
 import { useBookings } from '@/hooks/useBookings'; // Import useBookings
 import { useRooms } from '@/hooks/useRooms'; // Import useRooms
@@ -21,7 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ReportPasswordDialog } from '@/components/reports/ReportPasswordDialog';
 
 
-type Period = 'today' | 'week' | 'month' | 'custom';
+type Period = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
 
 const Reports = () => {
   const { role, profile } = useAuth(); // Get role and profile for location info
@@ -135,6 +135,9 @@ const Reports = () => {
 
     if (selectedPeriod === 'today') {
       setDateRange({ from: startOfToday(), to: endOfToday() });
+    } else if (selectedPeriod === 'yesterday') {
+      const yesterday = subDays(today, 1);
+      setDateRange({ from: startOfDay(yesterday), to: endOfDay(yesterday) });
     } else if (selectedPeriod === 'week') {
       setDateRange({ from: startOfWeek(today, { weekStartsOn: 1 }), to: endOfWeek(today, { weekStartsOn: 1 }) });
     } else if (selectedPeriod === 'month') {
@@ -224,6 +227,14 @@ const Reports = () => {
               className="px-4 text-xs h-8"
             >
               Aujourd'hui
+            </Button>
+            <Button
+              variant={period === 'yesterday' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => handlePeriodChange('yesterday')}
+              className="px-4 text-xs h-8"
+            >
+              Hier
             </Button>
             <Button
               variant={period === 'week' ? 'default' : 'ghost'}
