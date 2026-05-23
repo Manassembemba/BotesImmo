@@ -30,7 +30,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useBookingCounts } from '@/hooks/useBookingCounts';
 import { useBookingCount } from '@/hooks/useBookingCount';
-import { STATUS_CONFIG } from '@/config/bookingStatus';
+import { STATUS_CONFIG } from '@/config/bookingStatus.ts';
 
 
 
