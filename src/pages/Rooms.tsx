@@ -6,7 +6,7 @@ import { LocationManagement } from '@/components/locations/LocationManagement';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Pencil, Trash2, Filter, Bed, DollarSign, Building2, X, CalendarDays } from 'lucide-react';
+import { Search, Pencil, Trash2, Filter, Bed, DollarSign, Building2, X, CalendarDays, Users } from 'lucide-react';
 import { useRooms, useDeleteRoom, type Room } from '@/hooks/useRooms';
 import { useLocations } from '@/hooks/useLocations';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLocationFilter } from '@/context/LocationFilterContext';
 import { useBookings } from '@/hooks/useBookings';
 import { getEffectiveRoomStatus, RoomStatusResult, EffectiveRoomStatus } from '@/lib/statusUtils';
-import { differenceInDays, parseISO, isWithinInterval, format } from 'date-fns';
+import { differenceInDays, parseISO, isWithinInterval, format, isToday, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   Table,
@@ -95,13 +95,21 @@ const Rooms = () => {
   const [roomTypeFilter, setRoomTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priceRange, setPriceRange] = useState<{ min: number | null; max: number | null }>({ min: null, max: null });
-  const [currentView, setCurrentView] = useState<'rooms' | 'locations'>('rooms');
+  const [currentView, setCurrentView] = useState<'rooms' | 'locations' | 'arrivals'>('rooms');
 
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
   const [editDialogActiveTab, setEditDialogActiveTab] = useState('details'); // New state for active tab
 
   const { options, setSearchTerm } = useGlobalFilters(rooms);
+
+  const todayArrivals = useMemo(() => {
+    return bookings.filter(b => {
+      const start = new Date(b.date_debut_prevue);
+      return (isToday(start) || format(start, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd')) && 
+             b.status !== 'CANCELLED' && b.status !== 'COMPLETED';
+    }).sort((a, b) => new Date(a.date_debut_prevue).getTime() - new Date(b.date_debut_prevue).getTime());
+  }, [bookings]);
 
   const pageSubtitle = useMemo(() => {
     if (role === 'ADMIN') {
@@ -234,6 +242,12 @@ const Rooms = () => {
           >
             <div className="flex items-center gap-2"><Bed className="h-4 w-4" /> Appartements</div>
           </button>
+          <button
+            className={`pb-3 px-4 font-medium text-sm ${currentView === 'arrivals' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+            onClick={() => setCurrentView('arrivals')}
+          >
+            <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Arrivées ({todayArrivals.length})</div>
+          </button>
           {role === 'ADMIN' && (
             <button
               className={`pb-3 px-4 font-medium text-sm ${currentView === 'locations' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
@@ -243,6 +257,89 @@ const Rooms = () => {
             </button>
           )}
         </div>
+
+        {currentView === 'arrivals' && (
+          <div className="space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Arrivées (Aujourd'hui & Demain)
+              </h2>
+            </div>
+            
+            {todayArrivals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-card rounded-lg border">
+                <Users className="h-12 w-12 text-muted-foreground mb-3 opacity-20" />
+                <p className="text-lg font-medium text-foreground">Aucune arrivée prévue</p>
+                <p className="text-sm text-muted-foreground">Il n'y a pas d'entrées prévues pour aujourd'hui ou demain.</p>
+              </div>
+            ) : (
+              <div className="bg-card rounded-lg border shadow-soft overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead>DATE & HEURE</TableHead>
+                      <TableHead>LOCATAIRE</TableHead>
+                      <TableHead>APPARTEMENT</TableHead>
+                      <TableHead>DURÉE</TableHead>
+                      <TableHead>STATUT</TableHead>
+                      <TableHead className="text-right">ACTIONS</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {todayArrivals.map((booking) => {
+                      const startDate = new Date(booking.date_debut_prevue);
+                      const isTomorrow = format(startDate, 'yyyy-MM-dd') === format(addDays(new Date(), 1), 'yyyy-MM-dd');
+                      const nights = differenceInDays(new Date(booking.date_fin_prevue), startDate);
+                      
+                      return (
+                        <TableRow key={booking.id} className="hover:bg-slate-50/50">
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <Badge variant={isToday(startDate) ? "default" : "outline"} className="w-fit mb-1">
+                                {isToday(startDate) ? "Aujourd'hui" : "Demain"}
+                              </Badge>
+                              <span className="text-sm font-medium">{format(startDate, 'HH:mm')}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-bold text-foreground">
+                                {booking.tenants?.prenom} {booking.tenants?.nom?.toUpperCase()}
+                              </span>
+                              <span className="text-xs text-muted-foreground">{booking.tenants?.telephone || 'Pas de téléphone'}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-8 w-8 rounded bg-primary/10 text-primary flex items-center justify-center font-bold text-xs">
+                                {booking.rooms?.numero}
+                              </div>
+                              <span className="text-sm font-medium">{booking.rooms?.type}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{nights} nuit{nights > 1 ? 's' : ''}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={booking.status === 'CONFIRMED' ? 'success' : 'secondary'} className="capitalize">
+                              {booking.status === 'CONFIRMED' ? 'Confirmé' : 'En attente'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => handleViewReservations(booking.rooms)}>
+                              Détails
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        )}
 
         {currentView === 'rooms' && (
           <div className="space-y-6">
@@ -309,7 +406,7 @@ const Rooms = () => {
                       <TableHead className="text-primary-foreground font-semibold">N°</TableHead>
                       <TableHead className="text-primary-foreground font-semibold">NOM & NUMÉRO</TableHead>
                       <TableHead className="text-primary-foreground font-semibold">STATUT</TableHead>
-                      <TableHead className="text-primary-foreground font-semibold">CLIENT ACTUEL</TableHead> {/* NEW COLUMN */}
+                      <TableHead className="text-primary-foreground font-semibold">CLIENT ACTUEL</TableHead>
                       <TableHead className="text-primary-foreground font-semibold">LOCALITÉ</TableHead>
                       <TableHead className="text-primary-foreground font-semibold text-center">PROCHAINE DISPO.</TableHead>
                       <TableHead className="text-primary-foreground font-semibold text-center">JOURS RESTANTS</TableHead>
@@ -328,7 +425,7 @@ const Rooms = () => {
                           </div>
                         </TableCell>
                         <TableCell>{getStatusBadge(room.status)}</TableCell>
-                        <TableCell> {/* NEW CELL FOR ACTIVE TENANT */}
+                        <TableCell>
                           {room.activeTenant ? (
                             <div className="flex flex-col">
                               <span className="font-bold">{room.activeTenant.prenom} {room.activeTenant.nom?.toUpperCase()}</span>

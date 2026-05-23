@@ -12,7 +12,7 @@ export function RoomStatusOverview({ rooms }: RoomStatusOverviewProps) {
     return acc;
   }, {} as Record<RoomStatus, number>);
 
-  const statuses: RoomStatus[] = ['Libre', 'Occupé', 'Maintenance'];
+  const statuses: RoomStatus[] = ['Libre', 'Occupé', 'BOOKED', 'Maintenance'];
 
   return (
     <div className="rounded-xl border bg-card p-5 shadow-soft animate-fade-in">
@@ -38,6 +38,7 @@ export function RoomStatusOverview({ rooms }: RoomStatusOverviewProps) {
                     className={cn('h-full rounded-full transition-all duration-500', {
                       'bg-status-available': status === 'Libre' || status === 'Nettoyage',
                       'bg-status-occupied': status === 'Occupé',
+                      'bg-status-booked': status === 'BOOKED',
                       'bg-status-out-of-service': status === 'Maintenance',
                     })}
                     style={{ width: `${percentage}%` }}

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { CreateBookingDialog } from '@/components/bookings/CreateBookingDialog';
@@ -69,70 +69,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
+import { 
+  STATUS_CONFIG, 
+  CATEGORY_CONFIG, 
+  MAP_STATUS_TO_CATEGORY, 
+  MAP_CATEGORY_TO_STATUSES, 
+  ROOM_STATUS_CONFIG,
+  RESERVATION_TIMES,
+  BookingStatus 
+} from '@/config/bookingStatus';
 
-// High-contrast colors
-// Improved color scheme with better differentiation
-const STATUS_COLORS: Record<string, { label: string; bg: string; text: string; light: string; border: string; icon: string }> = {
-  UPCOMING: { // PENDING, CONFIRMED
-    label: 'À venir',
-    bg: 'bg-yellow-500',
-    text: 'text-black',
-    light: 'bg-yellow-100',
-    border: 'border-yellow-600',
-    icon: 'border-yellow-500'
-  },
-  IN_PROGRESS: { // IN_PROGRESS, PENDING_CHECKOUT
-    label: 'En cours',
-    bg: 'bg-blue-600',
-    text: 'text-white',
-    light: 'bg-blue-100',
-    border: 'border-blue-700',
-    icon: 'border-blue-600'
-  },
-  COMPLETED: { // COMPLETED
-    label: 'Terminées',
-    bg: 'bg-gray-600',
-    text: 'text-white',
-    light: 'bg-gray-100',
-    border: 'border-gray-700',
-    icon: 'border-gray-600'
-  },
-  CANCELLED: { // CANCELLED
-    label: 'Annulées',
-    bg: 'bg-black',
-    text: 'text-white',
-    light: 'bg-gray-200',
-    border: 'border-gray-800',
-    icon: 'border-black'
-  },
-};
+
 
 const getRoomStatusColor = (status: string) => {
-  switch (status) {
-    case 'Libre': return 'bg-emerald-500';
-    case 'Occupé': return 'bg-blue-500';
-    case 'Maintenance':
-    case 'MAINTENANCE':
-      return 'bg-slate-500';
-    case 'PENDING_CHECKOUT':
-      return 'bg-amber-500';
-    case 'BOOKED':
-      return 'bg-indigo-400';
-    default: return 'bg-slate-300';
-  }
+  return ROOM_STATUS_CONFIG[status]?.bg || 'bg-slate-300';
 };
 
 const getRoomBgTint = (status: string) => {
-  switch (status) {
-    case 'Libre': return 'bg-emerald-50/20';
-    case 'Occupé': return 'bg-blue-50/30';
-    case 'Maintenance':
-    case 'MAINTENANCE':
-      return 'bg-slate-50/30';
-    case 'PENDING_CHECKOUT':
-      return 'bg-amber-50/30';
-    default: return '';
-  }
+  return ROOM_STATUS_CONFIG[status]?.tint || '';
 };
 
 const VIEW_OPTIONS = [
@@ -155,7 +109,7 @@ const Planning = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewDays, setViewDays] = useState('30');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
   const [roomTypeFilter, setRoomTypeFilter] = useState<string>('all');
   const [locationFilter, setLocationFilter] = useState<string>('all');
 
@@ -180,10 +134,9 @@ const Planning = () => {
 
   // Convert simplified status filter to original booking statuses
   const bookingsFilterStatus = useMemo(() => {
+    if (statusFilter === 'active') return ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'PENDING_CHECKOUT'] as BookingStatus[];
     if (statusFilter === 'all') return [];
-    if (statusFilter === 'UPCOMING') return ['PENDING', 'CONFIRMED'];
-    if (statusFilter === 'IN_PROGRESS') return ['IN_PROGRESS', 'PENDING_CHECKOUT'];
-    return [statusFilter]; // For COMPLETED, CANCELLED
+    return MAP_CATEGORY_TO_STATUSES[statusFilter] || [statusFilter as BookingStatus];
   }, [statusFilter]);
 
   // Charger uniquement les réservations nécessaires pour la période visible
@@ -216,20 +169,45 @@ const Planning = () => {
     return ['all', ...Array.from(locations as Set<string>)];
   }, [rooms]);
 
+  // Fonction pour obtenir les couleurs en mode contraste élevé
+  const getEnhancedStatusColor = useCallback((status: BookingStatus | string) => {
+    let finalStatusKey: string;
+
+    // Check if the status is already a simplified category
+    if (Object.prototype.hasOwnProperty.call(CATEGORY_CONFIG, status)) {
+      finalStatusKey = status;
+    } else {
+      // It's an original booking status, so map it to a simplified category
+      finalStatusKey = MAP_STATUS_TO_CATEGORY[status as BookingStatus] || 'COMPLETED';
+    }
+
+    const baseConfig = CATEGORY_CONFIG[finalStatusKey] || CATEGORY_CONFIG.UPCOMING;
+
+    if (!highContrastMode) return baseConfig;
+
+    // Version à contraste élevé
+    const highContrastColors: Record<string, any> = {
+      UPCOMING: { bg: 'bg-yellow-600', text: 'text-black', border: 'border-yellow-700' }, // Yellow
+      IN_PROGRESS: { bg: 'bg-blue-700', text: 'text-white', border: 'border-blue-800' }, // Blue
+      COMPLETED: { bg: 'bg-gray-700', text: 'text-white', border: 'border-gray-900' }, // Gray
+      CANCELLED: { bg: 'bg-black', text: 'text-white', border: 'border-gray-900' }, // Black
+    };
+
+    return { ...baseConfig, ...highContrastColors[finalStatusKey] };
+  }, [highContrastMode]);
+
   const filteredRooms = useMemo(() => {
     return rooms.filter(room =>
       (room.numero.toLowerCase().includes(search.toLowerCase()) ||
         room.type.toLowerCase().includes(search.toLowerCase())) &&
-      (statusFilter === 'all' ||
-        bookings.some(b => b.room_id === room.id && b.status === statusFilter)) &&
+      (statusFilter === 'all' || statusFilter === 'active' ||
+        bookings.some(b => b.room_id === room.id && 
+          (CATEGORY_CONFIG[statusFilter]?.label === getEnhancedStatusColor(b.status).label || b.status === statusFilter)
+        )) &&
       (roomTypeFilter === 'all' || room.type === roomTypeFilter) &&
       (locationFilter === 'all' || room.locations?.nom === locationFilter)
     );
-  }, [rooms, search, statusFilter, roomTypeFilter, locationFilter, bookings]);
-
-
-
-  // ... (other imports)
+  }, [rooms, search, statusFilter, roomTypeFilter, locationFilter, bookings, getEnhancedStatusColor]);
 
   const getReservationForDay = (bookings: Booking[], roomId: string, day: Date) => {
     return bookings.find(b => {
@@ -283,12 +261,15 @@ const Planning = () => {
         return;
       }
 
-      // Create Date objects with the default times
+      // Create Date objects with the default times from config
+      const checkInTime = RESERVATION_TIMES.CHECK_IN.split(':');
+      const checkOutTime = RESERVATION_TIMES.CHECK_OUT.split(':');
+
       const finalStartDate = new Date(startDate);
-      finalStartDate.setHours(12, 0, 0, 0);
+      finalStartDate.setHours(parseInt(checkInTime[0]), parseInt(checkInTime[1]), 0, 0);
 
       const finalEndDate = new Date(endDate);
-      finalEndDate.setHours(11, 0, 0, 0);
+      finalEndDate.setHours(parseInt(checkOutTime[0]), parseInt(checkOutTime[1]), 0, 0);
 
       // Open dialog with pre-filled data
       setBookingDialog({
@@ -347,53 +328,6 @@ const Planning = () => {
     return { isStart, isEnd, ...anomalies };
   };
 
-  // Fonction pour ajouter des motifs de fond pour distinguer les statuts similaires
-  const getStatusPattern = (status: string) => {
-    return ''; // Return empty string to disable patterns as they create confusion
-  };
-
-  // Fonction pour obtenir les couleurs en mode contraste élevé
-  const getEnhancedStatusColor = (status: string) => {
-    let finalStatusKey: string;
-
-    // Check if the status is already a simplified category (e.g., from STATUS_COLORS keys for the legend)
-    if (STATUS_COLORS.hasOwnProperty(status)) {
-      finalStatusKey = status;
-    } else {
-      // It's an original booking status (e.g., PENDING, CONFIRMED), so map it to a simplified category
-      switch (status) {
-        case 'PENDING':
-        case 'CONFIRMED':
-          finalStatusKey = 'UPCOMING';
-          break;
-        case 'IN_PROGRESS':
-        case 'PENDING_CHECKOUT':
-          finalStatusKey = 'IN_PROGRESS';
-          break;
-        case 'COMPLETED':
-          finalStatusKey = 'COMPLETED';
-          break;
-        case 'CANCELLED':
-          finalStatusKey = 'CANCELLED';
-          break;
-        default:
-          finalStatusKey = 'COMPLETED'; // Fallback for any unhandled status
-      }
-    }
-
-    if (!highContrastMode) return STATUS_COLORS[finalStatusKey];
-
-    // Version à contraste élevé (matching new simplified categories and colors)
-    const highContrastColors: Record<string, any> = {
-      UPCOMING: { bg: 'bg-yellow-600', text: 'text-black', border: 'border-yellow-700' }, // Yellow
-      IN_PROGRESS: { bg: 'bg-blue-700', text: 'text-white', border: 'border-blue-800' }, // Blue
-      COMPLETED: { bg: 'bg-gray-700', text: 'text-white', border: 'border-gray-900' }, // Gray
-      CANCELLED: { bg: 'bg-black', text: 'text-white', border: 'border-gray-900' }, // Black
-    };
-
-    return { ...STATUS_COLORS[finalStatusKey], ...highContrastColors[finalStatusKey] };
-  };
-
   const goToPrevious = () => {
     const numDays = parseInt(viewDays);
     if (numDays === 30) setCurrentDate(subMonths(currentDate, 1));
@@ -423,7 +357,9 @@ const Planning = () => {
       <div className="space-y-6 bg-slate-50 -m-6 p-6 min-h-screen">
         <div className="flex flex-wrap gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-300">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3 w-full">
-            {Object.entries(STATUS_COLORS).map(([status, { label }]) => {
+            {Object.entries(CATEGORY_CONFIG)
+              .filter(([status]) => status === 'UPCOMING' || status === 'IN_PROGRESS')
+              .map(([status, { label }]) => {
               const enhancedColor = getEnhancedStatusColor(status);
               return (
                 <div key={status} className="flex items-center gap-2 text-sm py-1">
@@ -452,11 +388,10 @@ const Planning = () => {
                 <SelectValue placeholder="Tous statuts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous statuts</SelectItem>
-                <SelectItem value="UPCOMING">À venir</SelectItem>
-                <SelectItem value="IN_PROGRESS">En cours</SelectItem>
-                <SelectItem value="COMPLETED">Terminées</SelectItem>
-                <SelectItem value="CANCELLED">Annulées</SelectItem>
+                <SelectItem value="active">En cours & À venir</SelectItem>
+                <SelectItem value="UPCOMING">À venir uniquement</SelectItem>
+                <SelectItem value="IN_PROGRESS">En cours uniquement</SelectItem>
+                <SelectItem value="all">Tous les statuts</SelectItem>
               </SelectContent>
             </Select>
 
@@ -599,7 +534,7 @@ const Planning = () => {
                                       !isStart && !isEnd ? 'rounded-none border-x-0' : '',
                                       isOverdue
                                         ? "bg-gradient-to-br from-red-600 via-rose-700 to-red-800 animate-pulse border-2 border-white shadow-lg shadow-red-500/50"
-                                        : cn(getEnhancedStatusColor(reservation.status)?.bg, highContrastMode ? '' : getStatusPattern(reservation.status)) || "bg-slate-400",
+                                        : getEnhancedStatusColor(reservation.status)?.bg || "bg-slate-400",
                                       'border-y border-white/20 backdrop-blur-sm shadow-md',
                                       hasDebt && "ring-2 ring-amber-400 ring-offset-1"
                                     )}

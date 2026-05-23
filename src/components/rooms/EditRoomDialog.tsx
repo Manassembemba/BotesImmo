@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -89,6 +90,9 @@ export function EditRoomDialog({ room, open, onOpenChange, initialActiveTab }: E
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier l'appartement N° {room.numero}</DialogTitle>
+          <DialogDescription>
+            Mettez à jour les informations de l'appartement ou consultez l'historique des réservations.
+          </DialogDescription>
         </DialogHeader>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
           <TabsList className="grid w-full grid-cols-2">

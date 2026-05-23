@@ -6,7 +6,7 @@ import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { useAllPayments } from '@/hooks/usePayments';
 import { formatCurrency } from '@/components/CurrencyDisplay';
 import { useAuth } from '@/hooks/useAuth';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -33,12 +33,18 @@ import { StatsCard } from '@/components/dashboard/StatsCard';
 import { RoomStatusOverview } from '@/components/dashboard/RoomStatusOverview';
 import { PendingCheckouts } from '@/components/dashboard/PendingCheckouts';
 import { RecentActivity } from '@/components/dashboard/RecentActivity';
+import { CheckInDialog } from '@/components/bookings/CheckInDialog';
+import { CheckoutDecisionDialog } from '@/components/checkout/CheckoutDecisionDialog';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { cn } from '@/lib/utils';
 import { useAppNotifications } from '@/hooks/useAppNotifications';
 import { useLocationFilter } from '@/context/LocationFilterContext';
 import { useLocations } from '@/hooks/useLocations';
 import { getEffectiveRoomStatus } from '@/lib/statusUtils';
+import { Button } from '@/components/ui/button';
+import { LogIn, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { Booking } from '@/hooks/useBookings';
+import { Room } from '@/hooks/useRooms';
 
 const Dashboard = () => {
   const { role, profile } = useAuth();
@@ -52,6 +58,13 @@ const Dashboard = () => {
   const isMobile = useIsMobile();
   const { selectedLocationId } = useLocationFilter();
   const { data: locations } = useLocations();
+
+  const [checkInBooking, setCheckInBooking] = useState<Booking | null>(null);
+  const [checkOutBooking, setCheckOutBooking] = useState<Booking | null>(null);
+
+  const getRoomForBooking = (booking: Booking) => {
+    return rooms.find(r => r.id === booking.room_id);
+  };
 
   const overdueCount = notifications.filter(n => n.type === 'checkout_overdue').length;
 
@@ -189,33 +202,43 @@ const Dashboard = () => {
       subtitle={dashboardSubtitle}
       headerImage
     >
-      {/* KPI Cards */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 mb-6 sm:mb-8">
+      <div className="flex items-center justify-between mb-4 bg-muted/30 px-4 py-2 rounded-lg border border-border/50">
+        <div className="flex items-center gap-2 text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <RefreshCw className="h-3 w-3 animate-spin-slow text-primary" />
+          Synchronisation active (Auto: 15m)
+        </div>
+        <div className="text-[10px] sm:text-xs text-muted-foreground italic">
+          Mise à jour: {format(new Date(), 'HH:mm', { locale: fr })}
+        </div>
+      </div>
+
+      {/* KPI Cards - 2x2 on mobile */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4 mb-6 sm:mb-8">
         <StatsCard
-          title="Chambres libres"
+          title="Libres"
           value={freeRooms}
-          subtitle={`${totalRooms > 0 ? `${Math.round((freeRooms / totalRooms) * 100)}%` : '0%'} du parc`}
+          subtitle={`${totalRooms > 0 ? `${Math.round((freeRooms / totalRooms) * 100)}%` : '0%'}`}
           icon={Building2}
           variant="success"
         />
         <StatsCard
-          title="Chambres occupées"
+          title="Occupées"
           value={occupiedRooms}
-          subtitle={`+ ${bookedRooms} réservées`}
+          subtitle={`+ ${bookedRooms} rés.`}
           icon={Building2}
           variant="primary"
         />
         <StatsCard
-          title="Taux d'occupation"
+          title="Taux"
           value={`${fillRate}%`}
-          subtitle={`${monthlyBookings.length} locations ce mois`}
+          subtitle={`${monthlyBookings.length} loc.`}
           icon={TrendingUp}
           variant="primary"
         />
         <StatsCard
-          title="Retards libération"
+          title="Retards"
           value={overdueCount}
-          subtitle={overdueCount > 0 ? "Action requise immédiate" : "Aucun retard détecté"}
+          subtitle={overdueCount > 0 ? "Action !" : "OK"}
           icon={AlertTriangle}
           variant={overdueCount > 0 ? "destructive" : "default"}
           className={cn(overdueCount > 0 && "animate-pulse shadow-md shadow-red-200")}
@@ -257,6 +280,127 @@ const Dashboard = () => {
           <div className={cn("font-bold text-foreground", "text-xl sm:text-2xl")}>{todayDepartures.length}</div>
           <div className="text-xs text-muted-foreground">À libérer aujourd'hui</div>
         </div>
+      </div>
+
+      {/* Today's Events - Priority View */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mb-6 sm:mb-8">
+        {/* Today's Arrivals - Mobile Card View */}
+        <div className="sm:hidden bg-card rounded-lg border border-border shadow-soft animate-fade-in">
+          <div className="p-4 border-b border-border bg-muted/20">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Arrivées du jour
+            </h2>
+          </div>
+          <div className="p-4">
+            {todayArrivals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <Users className="h-10 w-10 text-muted-foreground mb-3" />
+                <p className="text-muted-foreground text-sm">Aucune arrivée prévue aujourd'hui</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {todayArrivals.map((booking) => (
+                  <div key={booking.id} className="border rounded-lg p-3 relative bg-card shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-bold text-sm">
+                          {booking.tenants?.prenom} {booking.tenants?.nom}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          App. {booking.rooms?.numero} ({booking.rooms?.type})
+                        </div>
+                        <div className="text-[9px] text-muted-foreground italic mt-1">
+                          Enregistré le {format(new Date(booking.created_at), 'dd/MM/yyyy')}
+                        </div>
+                      </div>
+                      {!booking.check_in_reel ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-8 w-8 p-0 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200"
+                          onClick={() => setCheckInBooking(booking)}
+                        >
+                          <LogIn className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      )}
+                    </div>
+                    {role === 'ADMIN' && (
+                      <div className="text-xs font-bold text-emerald-600">
+                        ${booking.prix_total}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Today's Arrivals - Desktop Table View */}
+        <div className="hidden sm:block bg-card rounded-lg border border-border p-4 sm:p-6 shadow-soft animate-fade-in">
+          <h2 className="text-base sm:text-lg font-bold text-foreground mb-2 sm:mb-4 flex items-center gap-2">
+            <Users className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
+            Arrivées du jour
+          </h2>
+          {todayArrivals.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 text-center">
+              <Users className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground text-sm">Aucune arrivée prévue aujourd'hui</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs sm:text-xs font-semibold">LOCATAIRE</TableHead>
+                  <TableHead className="text-xs sm:text-xs font-semibold">CHAMBRE</TableHead>
+                  {role === 'ADMIN' && <TableHead className="text-xs sm:text-xs font-semibold">PRIX (USD)</TableHead>}
+                  <TableHead className="text-xs sm:text-xs font-semibold text-right">ACTIONS</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {todayArrivals.map((booking) => (
+                  <TableRow key={booking.id} className="hover:bg-muted/30">
+                    <TableCell className="text-xs sm:text-sm">
+                      <div className="font-medium">{booking.tenants?.prenom} {booking.tenants?.nom}</div>
+                      <div className="text-[10px] text-muted-foreground flex flex-col">
+                        <span>{booking.tenants?.telephone || 'Pas de tel.'}</span>
+                        <span className="mt-1 italic">Enregistré le {format(new Date(booking.created_at), 'dd/MM/yyyy')}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs sm:text-sm">
+                      <div className="font-bold">App. {booking.rooms?.numero}</div>
+                      <div className="text-[10px] uppercase text-muted-foreground">{booking.rooms?.type}</div>
+                    </TableCell>
+                    {role === 'ADMIN' && <TableCell className="text-xs sm:text-sm font-medium text-emerald-600">${booking.prix_total}</TableCell>}
+                    <TableCell className="text-right">
+                      {!booking.check_in_reel ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="h-8 gap-1.5 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
+                          onClick={() => setCheckInBooking(booking)}
+                        >
+                          <LogIn className="h-3.5 w-3.5" />
+                          Check-in
+                        </Button>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1 text-emerald-600 text-[10px] font-bold uppercase">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Arrivé
+                        </div>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        <RecentActivity activities={recentActivities} />
       </div>
 
       {/* Charts and Tables */}
@@ -322,81 +466,22 @@ const Dashboard = () => {
         <PendingCheckouts rooms={rooms} bookings={bookings} />
       </div>
 
-      {/* Today's Events - Responsive grid */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
-        {/* Today's Arrivals - Mobile Card View */}
-        <div className="sm:hidden bg-card rounded-lg border border-border shadow-soft">
-          <div className="p-4 border-b border-border">
-            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Arrivées du jour
-            </h2>
-          </div>
-          <div className="p-4">
-            {todayArrivals.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <Users className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-muted-foreground text-sm">Aucune arrivée prévue aujourd'hui</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {todayArrivals.map((booking) => (
-                  <div key={booking.id} className="border rounded-lg p-3">
-                    <div className="font-medium text-sm">
-                      {booking.tenants?.prenom} {booking.tenants?.nom}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Chambre: {booking.rooms?.numero}
-                    </div>
-                    {role === 'ADMIN' && (
-                      <div className="text-sm font-medium mt-1">
-                        ${booking.prix_total}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Today's Arrivals - Desktop Table View */}
-        <div className="hidden sm:block bg-card rounded-lg border border-border p-4 sm:p-6 shadow-soft">
-          <h2 className="text-base sm:text-lg font-bold text-foreground mb-2 sm:mb-4 flex items-center gap-2">
-            <Users className="h-4 sm:h-5 w-4 sm:w-5" />
-            Arrivées du jour
-          </h2>
-          {todayArrivals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-6 text-center">
-              <Users className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground text-sm">Aucune arrivée prévue aujourd'hui</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs sm:text-xs font-semibold">LOCATAIRE</TableHead>
-                  <TableHead className="text-xs sm:text-xs font-semibold">CHAMBRE</TableHead>
-                  {role === 'ADMIN' && <TableHead className="text-xs sm:text-xs font-semibold">PRIX (USD)</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {todayArrivals.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell className="text-xs sm:text-sm">
-                      {booking.tenants?.prenom} {booking.tenants?.nom}
-                    </TableCell>
-                    <TableCell className="text-xs sm:text-sm">{booking.rooms?.numero}</TableCell>
-                    {role === 'ADMIN' && <TableCell className="text-xs sm:text-sm">${booking.prix_total}</TableCell>}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-
-        <RecentActivity activities={recentActivities} />
-      </div>
+      {checkInBooking && (
+        <CheckInDialog 
+          booking={checkInBooking} 
+          open={!!checkInBooking} 
+          onOpenChange={(open) => !open && setCheckInBooking(null)} 
+        />
+      )}
+      
+      {checkOutBooking && getRoomForBooking(checkOutBooking) && (
+        <CheckoutDecisionDialog 
+          booking={checkOutBooking} 
+          room={getRoomForBooking(checkOutBooking)!} 
+          open={!!checkOutBooking} 
+          onOpenChange={(open) => !open && setCheckOutBooking(null)} 
+        />
+      )}
     </MainLayout>
   );
 };

@@ -9,13 +9,21 @@ export const statusTranslations: { [key in RoomStatus]: string } = {
   Occupé: 'Occupé',
   Maintenance: 'En maintenance',
   Nettoyage: 'Disponible', // Redirection
+  BOOKED: 'Réservé',
+  MAINTENANCE: 'En maintenance',
+  PENDING_CLEANING: 'À nettoyer',
+  PENDING_CHECKOUT: 'Départ prévu',
 };
 
 export const statusColors: { [key in RoomStatus]: string } = {
   Libre: 'status-available',
   Occupé: 'status-occupied',
   Maintenance: 'status-out-of-service',
-  Nettoyage: 'status-available', // Même couleur que libre
+  Nettoyage: 'status-available',
+  BOOKED: 'status-booked',
+  MAINTENANCE: 'status-out-of-service',
+  PENDING_CLEANING: 'status-cleaning',
+  PENDING_CHECKOUT: 'status-pending-checkout',
 };
 
 export const getStatusLabel = (status: RoomStatus): string => {

@@ -54,9 +54,22 @@ export function getEffectiveRoomStatus(
     });
 
     if (activeBooking) {
-        // If the booking is confirmed/in-progress and we are inside the interval (or it's check-in day), it's occupied.
-        // We treat PENDING bookings starting today as effectively Occupied to prevent double bookings.
-        return { status: 'Occupé', activeBooking };
+        try {
+            const start = parseISO(activeBooking.date_debut_prevue);
+            const isArrivalDay = start.getDate() === checkDate.getDate() && 
+                               start.getMonth() === checkDate.getMonth() && 
+                               start.getFullYear() === checkDate.getFullYear();
+            
+            // Si c'est le jour d'arrivée et qu'il est avant 12h00
+            if (isArrivalDay && checkDate.getHours() < 12 && !activeBooking.check_in_reel) {
+                return { status: 'BOOKED', activeBooking };
+            }
+            
+            // Sinon, si le check-in est fait ou si on est après 12h00 le jour J
+            return { status: 'Occupé', activeBooking };
+        } catch (e) {
+            return { status: 'Occupé', activeBooking };
+        }
     }
 
     // Si pas de réservation active, on retourne le statut physique

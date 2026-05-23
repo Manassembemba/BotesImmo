@@ -20,8 +20,9 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, UserPlus, AlertCircle, LogIn } from 'lucide-react';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
-import { differenceInCalendarDays, format, addDays, isValid } from 'date-fns';
+import { differenceInCalendarDays, format, addDays, isValid, parseISO, setHours, setMinutes, setSeconds, setMilliseconds } from 'date-fns';
 import { CreateTenantDialog } from '../tenants/CreateTenantDialog';
+import { RESERVATION_TIMES } from '@/config/bookingStatus';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
@@ -154,7 +155,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         setNights(numNights);
       }
     }
-  }, [dateDebut, dateFin]);
+  }, [dateDebut, dateFin, nights]);
 
   useEffect(() => {
     const startDate = new Date(dateDebut);
@@ -164,7 +165,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         setValue('date_fin_prevue', calculatedEndDate, { shouldValidate: true });
       }
     }
-  }, [nights, dateDebut, setValue]);
+  }, [nights, dateDebut, dateFin, setValue]);
 
   useEffect(() => {
     if (selectedRoom && nights > 0) {
@@ -244,13 +245,19 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     const finalInitialPaymentUSD = Number(amountUSD);
     const finalInitialPaymentCDF = Number(amountCDF);
 
+    const checkInTime = RESERVATION_TIMES.CHECK_IN.split(':');
+    const checkOutTime = RESERVATION_TIMES.CHECK_OUT.split(':');
+    
+    const startDate = setMilliseconds(setSeconds(setMinutes(setHours(new Date(data.date_debut_prevue), parseInt(checkInTime[0])), parseInt(checkInTime[1])), 0), 0);
+    const endDate = setMilliseconds(setSeconds(setMinutes(setHours(new Date(data.date_fin_prevue), parseInt(checkOutTime[0])), parseInt(checkOutTime[1])), 0), 0);
+
     try {
       await createBooking.mutateAsync({
         booking: {
           room_id: data.room_id,
           tenant_id: data.tenant_id,
-          date_debut_prevue: data.date_debut_prevue,
-          date_fin_prevue: data.date_fin_prevue,
+          date_debut_prevue: startDate.toISOString(),
+          date_fin_prevue: endDate.toISOString(),
           prix_total: data.prix_total,
           notes: '', // Removed notes functionality
           status: data.status || (isImmediate ? 'CONFIRMED' : 'PENDING'),
@@ -261,7 +268,6 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         isImmediate,
         initialPaymentAmount: data.initial_payment,
         discountAmount: data.discount_amount,
-        initialPaymentUSD: finalInitialPaymentUSD,
         initialPaymentUSD: finalInitialPaymentUSD,
         initialPaymentCDF: finalInitialPaymentCDF,
         bypassConflict: bypassConflict,

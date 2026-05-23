@@ -22,23 +22,17 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvoiceListForBooking } from '@/components/invoices/InvoiceListForBooking';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle, SlidersHorizontal, RefreshCw } from 'lucide-react';
+import { MoreHorizontal, LogIn, LogOut, Edit, XCircle, Trash2, BadgeCent, Search, Calendar as CalendarIcon, Filter, X, AlertTriangle, SlidersHorizontal, RefreshCw, Hourglass } from 'lucide-react';
 import { useBookings, Booking, useDeleteBooking, BookingFilters } from '@/hooks/useBookings';
 import { useExchangeRate } from '@/hooks/useExchangeRate'; // Import pour conversion
-import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, isAfter } from 'date-fns';
+import { format, differenceInCalendarDays, differenceInDays, parseISO, isPast, isToday, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfToday, isAfter, isBefore, subHours } from 'date-fns';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useBookingCounts } from '@/hooks/useBookingCounts';
 import { useBookingCount } from '@/hooks/useBookingCount';
+import { STATUS_CONFIG } from '@/config/bookingStatus';
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  PENDING: { label: 'En attente', className: 'status-badge bg-yellow-100 text-foreground dark:bg-yellow-900/30' },
-  CONFIRMED: { label: 'Confirmé', className: 'status-badge bg-blue-100 text-foreground dark:bg-blue-900/30' },
-  PENDING_CHECKOUT: { label: 'Départ en attente', className: 'status-badge bg-orange-100 text-foreground dark:bg-orange-900/30 animate-pulse' },
-  IN_PROGRESS: { label: 'en cours', className: 'status-badge bg-green-100 text-foreground dark:bg-green-900/30' },
-  COMPLETED: { label: 'Terminée', className: 'status-badge bg-gray-100 text-foreground dark:bg-gray-800' },
-  CANCELLED: { label: 'Annulée', className: 'status-badge bg-red-100 text-foreground dark:bg-red-900/30' },
-};
+
 
 type PaymentStatus = 'PAID' | 'PARTIAL' | 'UNPAID';
 
@@ -171,6 +165,7 @@ const Reservations = () => {
 
   const processedBookings = useMemo(() => {
     const today = startOfToday();
+    const now = new Date();
 
     return bookingsData.map(b => {
       const summary = b.booking_financial_summary?.[0];
@@ -178,14 +173,20 @@ const Reservations = () => {
       const totalInvoiced = summary?.total_invoiced || 0;
 
       // Real-time late stay calculation, as this is dynamic
-      const endDate = startOfDay(parseISO(b.date_fin_prevue));
+      const endDate = parseISO(b.date_fin_prevue);
+      const endDateOnly = startOfDay(endDate);
       let lateStayDebt = 0;
       let lateNights = 0;
-      const isOverdue = isAfter(today, endDate) && b.status !== 'COMPLETED' && b.status !== 'CANCELLED' && !b.check_out_reel;
+      const isOverdue = isAfter(today, endDateOnly) && b.status !== 'COMPLETED' && b.status !== 'CANCELLED' && !b.check_out_reel;
+
+      const isEndingSoon = !b.check_out_reel && 
+                           (b.status === 'CONFIRMED' || b.status === 'IN_PROGRESS') &&
+                           isAfter(now, subHours(endDate, 2)) &&
+                           isBefore(now, endDate);
 
       if (isOverdue) {
-        lateNights = differenceInCalendarDays(today, endDate);
-        const plannedNights = differenceInCalendarDays(endDate, startOfDay(parseISO(b.date_debut_prevue)));
+        lateNights = differenceInCalendarDays(today, endDateOnly);
+        const plannedNights = differenceInCalendarDays(endDateOnly, startOfDay(parseISO(b.date_debut_prevue)));
         const dailyRate = plannedNights > 0 ? b.prix_total / plannedNights : (b.rooms?.type ? (rooms.find(r => r.type === b.rooms?.type)?.prix_base_nuit || 0) : (rooms.find(r => r.id === b.room_id)?.prix_base_nuit || 0));
         lateStayDebt = lateNights * dailyRate;
       }
@@ -450,7 +451,14 @@ const Reservations = () => {
                         </TableCell>
                         <TableCell><p className="font-semibold">{booking.tenants?.prenom} {booking.tenants?.nom?.toUpperCase()}</p><p className="text-xs text-muted-foreground">{booking.tenants?.telephone}</p></TableCell>
                         <TableCell><p className="font-medium">App. {booking.rooms?.numero}</p><p className="text-sm text-muted-foreground">{booking.rooms?.type}</p></TableCell>
-                        <TableCell><span className={statusConfig.className}>{statusConfig.label}</span></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span className={statusConfig.className}>{statusConfig.label}</span>
+                            {booking.isEndingSoon && (
+                              <Hourglass className="h-4 w-4 text-amber-500 animate-bounce" title="Départ imminent (moins de 2h)" />
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="p-0">
                           <div
                             className="p-4 cursor-pointer hover:bg-slate-50 transition-colors group relative border-l-4 border-transparent hover:border-indigo-500"
