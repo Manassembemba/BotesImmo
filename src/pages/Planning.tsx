@@ -77,7 +77,7 @@ import {
   ROOM_STATUS_CONFIG,
   RESERVATION_TIMES,
   BookingStatus 
-} from '@/config/bookingStatus';
+} from '@/config/bookingStatus.ts';
 
 
 
