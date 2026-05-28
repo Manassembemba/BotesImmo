@@ -5,25 +5,27 @@ export type RoomStatus = Room['status'];
 
 
 export const statusTranslations: { [key in RoomStatus]: string } = {
-  Libre: 'Disponible',
+  Libre: 'Libre',
+  Nettoyage: 'Libre',
+  A_NETTOYER: 'Libre',
+  PENDING_CLEANING: 'Libre',
   Occupé: 'Occupé',
-  Maintenance: 'En maintenance',
-  Nettoyage: 'Disponible', // Redirection
-  BOOKED: 'Réservé',
-  MAINTENANCE: 'En maintenance',
-  PENDING_CLEANING: 'À nettoyer',
-  PENDING_CHECKOUT: 'Départ prévu',
+  PENDING_CHECKOUT: 'Occupé',
+  Maintenance: 'Occupé', // Indisponible donc considéré comme occupé
+  MAINTENANCE: 'Occupé',
+  BOOKED: 'Réservée',
 };
 
 export const statusColors: { [key in RoomStatus]: string } = {
   Libre: 'status-available',
-  Occupé: 'status-occupied',
-  Maintenance: 'status-out-of-service',
   Nettoyage: 'status-available',
+  A_NETTOYER: 'status-available',
+  PENDING_CLEANING: 'status-available',
+  Occupé: 'status-occupied',
+  PENDING_CHECKOUT: 'status-occupied',
+  Maintenance: 'status-occupied',
+  MAINTENANCE: 'status-occupied',
   BOOKED: 'status-booked',
-  MAINTENANCE: 'status-out-of-service',
-  PENDING_CLEANING: 'status-cleaning',
-  PENDING_CHECKOUT: 'status-pending-checkout',
 };
 
 export const getStatusLabel = (status: RoomStatus): string => {

@@ -60,19 +60,30 @@ export function getEffectiveRoomStatus(
                                start.getMonth() === checkDate.getMonth() && 
                                start.getFullYear() === checkDate.getFullYear();
             
-            // Si c'est le jour d'arrivée et qu'il est avant 12h00
-            if (isArrivalDay && checkDate.getHours() < 12 && !activeBooking.check_in_reel) {
+            // Si le check-in est fait, elle est Occupée
+            if (activeBooking.check_in_reel) {
+                return { status: 'Occupé', activeBooking };
+            }
+
+            // Si c'est le jour d'arrivée (même si le client n'est pas encore là), elle est Réservée
+            if (isArrivalDay) {
                 return { status: 'BOOKED', activeBooking };
             }
             
-            // Sinon, si le check-in est fait ou si on est après 12h00 le jour J
+            // Par défaut pour une réservation active
             return { status: 'Occupé', activeBooking };
         } catch (e) {
             return { status: 'Occupé', activeBooking };
         }
     }
 
-    // Si pas de réservation active, on retourne le statut physique
-    // (Nettoyage est maintenant traité comme Libre)
-    return { status: room.status === 'Nettoyage' ? 'Libre' : room.status };
+    // Si pas de réservation active du tout pour aujourd'hui, 
+    // alors on regarde le statut physique.
+    // Les statuts techniques de nettoyage sont convertis en "Libre" pour l'utilisateur.
+    if (['Libre', 'Nettoyage', 'A_NETTOYER', 'PENDING_CLEANING'].includes(room.status)) {
+        return { status: 'Libre' };
+    }
+
+    // Par défaut (ex: Maintenance), on retourne le statut tel quel (qui sera mappé à Occupé)
+    return { status: room.status };
 }

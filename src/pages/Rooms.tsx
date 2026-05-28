@@ -44,7 +44,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useGlobalFilters } from '@/hooks/useGlobalFilters';
 
-type RoomStatus = 'Libre' | 'Occupé' | 'Nettoyage' | 'Maintenance' | 'BOOKED' | 'MAINTENANCE' | 'PENDING_CLEANING' | 'PENDING_CHECKOUT';
+type RoomStatus = 'Libre' | 'Occupé' | 'BOOKED';
 
 // Define an interface for the processed room to include active tenant info
 interface ProcessedRoom extends Room {
@@ -62,15 +62,25 @@ interface ProcessedRoom extends Room {
   };
 }
 
-const getStatusBadge = (status: RoomStatus) => {
-  const config = {
-    Libre: { label: 'DISPONIBLE', className: 'status-available' },
+const getStatusBadge = (status: string) => {
+  // Mapping pour simplifier l'affichage sur 3 statuts
+  let displayStatus = status;
+  if (['Libre', 'Nettoyage', 'A_NETTOYER', 'PENDING_CLEANING'].includes(status)) {
+    displayStatus = 'Libre';
+  } else if (['Occupé', 'PENDING_CHECKOUT', 'Maintenance', 'MAINTENANCE'].includes(status)) {
+    displayStatus = 'Occupé';
+  } else if (status === 'BOOKED') {
+    displayStatus = 'BOOKED';
+  }
+
+  const config: Record<string, { label: string, className: string }> = {
+    Libre: { label: 'LIBRE', className: 'status-available' },
     Occupé: { label: 'OCCUPÉ', className: 'status-occupied' },
-    BOOKED: { label: 'RÉSERVÉ', className: 'status-booked' },
-    PENDING_CHECKOUT: { label: 'DÉPART PRÉVU', className: 'status-pending-checkout' },
-    Maintenance: { label: 'MAINTENANCE', className: 'bg-yellow-500 text-white' }, // Add Maintenance status badge
+    BOOKED: { label: 'RÉSERVÉE', className: 'bg-yellow-500 text-black shadow-sm' },
   };
-  const { label, className } = config[status] || { label: status, className: 'bg-gray-400' };
+  
+  const { label, className } = config[displayStatus] || { label: displayStatus, className: 'bg-gray-400' };
+  
   return (
     <Badge className={cn('font-medium text-xs px-3 py-1', className)}>
       {label}
@@ -150,7 +160,7 @@ const Rooms = () => {
 
       const currentOrNextBooking = activeBooking || roomBookings[0]; // Prioritize activeBooking
 
-      const isAvailableNow = effectiveStatus === 'Libre' || effectiveStatus === 'Nettoyage';
+      const isAvailableNow = effectiveStatus === 'Libre';
       const nextAvailableDate = isAvailableNow ? today : (currentOrNextBooking ? parseISO(currentOrNextBooking.date_fin_prevue) : today);
 
       const diff = differenceInDays(nextAvailableDate, today);
@@ -171,7 +181,7 @@ const Rooms = () => {
       return {
         ...room,
         effectiveStatus,
-        status: effectiveStatus, // Override the static status with the effective one
+        status: effectiveStatus as any, // Override the static status with the effective one
         nextAvailableDate,
         daysRemaining,
         isOverdue,
@@ -190,7 +200,13 @@ const Rooms = () => {
         room.locations?.nom?.toLowerCase().includes(searchLower)
       );
       const matchesType = roomTypeFilter === 'all' || room.type === roomTypeFilter;
-      const matchesStatus = statusFilter === 'all' || room.status === statusFilter;
+      
+      // Adaptation du filtre de statut pour correspondre à la simplification
+      let matchesStatus = true;
+      if (statusFilter !== 'all') {
+        matchesStatus = room.status === statusFilter;
+      }
+
       const matchesPrice =
         (priceRange.min === null || room.prix_base_nuit >= priceRange.min) &&
         (priceRange.max === null || room.prix_base_nuit <= priceRange.max);
@@ -367,9 +383,9 @@ const Rooms = () => {
                   <SelectTrigger><Building2 className="h-4 w-4 mr-2" /><SelectValue placeholder="Statut" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Tous statuts</SelectItem>
-                    <SelectItem value="Libre">Disponible</SelectItem>
+                    <SelectItem value="Libre">Libre</SelectItem>
                     <SelectItem value="Occupé">Occupé</SelectItem>
-                    <SelectItem value="Maintenance">Maintenance</SelectItem>
+                    <SelectItem value="BOOKED">Réservée</SelectItem>
                   </SelectContent>
                 </Select>
 

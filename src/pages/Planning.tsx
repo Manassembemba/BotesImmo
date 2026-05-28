@@ -370,6 +370,10 @@ const Planning = () => {
                 </div>
               );
             })}
+            <div className="flex items-center gap-2 text-sm py-1">
+              <div className="w-4 h-4 rounded-sm bg-emerald-500 flex items-center justify-center" />
+              <span className={cn('font-medium', highContrastMode ? 'text-white' : 'text-slate-700')}>Libre</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
@@ -388,9 +392,9 @@ const Planning = () => {
                 <SelectValue placeholder="Tous statuts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">En cours & À venir</SelectItem>
-                <SelectItem value="UPCOMING">À venir uniquement</SelectItem>
-                <SelectItem value="IN_PROGRESS">En cours uniquement</SelectItem>
+                <SelectItem value="active">Occupé & Réservée</SelectItem>
+                <SelectItem value="UPCOMING">Réservée uniquement</SelectItem>
+                <SelectItem value="IN_PROGRESS">Occupé uniquement</SelectItem>
                 <SelectItem value="all">Tous les statuts</SelectItem>
               </SelectContent>
             </Select>

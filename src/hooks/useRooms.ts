@@ -13,7 +13,7 @@ export interface Room {
   prix_base_mois: number | null;
   description: string | null;
   location_id?: string; // Référence vers la localisation
-  status: 'Libre' | 'Occupé' | 'Nettoyage' | 'Maintenance' | 'BOOKED' | 'MAINTENANCE' | 'PENDING_CLEANING' | 'PENDING_CHECKOUT';
+  status: 'Libre' | 'Occupé' | 'Nettoyage' | 'Maintenance' | 'BOOKED' | 'MAINTENANCE' | 'PENDING_CLEANING' | 'PENDING_CHECKOUT' | 'A_NETTOYER';
   created_at: string;
   updated_at: string;
   // Joined data from locations table

@@ -78,7 +78,10 @@ export default function SyncDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_sync_statistics');
       if (error) throw error;
-      return data || {
+      
+      const statsData = Array.isArray(data) ? data[0] : data;
+      
+      return statsData || {
         total_rooms: 0,
         rooms_synced: 0,
         pending_checkouts: 0,
@@ -111,7 +114,7 @@ export default function SyncDashboard() {
       const { data, error } = await supabase
         .from('room_sync_dashboard')
         .select('*')
-        .or('status.eq.A_NETTOYER,status.eq.PENDING_CHECKOUT,hours_until_checkout.lt.2')
+        .or('current_status.eq.A_NETTOYER,current_status.eq.PENDING_CHECKOUT,hours_until_checkout.lt.2')
         .order('room_number');
       if (error) throw error;
       return data || [];
@@ -253,28 +256,28 @@ export default function SyncDashboard() {
             <>
               <StatsCard
                 title="Total Chambres"
-                value={stats?.total_rooms.toString() || '0'}
+                value={stats?.total_rooms?.toString() || '0'}
                 subtitle="Chambres configurées"
                 icon={Activity}
                 variant="primary"
               />
               <StatsCard
                 title="Check-outs en Attente"
-                value={stats?.pending_checkouts.toString() || '0'}
+                value={stats?.pending_checkouts?.toString() || '0'}
                 subtitle="Départs à traiter"
                 icon={Clock}
                 variant="warning"
               />
               <StatsCard
                 title="Nettoyages en Cours"
-                value={stats?.cleaning_in_progress.toString() || '0'}
+                value={stats?.cleaning_in_progress?.toString() || '0'}
                 subtitle="Chambres en nettoyage"
                 icon={RefreshCw}
                 variant="secondary"
               />
               <StatsCard
                 title="Transitions (24h)"
-                value={stats?.transitions_24h.toString() || '0'}
+                value={stats?.transitions_24h?.toString() || '0'}
                 subtitle="Changements de statut"
                 icon={TrendingUp}
                 variant="success"

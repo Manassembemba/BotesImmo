@@ -89,9 +89,18 @@ const Dashboard = () => {
   }, [rooms, bookings]);
 
   // Calcul des indicateurs basés sur le statut effectif
-  const freeRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Libre').length;
-  const cleaningRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Nettoyage').length;
-  const occupiedRooms = roomsWithEffectiveStatus.filter(r => r.status === 'Occupé').length;
+  const freeRooms = roomsWithEffectiveStatus.filter(r => 
+    r.status === 'Libre' || 
+    r.status === 'Nettoyage' || 
+    r.status === 'A_NETTOYER' || 
+    r.status === 'PENDING_CLEANING'
+  ).length;
+  const occupiedRooms = roomsWithEffectiveStatus.filter(r => 
+    r.status === 'Occupé' || 
+    r.status === 'Maintenance' || 
+    r.status === 'MAINTENANCE' ||
+    r.status === 'PENDING_CHECKOUT'
+  ).length;
   const bookedRooms = roomsWithEffectiveStatus.filter(r => r.status === 'BOOKED').length;
   const totalRooms = roomsWithEffectiveStatus.length;
 
