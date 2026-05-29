@@ -334,9 +334,12 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              {field.value
-                                ? tenants.find((tenant) => tenant.id === field.value)?.prenom + ' ' + tenants.find((tenant) => tenant.id === field.value)?.nom
-                                : "Rechercher un locataire..."}
+                              {(() => {
+                                if (!field.value) return "Rechercher un locataire...";
+                                const tenant = tenants.find((t) => t.id === field.value);
+                                if (tenant) return `${tenant.prenom} ${tenant.nom}`;
+                                return "Chargement...";
+                              })()}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </FormControl>
@@ -581,7 +584,12 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
           </Form>
         </DialogContent>
       </Dialog>
-      <CreateTenantDialog open={isCreatingTenant} onOpenChange={setIsCreatingTenant} onTenantCreated={handleTenantCreated} />
+      <CreateTenantDialog 
+        open={isCreatingTenant} 
+        onOpenChange={setIsCreatingTenant} 
+        onTenantCreated={handleTenantCreated}
+        locationId={selectedRoom?.location_id}
+      />
     </>
   );
 }

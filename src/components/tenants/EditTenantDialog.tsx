@@ -1,13 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateTenant } from '@/hooks/useTenants';
-import { useAuth } from '@/hooks/useAuth';
-import { useLocationFilter } from '@/context/LocationFilterContext';
+import { useUpdateTenant, Tenant } from '@/hooks/useTenants';
 import { tenantSchema, TenantFormData } from '@/lib/validationSchemas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
@@ -26,65 +23,60 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Tenant } from '@/hooks/useTenants';
 
 interface Props {
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  onTenantCreated?: (tenant: Tenant) => void;
+  tenant: Tenant;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   trigger?: React.ReactNode;
-  locationId?: string;
 }
 
-export function CreateTenantDialog({ open: externalOpen, onOpenChange: externalOnOpenChange, onTenantCreated, trigger, locationId }: Props) {
-  const [internalOpen, setInternalOpen] = useState(false);
-  const { selectedLocationId } = useLocationFilter();
-  
-  const open = externalOpen !== undefined ? externalOpen : internalOpen;
-  const onOpenChange = (newOpen: boolean) => {
-    if (externalOnOpenChange) {
-      externalOnOpenChange(newOpen);
-    } else {
-      setInternalOpen(newOpen);
-    }
-  };
-
-  const { profile } = useAuth();
-  const createTenant = useCreateTenant();
+export function EditTenantDialog({ tenant, open, onOpenChange, trigger }: Props) {
+  const updateTenant = useUpdateTenant();
 
   const form = useForm<TenantFormData>({
     resolver: zodResolver(tenantSchema),
     defaultValues: {
-      nom: '',
-      prenom: '',
-      email: '',
-      telephone: '',
-      id_document: '',
+      nom: tenant.nom,
+      prenom: tenant.prenom,
+      email: tenant.email || '',
+      telephone: tenant.telephone || '',
+      id_document: tenant.id_document || '',
+      notes: tenant.notes || '',
+      liste_noire: tenant.liste_noire,
     },
   });
 
+  // Update form values when tenant changes
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        nom: tenant.nom,
+        prenom: tenant.prenom,
+        email: tenant.email || '',
+        telephone: tenant.telephone || '',
+        id_document: tenant.id_document || '',
+        notes: tenant.notes || '',
+        liste_noire: tenant.liste_noire,
+      });
+    }
+  }, [tenant, open, form]);
+
   const onSubmit = async (data: TenantFormData) => {
     try {
-
-      const newTenant = await createTenant.mutateAsync({
+      await updateTenant.mutateAsync({
+        id: tenant.id,
         nom: data.nom,
         prenom: data.prenom,
         email: data.email || null,
-        telephone: data.telephone || '', // Ensure not null for DB constraint
+        telephone: data.telephone || '',
         id_document: data.id_document || null,
-        notes: null,
-        liste_noire: false,
-        location_id: locationId || selectedLocationId || profile?.location_id,
+        notes: data.notes || null,
+        liste_noire: data.liste_noire,
       });
-
-      if (newTenant && typeof onTenantCreated === 'function') {
-        onTenantCreated(newTenant);
-      }
-      form.reset();
       onOpenChange(false);
     } catch (error) {
-      console.error("Tenant creation failed:", error);
-      // Toast is likely handled in mutation hook onError, checking implementation would confirm
+      console.error("Tenant update failed:", error);
     }
   };
 
@@ -93,9 +85,9 @@ export function CreateTenantDialog({ open: externalOpen, onOpenChange: externalO
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Nouveau locataire</DialogTitle>
+          <DialogTitle>Modifier le locataire</DialogTitle>
           <DialogDescription>
-            Enregistrez les informations personnelles du nouveau client.
+            Mettez à jour les informations de {tenant.prenom} {tenant.nom}.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -108,7 +100,7 @@ export function CreateTenantDialog({ open: externalOpen, onOpenChange: externalO
                   <FormItem>
                     <FormLabel>Prénom *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Jean" {...field} />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -121,7 +113,7 @@ export function CreateTenantDialog({ open: externalOpen, onOpenChange: externalO
                   <FormItem>
                     <FormLabel>Nom *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Dupont" {...field} />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -136,7 +128,21 @@ export function CreateTenantDialog({ open: externalOpen, onOpenChange: externalO
                 <FormItem>
                   <FormLabel>Téléphone</FormLabel>
                   <FormControl>
-                    <Input placeholder="+33 6 12 34 56 78" {...field} />
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -150,20 +156,40 @@ export function CreateTenantDialog({ open: externalOpen, onOpenChange: externalO
                 <FormItem>
                   <FormLabel>Pièce d'identité</FormLabel>
                   <FormControl>
-                    <Input placeholder="CNI-123456 ou PASSPORT-789012" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="liste_noire"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Liste noire</FormLabel>
+                    <FormDescription>
+                      Empêcher ce client de faire de nouvelles réservations.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
 
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Annuler
               </Button>
-              <Button type="submit" disabled={createTenant.isPending}>
-                {createTenant.isPending ? 'Création...' : 'Créer le locataire'}
+              <Button type="submit" disabled={updateTenant.isPending}>
+                {updateTenant.isPending ? 'Enregistrement...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </form>

@@ -2,9 +2,12 @@ import { useState, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Input } from '@/components/ui/input';
 import { CreateTenantDialog } from '@/components/tenants/CreateTenantDialog';
+import { EditTenantDialog } from '@/components/tenants/EditTenantDialog';
 import { TenantBookingsDialog } from '@/components/tenants/TenantBookingsDialog';
-import { Search, Mail, Phone, Calendar, Filter, Plus, Eye, History } from 'lucide-react';
-import { useTenants } from '@/hooks/useTenants';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Search, Mail, Phone, Calendar, Filter, Plus, Eye, History, MoreVertical, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { useTenants, useDeleteTenant, Tenant } from '@/hooks/useTenants';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -14,6 +17,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useLocations } from '@/hooks/useLocations';
@@ -24,10 +44,14 @@ const Tenants = () => {
   const { selectedLocationId } = useLocationFilter();
   const { data: locations } = useLocations();
   const { data: tenants = [], isLoading } = useTenants();
+  const deleteTenant = useDeleteTenant();
 
   const [search, setSearch] = useState('');
   const [blacklistFilter, setBlacklistFilter] = useState('all');
-  const [selectedTenant, setSelectedTenant] = useState<{ id: string; name: string } | null>(null);
+  const [selectedTenantForBookings, setSelectedTenantForBookings] = useState<{ id: string; name: string } | null>(null);
+  const [tenantToEdit, setTenantToEdit] = useState<Tenant | null>(null);
+  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
+  const [deleteRelatedData, setDeleteRelatedData] = useState(false);
 
   const filteredTenants = useMemo(() => {
     return tenants.filter(tenant => {
@@ -65,6 +89,14 @@ const Tenants = () => {
     }
     return countText;
   }, [role, profile, filteredTenants.length, selectedLocationId, locations]);
+
+  const handleDeleteConfirm = async () => {
+    if (tenantToDelete) {
+      await deleteTenant.mutateAsync({ id: tenantToDelete.id, deleteData: deleteRelatedData });
+      setTenantToDelete(null);
+      setDeleteRelatedData(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -129,11 +161,41 @@ const Tenants = () => {
                   key={tenant.id}
                   className="rounded-xl border bg-card p-5 shadow-soft hover:shadow-medium transition-all cursor-pointer animate-fade-in group relative"
                   style={{ animationDelay: `${index * 50}ms` }}
-                  onClick={() => setSelectedTenant({ id: tenant.id, name: `${tenant.prenom} ${tenant.nom}` })}
+                  onClick={() => setSelectedTenantForBookings({ id: tenant.id, name: `${tenant.prenom} ${tenant.nom}` })}
                 >
-                  <div className="absolute top-4 right-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                    <History className="h-5 w-5" />
+                  <div className="absolute top-4 right-4 flex items-center gap-2">
+                    {(role === 'ADMIN' || role === 'AGENT_RES') && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            setTenantToEdit(tenant);
+                          }}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setTenantToDelete(tenant);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Supprimer
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                    <History className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
+                  
                   <div className="flex items-start gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-lg">
                       {tenant.prenom.charAt(0)}{tenant.nom.charAt(0)}
@@ -183,7 +245,7 @@ const Tenants = () => {
                         className="h-8 gap-1.5 text-primary hover:text-primary hover:bg-primary/10"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedTenant({ id: tenant.id, name: `${tenant.prenom} ${tenant.nom}` });
+                          setSelectedTenantForBookings({ id: tenant.id, name: `${tenant.prenom} ${tenant.nom}` });
                         }}
                       >
                         <History className="h-3.5 w-3.5" />
@@ -197,14 +259,64 @@ const Tenants = () => {
           </div>
         )}
       </div>
-      {selectedTenant && (
+
+      {selectedTenantForBookings && (
         <TenantBookingsDialog
-          tenantId={selectedTenant.id}
-          tenantName={selectedTenant.name}
-          open={!!selectedTenant}
-          onOpenChange={(open) => !open && setSelectedTenant(null)}
+          tenantId={selectedTenantForBookings.id}
+          tenantName={selectedTenantForBookings.name}
+          open={!!selectedTenantForBookings}
+          onOpenChange={(open) => !open && setSelectedTenantForBookings(null)}
         />
       )}
+
+      {tenantToEdit && (
+        <EditTenantDialog
+          tenant={tenantToEdit}
+          open={!!tenantToEdit}
+          onOpenChange={(open) => !open && setTenantToEdit(null)}
+        />
+      )}
+
+      <AlertDialog open={!!tenantToDelete} onOpenChange={(open) => {
+        if (!open) {
+          setTenantToDelete(null);
+          setDeleteRelatedData(false);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Supprimer le locataire ?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                Êtes-vous sûr de vouloir supprimer <strong>{tenantToDelete?.prenom} {tenantToDelete?.nom}</strong> ? 
+              </p>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="deleteRelatedData" 
+                  checked={deleteRelatedData}
+                  onCheckedChange={(checked) => setDeleteRelatedData(checked === true)}
+                />
+                <Label htmlFor="deleteRelatedData">Supprimer aussi ses réservations et factures</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Si cette option est décochée, les réservations et factures deviendront orphelines (non liées à un locataire).
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 };

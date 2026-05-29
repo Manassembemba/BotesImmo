@@ -19,7 +19,7 @@ export interface Tenant {
 }
 
 export function useTenants() {
-  const { selectedLocationId, userLocationId } = useLocationFilter();
+  const { selectedLocationId } = useLocationFilter();
 
   return useQuery({
     queryKey: ['tenants', selectedLocationId],
@@ -31,7 +31,7 @@ export function useTenants() {
       if (error) {
         console.error("Error fetching tenants with stats:", error);
         throw error;
-      };
+      }
       return data as Tenant[];
     },
   });
@@ -81,6 +81,51 @@ export function useUpdateTenant() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tenants'] });
       toast({ title: 'Locataire mis à jour', description: 'Les modifications ont été enregistrées' });
+    },
+    onError: (error) => {
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+    },
+  });
+}
+
+export function useDeleteTenant() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, deleteData = false }: { id: string, deleteData?: boolean }) => {
+      if (deleteData) {
+        // Manually delete related data if requested
+        // Since we changed DB to SET NULL, we must delete bookings/invoices first if we want them gone
+        const { error: bookingsError } = await supabase
+          .from('bookings')
+          .delete()
+          .eq('tenant_id', id);
+        
+        if (bookingsError) throw bookingsError;
+
+        const { error: invoicesError } = await supabase
+          .from('invoices')
+          .delete()
+          .eq('tenant_id', id);
+          
+        if (invoicesError) throw invoicesError;
+      }
+
+      const { error } = await supabase
+        .from('tenants')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
+      // Also invalidate bookings and invoices as they might have changed
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      toast({ title: 'Locataire supprimé', description: 'Le locataire a été supprimé avec succès' });
     },
     onError: (error) => {
       toast({ variant: 'destructive', title: 'Erreur', description: error.message });
