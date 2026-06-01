@@ -341,8 +341,8 @@ export default function SyncDashboard() {
                     </TableHeader>
                     <TableBody>
                       {roomsNeedingAttention && roomsNeedingAttention.length > 0 ? (
-                        roomsNeedingAttention.map((room) => (
-                          <TableRow key={room.room_id}>
+                        roomsNeedingAttention.map((room, idx) => (
+                          <TableRow key={`${room.room_id}-${room.current_booking_id || idx}`}>
                             <TableCell className="font-bold">{room.room_number}</TableCell>
                             <TableCell>{getStatusBadge(room.current_status)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">

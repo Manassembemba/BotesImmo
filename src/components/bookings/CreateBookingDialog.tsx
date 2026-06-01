@@ -158,16 +158,6 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   }, [dateDebut, dateFin, nights]);
 
   useEffect(() => {
-    const startDate = new Date(dateDebut);
-    if (isValid(startDate) && nights > 0) {
-      const calculatedEndDate = format(addDays(startDate, nights), 'yyyy-MM-dd');
-      if (dateFin !== calculatedEndDate) {
-        setValue('date_fin_prevue', calculatedEndDate, { shouldValidate: true });
-      }
-    }
-  }, [nights, dateDebut, dateFin, setValue]);
-
-  useEffect(() => {
     if (selectedRoom && nights > 0) {
       const calculatedPrice = nights * selectedRoom.prix_base_nuit;
       const totalDiscount = nights * (discountAmount || 0);
@@ -179,11 +169,13 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     }
   }, [nights, selectedRoom, discountAmount, setValue, prixTotal]);
 
+  const initialPayment = watch('initial_payment');
+
   useEffect(() => {
-    if (isImmediate && prixTotal > 0) {
+    if (isImmediate && prixTotal > 0 && initialPayment !== prixTotal) {
       setValue('initial_payment', prixTotal);
     }
-  }, [isImmediate, prixTotal, setValue]);
+  }, [isImmediate, prixTotal, setValue, initialPayment]);
 
   const [conflictingBooking, setConflictingBooking] = useState<{ tenant_name: string; date_debut_prevue: string; date_fin_prevue: string } | null>(null);
   const [bypassConflict, setBypassConflict] = useState(false);
@@ -406,7 +398,15 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                         min="1"
                         value={nights}
                         className="h-11 text-center font-bold border-slate-200"
-                        onChange={(e) => setNights(Math.max(1, parseInt(e.target.value) || 1))}
+                        onChange={(e) => {
+                          const newNights = Math.max(1, parseInt(e.target.value) || 1);
+                          setNights(newNights);
+                          const startDate = new Date(dateDebut);
+                          if (isValid(startDate)) {
+                            const newEndDate = format(addDays(startDate, newNights), 'yyyy-MM-dd');
+                            setValue('date_fin_prevue', newEndDate, { shouldValidate: true });
+                          }
+                        }}
                       />
                     </FormControl>
                   </FormItem>
