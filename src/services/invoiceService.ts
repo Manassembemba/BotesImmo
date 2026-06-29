@@ -25,7 +25,7 @@ export const calculateInvoiceItems = (booking: Booking, room: Room): InvoiceLine
 
   if (nights > 0) {
     items.push({
-      description: `Location ${room.type} - ${nights} nuits du ${format(startDate, 'dd/MM/yyyy')} au ${format(endDate, 'dd/MM/yyyy')}`,
+      description: `Location ${room.type} ${room.numero} - ${nights} nuits du ${format(startDate, 'dd/MM/yyyy')} au ${format(endDate, 'dd/MM/yyyy')}`,
       quantity: nights,
       unit_price: room.prix_base_nuit // Utiliser directement le prix de base de la chambre
     });

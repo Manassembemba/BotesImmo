@@ -73,6 +73,7 @@ export const generateInvoiceHTML = (
             <table class="date-table-thermal">
                 <tr><td>ARRIVÉE</td><td>${startDate}</td><td>${startTime}</td></tr>
                 <tr><td>SORTIE</td><td>${endDate}</td><td>${endTime}</td></tr>
+                <tr><td colspan="3">CHAMBRE: ${invoice.room_number} (${invoice.room_type})</td></tr>
             </table>
             <table class="items-table-thermal">
                 <thead><tr><th>DESC</th><th>P.U</th><th>Nuits</th><th>TOTAL</th></tr></thead>
