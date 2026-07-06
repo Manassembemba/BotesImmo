@@ -191,6 +191,28 @@ const Dashboard = () => {
     return "Gérez efficacement votre établissement.";
   }, [role, profile, selectedLocationId, locations]);
 
+  // Calcul des revenus par localité pour aujourd'hui
+  const revenueByLocationToday = useMemo(() => {
+    if (!payments || !locations) return [];
+
+    const revenueMap: { [key: string]: { name: string; usd: number; cdf: number } } = {};
+
+    locations.forEach(loc => {
+      revenueMap[loc.id] = { name: loc.nom, usd: 0, cdf: 0 };
+    });
+
+    const todayPayments = payments.filter(p => isToday(new Date(p.date_paiement)));
+
+    todayPayments.forEach(p => {
+      if (p.location_id && revenueMap[p.location_id]) {
+        revenueMap[p.location_id].usd += p.montant_usd || 0;
+        revenueMap[p.location_id].cdf += p.montant_cdf || 0;
+      }
+    });
+
+    return Object.values(revenueMap).filter(loc => loc.usd > 0 || loc.cdf > 0);
+  }, [payments, locations]);
+
   if (roomsLoading || bookingsLoading || paymentsLoading) {
     return (
       <MainLayout
@@ -290,6 +312,29 @@ const Dashboard = () => {
           <div className="text-xs text-muted-foreground">À libérer aujourd'hui</div>
         </div>
       </div>
+
+      {/* Revenus par localité */}
+      {role === 'ADMIN' && (
+      <div className="mb-6 sm:mb-8">
+        <h2 className="text-base sm:text-lg font-bold text-foreground mb-2 sm:mb-4 flex items-center gap-2">
+          <DollarSign className="h-4 sm:h-5 w-4 sm:w-5 text-primary" />
+          Revenus du Jour par Localité
+        </h2>
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          {revenueByLocationToday.length > 0 ? revenueByLocationToday.map(loc => (
+            <div key={loc.name} className="bg-card rounded-lg border border-border p-3 sm:p-4 transition-all hover:shadow-lg">
+              <div className="text-xs sm:text-sm text-muted-foreground mb-1 font-semibold">{loc.name}</div>
+              <div className="flex flex-col gap-1">
+                <div className="font-bold text-foreground text-lg sm:text-xl">{loc.usd.toFixed(2)} $</div>
+                <div className="text-sm text-muted-foreground">{loc.cdf.toLocaleString('fr-FR')} FC</div>
+              </div>
+            </div>
+          )) : (
+            <p className="text-muted-foreground text-sm col-span-full">Aucun revenu enregistré aujourd'hui pour les localités.</p>
+          )}
+        </div>
+      </div>
+      )}
 
       {/* Today's Events - Priority View */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mb-6 sm:mb-8">
