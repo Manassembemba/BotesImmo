@@ -7,6 +7,8 @@ import { useAllPayments } from '@/hooks/usePayments';
 import { formatCurrency } from '@/components/CurrencyDisplay';
 import { useAuth } from '@/hooks/useAuth';
 import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Table,
   TableBody,
@@ -108,13 +110,35 @@ const Dashboard = () => {
   const todayArrivals = bookings.filter(b => isToday(new Date(b.date_debut_prevue)) && b.status !== 'CANCELLED');
   const todayDepartures = bookings.filter(b => isToday(new Date(b.date_fin_prevue)) && b.status !== 'CANCELLED');
 
-  // Calcul des revenus réels perçus (basés sur les paiements)
-  const actualPayments = payments.filter(p => {
-    const paymentDate = new Date(p.date_paiement);
-    return isToday(paymentDate);
+  // Utilisation de la nouvelle fonction RPC pour les revenus par localité
+  const { data: revenueByLocationToday = [] } = useQuery({
+    queryKey: ['dashboard-revenue-stats', selectedLocationId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_financial_dashboard_stats', {
+        p_location_id: selectedLocationId || null
+      });
+      if (error) throw error;
+      return data || [];
+    },
   });
-  const todayRevenueUsd = actualPayments.reduce((sum, p) => sum + (p.montant_usd || 0), 0);
-  const todayRevenueCdf = actualPayments.reduce((sum, p) => sum + (p.montant_cdf || 0), 0);
+
+  // Calcul des revenus globaux basés sur les données agrégées des localités
+  const { totalRevenueUsd, totalRevenueCdf } = useMemo(() => {
+    return revenueByLocationToday.reduce((acc, loc) => ({
+      totalRevenueUsd: acc.totalRevenueUsd + Number(loc.total_usd),
+      totalRevenueCdf: acc.totalRevenueCdf + Number(loc.total_cdf),
+    }), { totalRevenueUsd: 0, totalRevenueCdf: 0 });
+  }, [revenueByLocationToday]);
+
+  // Calcul des indicateurs KPI
+  const fillRate = totalRooms > 0 ? Math.round(((occupiedRooms + bookedRooms) / totalRooms) * 100) : 0;
+  const avgRevenuePerRoom = totalRooms > 0 ? Math.round((totalRevenueUsd / totalRooms) * 100) / 100 : 0;
+
+  // Calcul des revenus mensuels
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const monthlyBookings = bookings.filter(b =>
+    format(parseISO(b.date_debut_prevue), 'yyyy-MM') === currentMonth && b.status !== 'CANCELLED'
+  );
 
   // Calcul des revenus par mois
   const monthlyData = useMemo(() => {
@@ -139,19 +163,6 @@ const Dashboard = () => {
       };
     });
   }, [bookings, payments, totalRooms]);
-
-  // Calcul des indicateurs KPI
-  const fillRate = totalRooms > 0 ? Math.round(((occupiedRooms + bookedRooms) / totalRooms) * 100) : 0;
-  const avgRevenuePerRoom = totalRooms > 0 ? Math.round((actualPayments.reduce((sum, p) => sum + p.montant, 0) / totalRooms) * 100) / 100 : 0;
-
-  // Calcul des revenus mensuels
-  const currentMonth = format(new Date(), 'yyyy-MM');
-  const monthlyBookings = bookings.filter(b =>
-    format(parseISO(b.date_debut_prevue), 'yyyy-MM') === currentMonth && b.status !== 'CANCELLED'
-  );
-  const monthlyRevenue = payments
-    .filter(p => format(parseISO(p.date_paiement), 'yyyy-MM') === currentMonth)
-    .reduce((sum, p) => sum + p.montant, 0);
 
   const recentActivities = useMemo(() => {
     const bookingActivities = bookings.slice(0, 10).map(b => ({
@@ -190,28 +201,6 @@ const Dashboard = () => {
     }
     return "Gérez efficacement votre établissement.";
   }, [role, profile, selectedLocationId, locations]);
-
-  // Calcul des revenus par localité pour aujourd'hui
-  const revenueByLocationToday = useMemo(() => {
-    if (!payments || !locations) return [];
-
-    const revenueMap: { [key: string]: { name: string; usd: number; cdf: number } } = {};
-
-    locations.forEach(loc => {
-      revenueMap[loc.id] = { name: loc.nom, usd: 0, cdf: 0 };
-    });
-
-    const todayPayments = payments.filter(p => isToday(new Date(p.date_paiement)));
-
-    todayPayments.forEach(p => {
-      if (p.location_id && revenueMap[p.location_id]) {
-        revenueMap[p.location_id].usd += p.montant_usd || 0;
-        revenueMap[p.location_id].cdf += p.montant_cdf || 0;
-      }
-    });
-
-    return Object.values(revenueMap).filter(loc => loc.usd > 0 || loc.cdf > 0);
-  }, [payments, locations]);
 
   if (roomsLoading || bookingsLoading || paymentsLoading) {
     return (
@@ -283,8 +272,8 @@ const Dashboard = () => {
           <div className="bg-card rounded-lg border border-border p-3 sm:p-4">
             <div className={cn("text-xs sm:text-sm text-muted-foreground mb-1")}>Revenus aujourd'hui</div>
             <div className="flex flex-col gap-1">
-              <div className={cn("font-bold text-foreground", "text-lg sm:text-xl")}>{todayRevenueUsd.toFixed(2)} $</div>
-              <div className="text-sm text-muted-foreground">{todayRevenueCdf.toLocaleString('fr-FR')} FC</div>
+              <div className={cn("font-bold text-foreground", "text-lg sm:text-xl")}>{totalRevenueUsd.toFixed(2)} $</div>
+              <div className="text-sm text-muted-foreground">{totalRevenueCdf.toLocaleString('fr-FR')} FC</div>
             </div>
           </div>
         )}
@@ -322,11 +311,11 @@ const Dashboard = () => {
         </h2>
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {revenueByLocationToday.length > 0 ? revenueByLocationToday.map(loc => (
-            <div key={loc.name} className="bg-card rounded-lg border border-border p-3 sm:p-4 transition-all hover:shadow-lg">
-              <div className="text-xs sm:text-sm text-muted-foreground mb-1 font-semibold">{loc.name}</div>
+            <div key={loc.location_id} className="bg-card rounded-lg border border-border p-3 sm:p-4 transition-all hover:shadow-lg">
+              <div className="text-xs sm:text-sm text-muted-foreground mb-1 font-semibold">{loc.location_name}</div>
               <div className="flex flex-col gap-1">
-                <div className="font-bold text-foreground text-lg sm:text-xl">{loc.usd.toFixed(2)} $</div>
-                <div className="text-sm text-muted-foreground">{loc.cdf.toLocaleString('fr-FR')} FC</div>
+                <div className="font-bold text-foreground text-lg sm:text-xl">{Number(loc.total_usd).toFixed(2)} $</div>
+                <div className="text-sm text-muted-foreground">{Number(loc.total_cdf).toLocaleString('fr-FR')} FC</div>
               </div>
             </div>
           )) : (

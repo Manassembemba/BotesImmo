@@ -14,6 +14,7 @@ import { EditBookingDialog } from '@/components/bookings/EditBookingDialog';
 import { CancelBookingDialog } from '@/components/bookings/CancelBookingDialog';
 import { CheckoutDecisionDialog } from '@/components/checkout/CheckoutDecisionDialog';
 import { ManagePaymentDialog } from '@/components/payments/ManagePaymentDialog';
+import { SwitchRoomModal } from '@/components/bookings/SwitchRoomModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useRooms } from '@/hooks/useRooms';
 import { useLocations } from '@/hooks/useLocations';
@@ -538,6 +539,9 @@ const Reservations = () => {
                                 {(actions.canCheckIn || actions.canCheckOut) && <DropdownMenuSeparator />}
                                 {actions.canEdit && <DropdownMenuItem onClick={() => setEditBooking(booking)}><Edit className="h-4 w-4 mr-2" />Modifier</DropdownMenuItem>}
                                 {actions.canEdit && <DropdownMenuItem onClick={() => setManagePaymentBooking(booking)}><BadgeCent className="h-4 w-4 mr-2" />Gérer les paiements</DropdownMenuItem>}
+                                {actions.canEdit && (
+                                  <SwitchRoomModal bookingId={booking.id} currentRoomId={booking.room_id} />
+                                )}
                                 {actions.canCancel && <DropdownMenuItem onClick={() => setCancelBooking(booking)} className="text-orange-600"><XCircle className="h-4 w-4 mr-2" />Annuler</DropdownMenuItem>}
                                 {actions.canDelete && role === 'ADMIN' && (<><DropdownMenuSeparator /><DropdownMenuItem onClick={() => setDeleteBookingId(booking.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem></>)}
                               </DropdownMenuContent>
@@ -547,6 +551,19 @@ const Reservations = () => {
                       </TableRow>
                     );
                   })}
+                </TableBody>
+                <TableBody>
+                  <TableRow className="bg-muted/50 font-bold">
+                    <TableCell colSpan={4} className="text-right">TOTAL PAGE</TableCell>
+                    <TableCell>
+                        <div className="space-y-1 text-xs">
+                           <div>Prévu: ${processedBookings.reduce((sum, b) => sum + Number(b.prix_total), 0).toLocaleString('fr-FR')}</div>
+                           <div>Dû: ${processedBookings.reduce((sum, b) => sum + Number(b.currentTotalDue), 0).toLocaleString('fr-FR')}</div>
+                           <div>Payé: ${processedBookings.reduce((sum, b) => sum + Number(b.totalPaid || 0), 0).toLocaleString('fr-FR')}</div>
+                        </div>
+                    </TableCell>
+                    <TableCell colSpan={4}></TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
