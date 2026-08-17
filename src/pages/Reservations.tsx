@@ -14,7 +14,7 @@ import { EditBookingDialog } from '@/components/bookings/EditBookingDialog';
 import { CancelBookingDialog } from '@/components/bookings/CancelBookingDialog';
 import { CheckoutDecisionDialog } from '@/components/checkout/CheckoutDecisionDialog';
 import { ManagePaymentDialog } from '@/components/payments/ManagePaymentDialog';
-import { SwitchRoomModal } from '@/components/bookings/SwitchRoomModal';
+import { SwitchRoomModal } from '@/components/bookings/SwitchRoomModal.tsx';
 import { useAuth } from '@/hooks/useAuth';
 import { useRooms } from '@/hooks/useRooms';
 import { useLocations } from '@/hooks/useLocations';
