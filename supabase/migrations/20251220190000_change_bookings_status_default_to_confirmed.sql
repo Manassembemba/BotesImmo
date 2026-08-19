@@ -1,0 +1,1 @@
+ALTER TABLE public.bookings ALTER COLUMN status SET DEFAULT 'CONFIRMED';

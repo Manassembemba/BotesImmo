@@ -1,0 +1,169 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+
+export interface Room {
+  id: string;
+  numero: string;
+  type: string;
+  floor: number;
+  capacite_max: number;
+  prix_base_nuit: number;
+  prix_base_semaine: number | null;
+  prix_base_mois: number | null;
+  description: string | null;
+  location_id?: string; // Référence vers la localisation
+  status: 'Libre' | 'Occupé' | 'Nettoyage' | 'Maintenance' | 'BOOKED' | 'MAINTENANCE' | 'PENDING_CLEANING' | 'PENDING_CHECKOUT';
+  created_at: string;
+  updated_at: string;
+  // Joined data from locations table
+  locations?: {
+    nom: string;
+  } | null;
+}
+
+import { useLocationFilter } from '@/context/LocationFilterContext';
+
+export function useRooms() {
+  const { selectedLocationId, userLocationId } = useLocationFilter();
+
+  return useQuery({
+    queryKey: ['rooms', selectedLocationId],
+    queryFn: async () => {
+      let query = supabase
+        .from('rooms')
+        .select('*, locations(nom)')
+        .order('numero');
+
+      // Apply location filter based on user role
+      if (selectedLocationId) {
+        query = query.eq('location_id', selectedLocationId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+      return data as Room[];
+    },
+  });
+}
+
+export function useRoom(id: string) {
+  return useQuery({
+    queryKey: ['rooms', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('rooms')
+        .select('*, locations(nom)')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data as Room | null;
+    },
+    enabled: !!id,
+  });
+}
+
+export function useCreateRoom() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (room: Omit<Room, 'id' | 'created_at' | 'updated_at'>) => {
+      const { data, error } = await supabase
+        .from('rooms')
+        .insert(room as any)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      toast({ title: 'Chambre créée', description: 'La chambre a été créée avec succès' });
+    },
+    onError: (error) => {
+      console.error("Error creating room:", error); // Added log
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+    },
+  });
+}
+
+export function useUpdateRoom() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, ...room }: Partial<Room> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('rooms')
+        .update(room as any)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      toast({ title: 'Chambre mise à jour', description: 'Les modifications ont été enregistrées' });
+    },
+    onError: (error) => {
+      console.error("Error updating room:", error); // Added log
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+    },
+  });
+}
+
+export function useUpdateRoomStatus() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: Room['status'] }) => {
+      const { data, error } = await supabase
+        .from('rooms')
+        .update({ status: status as any })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+    },
+    onError: (error) => {
+      console.error("Error updating room status:", error); // Added log
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+    },
+  });
+}
+
+export function useDeleteRoom() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('rooms')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rooms'] });
+      toast({ title: 'Appartement supprimé', description: "L'appartement a été supprimé avec succès." });
+    },
+    onError: (error) => {
+      console.error("Error deleting room:", error); // Added log
+      toast({ variant: 'destructive', title: 'Erreur', description: error.message });
+    },
+  });
+}

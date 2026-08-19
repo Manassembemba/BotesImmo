@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 20% 96%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 207 90% 54%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 207 90% 94%;
+    --accent-foreground: 207 90% 40%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 207 90% 54%;
+
+    --radius: 0.5rem;
+
+    /* Status colors - matching template */
+    --status-available: 142 71% 45%;
+    --status-available-bg: 142 71% 93%;
+    --status-occupied: 207 90% 54%;
+    --status-occupied-bg: 207 90% 93%;
+    --status-pending-checkout: 38 92% 50%;
+    --status-pending-checkout-bg: 38 92% 93%;
+    --status-pending-cleaning: 271 81% 56%;
+    --status-pending-cleaning-bg: 271 81% 93%;
+    --status-out-of-service: 0 0% 45%;
+    --status-out-of-service-bg: 0 0% 93%;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 207 90% 54%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 207 90% 94%;
+    --sidebar-accent-foreground: 207 90% 40%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 207 90% 54%;
+
+    /* Header gradient */
+    --header-gradient: linear-gradient(135deg, hsl(207 90% 35%) 0%, hsl(207 90% 25%) 100%);
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 207 90% 60%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 32% 17%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 32% 20%;
+    --accent-foreground: 207 90% 70%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217 32% 20%;
+    --input: 217 32% 20%;
+    --ring: 207 90% 60%;
+
+    --status-available: 142 71% 50%;
+    --status-available-bg: 142 71% 15%;
+    --status-occupied: 207 90% 60%;
+    --status-occupied-bg: 207 90% 15%;
+    --status-pending-checkout: 38 92% 55%;
+    --status-pending-checkout-bg: 38 92% 15%;
+    --status-pending-cleaning: 271 81% 60%;
+    --status-pending-cleaning-bg: 271 81% 15%;
+    --status-out-of-service: 0 0% 55%;
+    --status-out-of-service-bg: 0 0% 20%;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 207 90% 60%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 217 32% 20%;
+    --sidebar-accent-foreground: 207 90% 70%;
+    --sidebar-border: 217 32% 20%;
+    --sidebar-ring: 207 90% 60%;
+
+    --header-gradient: linear-gradient(135deg, hsl(207 90% 25%) 0%, hsl(207 90% 15%) 100%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .status-available {
+    @apply bg-[hsl(var(--status-available))] text-white;
+  }
+
+  .status-occupied {
+    @apply bg-[hsl(var(--status-occupied))] text-white;
+  }
+
+  .status-pending-checkout {
+    @apply bg-[hsl(var(--status-pending-checkout))] text-white;
+  }
+
+  .status-pending-cleaning {
+    @apply bg-[hsl(var(--status-pending-cleaning))] text-white;
+  }
+
+  .status-out-of-service {
+    @apply bg-[hsl(var(--status-out-of-service))] text-white;
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .shadow-medium {
+    box-shadow: var(--shadow-md);
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
