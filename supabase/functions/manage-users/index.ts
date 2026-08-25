@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
             }
 
             case 'UPDATE': {
-                const { userId, role, nom, prenom, location_id, username } = payload;
+                const { userId, role, nom, prenom, location_id, username, password } = payload;
 
                 if (role !== 'ADMIN' && !location_id) {
                     throw new Error("Une localité est requise pour les rôles non-administrateurs.");
@@ -154,6 +154,18 @@ Deno.serve(async (req) => {
                 if (updateError) {
                     console.error('Insert Role Error:', updateError);
                     throw updateError;
+                }
+
+                // 3. Update password if provided
+                if (password && password.trim().length >= 6) {
+                    console.log(`Updating password for user ${userId}...`);
+                    const { error: pwdError } = await adminClient.auth.admin.updateUserById(userId, {
+                        password: password.trim()
+                    });
+                    if (pwdError) {
+                        console.error('Password Update Error:', pwdError);
+                        throw pwdError;
+                    }
                 }
 
                 console.log(`User ${userId} updated successfully.`);

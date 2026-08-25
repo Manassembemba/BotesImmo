@@ -20,6 +20,7 @@ export type UserUpdatePayload = {
   prenom: string;
   username: string;
   location_id?: string | null;
+  password?: string;
 };
 
 export function useManageUser() {

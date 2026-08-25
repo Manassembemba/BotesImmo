@@ -450,7 +450,41 @@ const Reservations = () => {
                           </div>
                         </TableCell>
                         <TableCell><p className="font-semibold">{booking.tenants?.prenom} {booking.tenants?.nom?.toUpperCase()}</p><p className="text-xs text-muted-foreground">{booking.tenants?.telephone}</p></TableCell>
-                        <TableCell><p className="font-medium">App. {booking.rooms?.numero}</p><p className="text-sm text-muted-foreground">{booking.rooms?.type}</p></TableCell>
+                        <TableCell>
+                          <p className="font-semibold">App. {booking.rooms?.numero}</p>
+                          <p className="text-xs text-muted-foreground">{booking.rooms?.type}</p>
+                          {(() => {
+                            const room = rooms.find(r => r.id === booking.room_id);
+                            const roomStatus = room?.status;
+                            const isOccupied = roomStatus === 'Occupé' || (roomStatus as string) === 'OCCUPIED' || booking.status === 'IN_PROGRESS';
+
+                            let label = 'Disponible';
+                            let className = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+                            if (roomStatus === 'Maintenance' || (roomStatus as string) === 'MAINTENANCE') {
+                              label = 'En maintenance';
+                              className = 'bg-red-50 text-red-700 border-red-200';
+                            } else if (isOccupied) {
+                              label = 'Occupé';
+                              className = 'bg-blue-50 text-blue-700 border-blue-200';
+                            } else if (roomStatus === 'PENDING_CLEANING' || roomStatus === 'Nettoyage' || roomStatus === 'A_NETTOYER') {
+                              label = 'À nettoyer';
+                              className = 'bg-amber-50 text-amber-700 border-amber-200';
+                            } else if (roomStatus === 'PENDING_CHECKOUT') {
+                              label = 'Départ imminent';
+                              className = 'bg-orange-50 text-orange-700 border-orange-200';
+                            } else if (roomStatus === 'BOOKED') {
+                              label = 'Réservé';
+                              className = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                            }
+
+                            return (
+                              <span className={cn("inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border mt-1", className)}>
+                                {label}
+                              </span>
+                            );
+                          })()}
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <span className={statusConfig.className}>{statusConfig.label}</span>

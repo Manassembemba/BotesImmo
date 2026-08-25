@@ -107,6 +107,21 @@ const Dashboard = () => {
   const todayRevenueUsd = actualPayments.reduce((sum, p) => sum + (p.montant_usd || 0), 0);
   const todayRevenueCdf = actualPayments.reduce((sum, p) => sum + (p.montant_cdf || 0), 0);
 
+  // Calcul des revenus du jour groupés par localité (pour l'ADMIN)
+  const revenueByLocation = useMemo(() => {
+    if (!locations) return [];
+    return locations.map(location => {
+      const locationPayments = actualPayments.filter(p => p.location_id === location.id);
+      return {
+        location_id: location.id,
+        nom: location.nom,
+        usd: locationPayments.reduce((sum, p) => sum + (p.montant_usd || 0), 0),
+        cdf: locationPayments.reduce((sum, p) => sum + (p.montant_cdf || 0), 0),
+        count: locationPayments.length,
+      };
+    });
+  }, [actualPayments, locations]);
+
   // Calcul des revenus par mois
   const monthlyData = useMemo(() => {
     const today = new Date();
@@ -250,7 +265,7 @@ const Dashboard = () => {
         {/* Revenus du jour */}
         {role === 'ADMIN' && (
           <div className="bg-card rounded-lg border border-border p-3 sm:p-4">
-            <div className={cn("text-xs sm:text-sm text-muted-foreground mb-1")}>Revenus aujourd'hui</div>
+            <div className={cn("text-xs sm:text-sm text-muted-foreground mb-1")}>Revenus aujourd'hui (Total)</div>
             <div className="flex flex-col gap-1">
               <div className={cn("font-bold text-foreground", "text-lg sm:text-xl")}>{todayRevenueUsd.toFixed(2)} $</div>
               <div className="text-sm text-muted-foreground">{todayRevenueCdf.toLocaleString('fr-FR')} FC</div>
@@ -281,6 +296,76 @@ const Dashboard = () => {
           <div className="text-xs text-muted-foreground">À libérer aujourd'hui</div>
         </div>
       </div>
+
+      {/* Revenus du Jour par Localité — Section Admin uniquement */}
+      {role === 'ADMIN' && (
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <DollarSign className="h-4 w-4 text-emerald-600" />
+            <h2 className="text-sm sm:text-base font-bold text-foreground">
+              Revenus du Jour par Localité
+            </h2>
+            <span className="text-xs text-muted-foreground font-normal ml-1">
+              — {format(new Date(), 'EEEE d MMMM yyyy', { locale: fr })}
+            </span>
+          </div>
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
+            {revenueByLocation.map((loc) => {
+              const hasRevenue = loc.usd > 0 || loc.cdf > 0;
+              return (
+                <div
+                  key={loc.location_id}
+                  className={cn(
+                    "rounded-xl border p-4 transition-all",
+                    hasRevenue
+                      ? "bg-emerald-50 border-emerald-200 shadow-sm shadow-emerald-100"
+                      : "bg-slate-50 border-slate-200"
+                  )}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
+                        hasRevenue ? "bg-emerald-200 text-emerald-800" : "bg-slate-200 text-slate-500"
+                      )}>
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <span className={cn(
+                        "text-sm font-bold tracking-wide uppercase",
+                        hasRevenue ? "text-emerald-900" : "text-slate-600"
+                      )}>
+                        {loc.nom}
+                      </span>
+                    </div>
+                    {loc.count > 0 && (
+                      <span className="text-[10px] font-semibold bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full">
+                        {loc.count} paiement{loc.count > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 space-y-0.5 pl-1">
+                    <div className={cn(
+                      "text-xl font-extrabold",
+                      hasRevenue ? "text-emerald-700" : "text-slate-400"
+                    )}>
+                      {loc.usd.toFixed(2)} $
+                    </div>
+                    <div className={cn(
+                      "text-sm font-semibold",
+                      hasRevenue ? "text-emerald-600" : "text-slate-400"
+                    )}>
+                      {loc.cdf.toLocaleString('fr-FR')} FC
+                    </div>
+                    {!hasRevenue && (
+                      <div className="text-[10px] text-slate-400 italic mt-1">Aucun encaissement aujourd'hui</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Today's Events - Priority View */}
       <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mb-6 sm:mb-8">

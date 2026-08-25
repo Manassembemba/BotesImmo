@@ -24,6 +24,7 @@ import RevenueReport from "./pages/reports/RevenueReport";
 import OccupancyReport from "./pages/reports/OccupancyReport";
 import SyncDashboard from "./pages/SyncDashboard";
 import NotFound from "./pages/NotFound";
+import Users from "./pages/Users";
 // Import new accounting components
 import GeneralLedger from "./components/accounting/GeneralLedger";
 
@@ -47,6 +48,7 @@ const App = () => (
                 <Route path="/tenants" element={<ProtectedRoute><Tenants /></ProtectedRoute>} />
                 <Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
                 <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+                <Route path="/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><Users /></ProtectedRoute>} />
                 <Route path="/reports" element={<ProtectedRoute allowedRoles={['ADMIN']}><Reports /></ProtectedRoute>} />
                 <Route path="/reports/revenue" element={<ProtectedRoute allowedRoles={['ADMIN']}><RevenueReport /></ProtectedRoute>} />
                 <Route path="/reports/occupancy" element={<ProtectedRoute allowedRoles={['ADMIN']}><OccupancyReport /></ProtectedRoute>} />

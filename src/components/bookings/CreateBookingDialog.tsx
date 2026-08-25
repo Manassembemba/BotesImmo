@@ -302,23 +302,68 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4 max-h-[75vh] overflow-y-auto pr-6 scrollbar-thin">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-                <FormField control={form.control} name="room_id" render={({ field }) => (<FormItem><FormLabel>Chambre</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionner une chambre" /></SelectTrigger></FormControl><SelectContent>{bookableRooms.map(room => (
-                  <SelectItem key={room.id} value={room.id} className="flex justify-between items-center w-full">
-                    <span>Ch. {room.numero} - {room.type} ({room.prix_base_nuit}$/nuit)</span>
-                    {(() => {
-                      const currentActiveBooking = activeBookingsByRoomId.get(room.id);
-                      const endDate = currentActiveBooking ? format(new Date(currentActiveBooking.date_fin_prevue), 'dd/MM') : '';
-                      if (currentActiveBooking || room.status === 'Occupé') {
-                        return (
-                          <Badge variant="secondary" className="ml-2 text-[10px] h-5">
-                            Occupé {endDate && `jusqu'au ${endDate}`}
-                          </Badge>
-                        );
-                      }
-                      return null;
-                    })()}
-                  </SelectItem>
-                ))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                <FormField
+                  control={form.control}
+                  name="room_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="font-bold text-slate-700">Appartement / Chambre</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="bg-white">
+                            <SelectValue placeholder="Sélectionner une chambre" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-64">
+                          {bookableRooms.map(room => {
+                            const currentActiveBooking = activeBookingsByRoomId.get(room.id);
+                            const isOccupied = room.status === 'Occupé' || (room.status as string) === 'OCCUPIED' || !!currentActiveBooking;
+                            let statusLabel = 'Disponible';
+                            let statusClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+
+                            if (isOccupied) {
+                              const endDate = currentActiveBooking ? format(new Date(currentActiveBooking.date_fin_prevue), 'dd/MM') : '';
+                              statusLabel = endDate ? `Occupé (${endDate})` : 'Occupé';
+                              statusClass = 'bg-blue-50 text-blue-700 border-blue-200';
+                            } else if (room.status === 'Maintenance' || (room.status as string) === 'MAINTENANCE') {
+                              statusLabel = 'En maintenance';
+                              statusClass = 'bg-red-50 text-red-700 border-red-200';
+                            } else if (room.status === 'PENDING_CHECKOUT') {
+                              statusLabel = 'Départ imminent';
+                              statusClass = 'bg-orange-50 text-orange-700 border-orange-200';
+                            } else if (room.status === 'BOOKED') {
+                              statusLabel = 'Réservé';
+                              statusClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
+                            } else if (room.status === 'PENDING_CLEANING' || room.status === 'Nettoyage' || room.status === 'A_NETTOYER') {
+                              statusLabel = 'À nettoyer';
+                              statusClass = 'bg-amber-50 text-amber-700 border-amber-200';
+                            }
+
+                            return (
+                              <SelectItem key={room.id} value={room.id}>
+                                <div className="flex items-center justify-between w-full gap-3 py-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-900">App. {room.numero}</span>
+                                    <span className="text-muted-foreground text-xs font-normal">
+                                      ({room.type} • {room.prix_base_nuit}$/n)
+                                    </span>
+                                  </div>
+                                  <Badge
+                                    variant="outline"
+                                    className={cn("text-[10px] h-5 font-semibold px-2 border", statusClass)}
+                                  >
+                                    {statusLabel}
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField control={form.control} name="tenant_id" render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Locataire</FormLabel>

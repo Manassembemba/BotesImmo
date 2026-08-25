@@ -1,0 +1,189 @@
+﻿src/components/accounting/AccountingFilters.tsx(273,17): error TS2322: Type '{ start: Date; end: Date; }' is not assignable to type 'Matcher | Matcher[]'.
+src/components/accounting/AccountManagement.tsx(8,25): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/components/accounting/BalanceSheet.tsx(9,30): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/components/accounting/BalanceSheet.tsx(58,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/BalanceSheet.tsx(69,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/BalanceSheet.tsx(80,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/BalanceSheet.tsx(183,56): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
+src/components/accounting/CashFlowStatement.tsx(9,35): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/components/accounting/CashFlowStatement.tsx(60,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/CashFlowStatement.tsx(73,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/CashFlowStatement.tsx(86,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/CashFlowStatement.tsx(176,61): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
+src/components/accounting/FinancialRatiosAnalytics.tsx(9,32): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/components/accounting/FinancialRatiosAnalytics.tsx(118,61): error TS2339: Property 'total_debits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(119,60): error TS2339: Property 'total_credits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(120,70): error TS2339: Property 'total_credits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(121,69): error TS2339: Property 'total_debits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(122,62): error TS2339: Property 'total_credits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(123,61): error TS2339: Property 'total_debits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(124,64): error TS2339: Property 'total_credits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(125,63): error TS2339: Property 'total_debits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(126,65): error TS2339: Property 'total_debits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(127,64): error TS2339: Property 'total_credits' does not exist on type 'ParserError<"Unexpected input: as total_debits,\n          sum(credit) as total_credits\n        ">'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(206,58): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
+src/components/accounting/FinancialRatiosAnalytics.tsx(285,35): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(301,45): error TS2339: Property 'length' does not exist on type 'unknown'.
+src/components/accounting/FinancialRatiosAnalytics.tsx(314,33): error TS2339: Property 'map' does not exist on type 'unknown'.
+src/components/accounting/GeneralLedger.tsx(9,45): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/components/accounting/GeneralLedger.tsx(132,9): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
+src/components/accounting/GeneralLedger.tsx(149,52): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
+src/components/accounting/JournalEntries.tsx(8,57): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/components/accounting/JournalEntries.tsx(159,37): error TS2339: Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/components/accounting/JournalEntries.tsx(170,16): error TS2698: Spread types may only be created from object types.
+src/components/accounting/JournalEntries.tsx(226,16): error TS2698: Spread types may only be created from object types.
+src/components/accounting/ProfitAndLoss.tsx(9,31): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/components/accounting/ProfitAndLoss.tsx(60,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/ProfitAndLoss.tsx(73,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/ProfitAndLoss.tsx(156,56): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
+src/components/accounting/TrialBalance.tsx(9,30): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/components/accounting/TrialBalance.tsx(59,10): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/components/accounting/TrialBalance.tsx(159,54): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
+src/components/payments/ManagePaymentDialog.tsx(75,7): error TS2322: Type 'string' is not assignable to type '"CB" | "CASH" | "TRANSFERT" | "CHEQUE"'.
+src/components/rooms/CreateRoomDialog.tsx(61,7): error TS2353: Object literal may only specify known properties, and 'equipements' does not exist in type 'AsyncDefaultValues<{ type?: "SINGLE" | "DOUBLE" | "SUITE" | "STUDIO"; description?: string; location_id?: string; capacite_max?: number; floor?: number; numero?: string; prix_base_mois?: number; prix_base_nuit?: number; prix_base_semaine?: number; }> | { ...; }'.
+src/components/rooms/CreateRoomDialog.tsx(78,7): error TS2353: Object literal may only specify known properties, and 'equipements' does not exist in type 'Omit<Room, "id" | "created_at" | "updated_at">'.
+src/components/rooms/CreateRoomDialog.tsx(78,25): error TS2339: Property 'equipements' does not exist on type '{ type?: "SINGLE" | "DOUBLE" | "SUITE" | "STUDIO"; description?: string; location_id?: string; capacite_max?: number; floor?: number; numero?: string; prix_base_mois?: number; prix_base_nuit?: number; prix_base_semaine?: number; }'.
+src/components/rooms/CreateRoomDialog.tsx(89,36): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(name: "type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine"): string | number', gave the following error.
+    Argument of type '"equipements"' is not assignable to parameter of type '"type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine"'.
+  Overload 2 of 3, '(names: readonly ("type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine")[]): (string | number)[]', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'readonly ("type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine")[]'.
+src/components/rooms/CreateRoomDialog.tsx(90,29): error TS2339: Property 'includes' does not exist on type 'string | number'.
+  Property 'includes' does not exist on type 'number'.
+src/components/rooms/CreateRoomDialog.tsx(91,17): error TS2339: Property 'filter' does not exist on type 'string | number'.
+  Property 'filter' does not exist on type 'string'.
+src/components/rooms/CreateRoomDialog.tsx(92,13): error TS2488: Type 'string | number' must have a '[Symbol.iterator]()' method that returns an iterator.
+src/components/rooms/CreateRoomDialog.tsx(93,19): error TS2345: Argument of type '"equipements"' is not assignable to parameter of type '"type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine"'.
+src/components/rooms/CreateRoomDialog.tsx(96,34): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(names: readonly ("type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine")[], defaultValue?: { type?: "SINGLE" | "DOUBLE" | "SUITE" | "STUDIO"; ... 7 more ...; prix_base_semaine?: number; }): readonly (string | number)[]', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'readonly ("type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine")[]'.
+  Overload 2 of 4, '(name: "type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine", defaultValue?: string | number): string | number', gave the following error.
+    Argument of type '"equipements"' is not assignable to parameter of type '"type" | "description" | "location_id" | "capacite_max" | "floor" | "numero" | "prix_base_mois" | "prix_base_nuit" | "prix_base_semaine"'.
+  Overload 3 of 4, '(callback: WatchObserver<{ type?: "SINGLE" | "DOUBLE" | "SUITE" | "STUDIO"; description?: string; location_id?: string; capacite_max?: number; floor?: number; numero?: string; prix_base_mois?: number; prix_base_nuit?: number; prix_base_semaine?: number; }>, defaultValues?: { ...; }): Subscription', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type 'WatchObserver<{ type?: "SINGLE" | "DOUBLE" | "SUITE" | "STUDIO"; description?: string; location_id?: string; capacite_max?: number; floor?: number; numero?: string; prix_base_mois?: number; prix_base_nuit?: number; prix_base_semaine?: number; }>'.
+src/components/rooms/EditRoomDialog.tsx(62,9): error TS2322: Type 'string' is not assignable to type '"SINGLE" | "DOUBLE" | "SUITE" | "STUDIO"'.
+src/components/rooms/EditRoomDialog.tsx(68,27): error TS2339: Property 'equipements' does not exist on type 'Room'.
+src/components/rooms/RoomBookingsHistory.tsx(77,43): error TS2339: Property 'montant_total' does not exist on type 'Booking'.
+src/components/rooms/RoomBookingsHistory.tsx(77,82): error TS2339: Property 'montant_total' does not exist on type 'Booking'.
+src/components/rooms/RoomBookingsHistory.tsx(78,30): error TS2339: Property 'montant_total' does not exist on type 'Booking'.
+src/components/rooms/RoomCard.tsx(67,16): error TS2339: Property 'equipements' does not exist on type 'Room'.
+src/components/rooms/RoomCard.tsx(75,16): error TS2339: Property 'equipements' does not exist on type 'Room'.
+src/components/rooms/RoomCard.tsx(76,66): error TS2339: Property 'equipements' does not exist on type 'Room'.
+src/components/settings/ProfileSecuritySettings.tsx(17,47): error TS2339: Property 'telephone' does not exist on type 'Profile'.
+src/components/settings/SeasonalPricesSettings.tsx(53,23): error TS2345: Argument of type '{}[]' is not assignable to parameter of type 'SetStateAction<{ created_at: string; end_date: string; fixed_price_override: number; id: string; name: string; percentage_adjustment: number; room_type: string; start_date: string; }[]>'.
+  Type '{}[]' is not assignable to type '{ created_at: string; end_date: string; fixed_price_override: number; id: string; name: string; percentage_adjustment: number; room_type: string; start_date: string; }[]'.
+    Type '{}' is missing the following properties from type '{ created_at: string; end_date: string; fixed_price_override: number; id: string; name: string; percentage_adjustment: number; room_type: string; start_date: string; }': created_at, end_date, fixed_price_override, id, and 4 more.
+src/components/tenants/CreateTenantDialog.tsx(65,25): error TS2345: Argument of type '{}' is not assignable to parameter of type 'Tenant'.
+  Type '{}' is missing the following properties from type 'Tenant': id, nom, prenom, telephone, and 6 more.
+src/data/mockData.ts(191,9): error TS2739: Type '{ Libre: string; Occupé: string; Nettoyage: string; Maintenance: string; }' is missing the following properties from type 'Record<RoomStatus, string>': BOOKED, MAINTENANCE, PENDING_CLEANING, PENDING_CHECKOUT
+src/data/mockData.ts(201,9): error TS2739: Type '{ Libre: string; Occupé: string; Nettoyage: string; Maintenance: string; }' is missing the following properties from type 'Record<RoomStatus, string>': BOOKED, MAINTENANCE, PENDING_CLEANING, PENDING_CHECKOUT
+src/hooks/useAccounting.ts(3,91): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/hooks/useBookingFinancialSummary.ts(29,20): error TS2352: Conversion of type 'SelectQueryError<"Invalid Relationships cannot infer result type">' to type 'BookingFinancialSummary' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'BookingFinancialSummary': booking_id, booking_total_price, total_invoiced, total_paid, and 5 more.
+src/hooks/useOverdueDebts.ts(29,20): error TS2352: Conversion of type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' to type 'OverdueDebt[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ error: true; } & String' is missing the following properties from type 'OverdueDebt': booking_id, tenant_id, tenant_name, room_id, and 8 more.
+src/hooks/usePayments.ts(46,37): error TS2589: Type instantiation is excessively deep and possibly infinite.
+src/hooks/usePayments.ts(102,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: { booking_id: string; created_at?: string; date_paiement?: string; id?: string; methode?: "CB" | "CASH" | "TRANSFERT" | "CHEQUE"; montant: number; notes?: string; } & { montant_usd?: number; montant_cdf?: number; }, options?: { ...; }): PostgrestFilterBuilder<...>', gave the following error.
+    Argument of type 'Omit<Payment, "id" | "created_at">' is not assignable to parameter of type '{ booking_id: string; created_at?: string; date_paiement?: string; id?: string; methode?: "CB" | "CASH" | "TRANSFERT" | "CHEQUE"; montant: number; notes?: string; } & { montant_usd?: number; montant_cdf?: number; }'.
+      Type 'Omit<Payment, "id" | "created_at">' is not assignable to type '{ booking_id: string; created_at?: string; date_paiement?: string; id?: string; methode?: "CB" | "CASH" | "TRANSFERT" | "CHEQUE"; montant: number; notes?: string; }'.
+        Types of property 'methode' are incompatible.
+          Type 'string' is not assignable to type '"CB" | "CASH" | "TRANSFERT" | "CHEQUE"'.
+  Overload 2 of 2, '(values: ({ booking_id: string; created_at?: string; date_paiement?: string; id?: string; methode?: "CB" | "CASH" | "TRANSFERT" | "CHEQUE"; montant: number; notes?: string; } & { montant_usd?: number; montant_cdf?: number; })[], options?: { ...; }): PostgrestFilterBuilder<...>', gave the following error.
+    Argument of type 'Omit<Payment, "id" | "created_at">' is not assignable to parameter of type '({ booking_id: string; created_at?: string; date_paiement?: string; id?: string; methode?: "CB" | "CASH" | "TRANSFERT" | "CHEQUE"; montant: number; notes?: string; } & { montant_usd?: number; montant_cdf?: number; })[]'.
+      Type 'Omit<Payment, "id" | "created_at">' is missing the following properties from type '({ booking_id: string; created_at?: string; date_paiement?: string; id?: string; methode?: "CB" | "CASH" | "TRANSFERT" | "CHEQUE"; montant: number; notes?: string; } & { montant_usd?: number; montant_cdf?: number; })[]': length, pop, push, concat, and 29 more.
+src/hooks/usePayments.ts(130,17): error TS2345: Argument of type '{ invoice_id?: string; montant?: number; montant_usd?: number; montant_cdf?: number; exchange_rate?: number; date_paiement?: string; methode?: string; notes?: string; created_at?: string; location_id?: string; room_numero?: string; tenant_nom?: string; tenant_prenom?: string; }' is not assignable to parameter of type '{ booking_id?: string; created_at?: string; date_paiement?: string; id?: string; methode?: "CB" | "CASH" | "TRANSFERT" | "CHEQUE"; montant?: number; notes?: string; } & { montant_usd?: number; montant_cdf?: number; }'.
+  Type '{ invoice_id?: string; montant?: number; montant_usd?: number; montant_cdf?: number; exchange_rate?: number; date_paiement?: string; methode?: string; notes?: string; created_at?: string; location_id?: string; room_numero?: string; tenant_nom?: string; tenant_prenom?: string; }' is not assignable to type '{ booking_id?: string; created_at?: string; date_paiement?: string; id?: string; methode?: "CB" | "CASH" | "TRANSFERT" | "CHEQUE"; montant?: number; notes?: string; }'.
+    Types of property 'methode' are incompatible.
+      Type 'string' is not assignable to type '"CB" | "CASH" | "TRANSFERT" | "CHEQUE"'.
+src/interfaces/Address.ts(16,42): error TS2304: Cannot find name 'Room'.
+src/pages/Invoices.tsx(126,17): error TS2322: Type 'Dispatch<SetStateAction<{ search: string; status: string; dateRange: { start: string; end: string; }; amountRange: { min: number; max: number; }; customer: string; roomNumber: string; }>>' is not assignable to type '(filters: { search: string; status: string; dateRange: { start: string; end: string; }; customer: string; }) => void'.
+  Types of parameters 'value' and 'filters' are incompatible.
+    Type '{ search: string; status: string; dateRange: { start: string; end: string; }; customer: string; }' is not assignable to type 'SetStateAction<{ search: string; status: string; dateRange: { start: string; end: string; }; amountRange: { min: number; max: number; }; customer: string; roomNumber: string; }>'.
+      Type '{ search: string; status: string; dateRange: { start: string; end: string; }; customer: string; }' is missing the following properties from type '{ search: string; status: string; dateRange: { start: string; end: string; }; amountRange: { min: number; max: number; }; customer: string; roomNumber: string; }': amountRange, roomNumber
+src/pages/Reservations.tsx(457,38): error TS2339: Property 'isEndingSoon' does not exist on type '{ totalPaid: number; balanceDue: number; paymentStatus: PaymentStatus; lateStayDebt: number; lateNights: number; isOverdue: boolean; currentTotalDue: number; id: string; room_id: string; ... 14 more ...; booking_financial_summary?: { ...; }[]; }'.
+src/pages/Reservations.tsx(458,92): error TS2322: Type '{ className: string; title: string; }' is not assignable to type 'IntrinsicAttributes & Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>'.
+  Property 'title' does not exist on type 'IntrinsicAttributes & Omit<LucideProps, "ref"> & RefAttributes<SVGSVGElement>'.
+src/pages/Rooms.tsx(330,101): error TS2345: Argument of type '{ numero: string; type: string; }' is not assignable to parameter of type 'Room'.
+  Type '{ numero: string; type: string; }' is missing the following properties from type 'Room': id, floor, capacite_max, prix_base_nuit, and 6 more.
+src/pages/SyncDashboard.tsx(96,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<RoomTransition[], Error, RoomTransition[], readonly unknown[]>, queryClient?: QueryClient): DefinedUseQueryResult<...>', gave the following error.
+    Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'QueryFunction<RoomTransition[], readonly unknown[]>'.
+      Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'RoomTransition[] | Promise<RoomTransition[]>'.
+        Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'Promise<RoomTransition[]>'.
+          Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'RoomTransition[]'.
+            Type '{ error: true; } & String' is missing the following properties from type 'RoomTransition': id, room_number, previous_status, new_status, and 4 more.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<RoomTransition[], Error, RoomTransition[], readonly unknown[]>, queryClient?: QueryClient): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'unique symbol | QueryFunction<RoomTransition[], readonly unknown[], never>'.
+      Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'QueryFunction<RoomTransition[], readonly unknown[], never>'.
+        Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'RoomTransition[] | Promise<RoomTransition[]>'.
+          Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'Promise<RoomTransition[]>'.
+            Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'RoomTransition[]'.
+              Type '{ error: true; } & String' is missing the following properties from type 'RoomTransition': id, room_number, previous_status, new_status, and 4 more.
+  Overload 3 of 3, '(options: UseQueryOptions<RoomTransition[], Error, RoomTransition[], readonly unknown[]>, queryClient?: QueryClient): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'unique symbol | QueryFunction<RoomTransition[], readonly unknown[], never>'.
+      Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'QueryFunction<RoomTransition[], readonly unknown[], never>'.
+        Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'RoomTransition[] | Promise<RoomTransition[]>'.
+          Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'Promise<RoomTransition[]>'.
+            Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'RoomTransition[]'.
+              Type '{ error: true; } & String' is missing the following properties from type 'RoomTransition': id, room_number, previous_status, new_status, and 4 more.
+src/pages/SyncDashboard.tsx(110,5): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(options: DefinedInitialDataOptions<RoomSyncStatus[], Error, RoomSyncStatus[], readonly unknown[]>, queryClient?: QueryClient): DefinedUseQueryResult<...>', gave the following error.
+    Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'QueryFunction<RoomSyncStatus[], readonly unknown[]>'.
+      Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'RoomSyncStatus[] | Promise<RoomSyncStatus[]>'.
+        Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'Promise<RoomSyncStatus[]>'.
+          Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'RoomSyncStatus[]'.
+            Type '{ error: true; } & String' is missing the following properties from type 'RoomSyncStatus': room_id, room_number, current_status, location_name, and 13 more.
+  Overload 2 of 3, '(options: UndefinedInitialDataOptions<RoomSyncStatus[], Error, RoomSyncStatus[], readonly unknown[]>, queryClient?: QueryClient): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'unique symbol | QueryFunction<RoomSyncStatus[], readonly unknown[], never>'.
+      Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'QueryFunction<RoomSyncStatus[], readonly unknown[], never>'.
+        Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'RoomSyncStatus[] | Promise<RoomSyncStatus[]>'.
+          Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'Promise<RoomSyncStatus[]>'.
+            Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'RoomSyncStatus[]'.
+              Type '{ error: true; } & String' is missing the following properties from type 'RoomSyncStatus': room_id, room_number, current_status, location_name, and 13 more.
+  Overload 3 of 3, '(options: UseQueryOptions<RoomSyncStatus[], Error, RoomSyncStatus[], readonly unknown[]>, queryClient?: QueryClient): UseQueryResult<...>', gave the following error.
+    Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'unique symbol | QueryFunction<RoomSyncStatus[], readonly unknown[], never>'.
+      Type '() => Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'QueryFunction<RoomSyncStatus[], readonly unknown[], never>'.
+        Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'RoomSyncStatus[] | Promise<RoomSyncStatus[]>'.
+          Type 'Promise<SelectQueryError<"Invalid Relationships cannot infer result type">[]>' is not assignable to type 'Promise<RoomSyncStatus[]>'.
+            Type 'SelectQueryError<"Invalid Relationships cannot infer result type">[]' is not assignable to type 'RoomSyncStatus[]'.
+              Type '{ error: true; } & String' is missing the following properties from type 'RoomSyncStatus': room_id, room_number, current_status, location_name, and 13 more.
+src/pages/SyncDashboard.tsx(183,19): error TS2322: Type 'string' is not assignable to type '"default" | "destructive" | "outline" | "secondary" | "success" | "warning"'.
+src/pages/SyncDashboard.tsx(273,17): error TS2322: Type '"secondary"' is not assignable to type '"default" | "destructive" | "success" | "warning" | "primary"'.
+src/pages/SyncDashboard.tsx(321,44): error TS2339: Property 'length' does not exist on type 'NoInfer<TQueryFnData>'.
+src/pages/SyncDashboard.tsx(340,71): error TS2339: Property 'length' does not exist on type 'NoInfer<TQueryFnData>'.
+src/pages/SyncDashboard.tsx(341,47): error TS2339: Property 'map' does not exist on type 'NoInfer<TQueryFnData>'.
+src/pages/SyncDashboard.tsx(427,34): error TS2339: Property 'length' does not exist on type 'NoInfer<TQueryFnData>'.
+src/pages/SyncDashboard.tsx(444,37): error TS2339: Property 'map' does not exist on type 'NoInfer<TQueryFnData>'.
+src/pages/Tasks.tsx(109,41): error TS2339: Property 'rooms' does not exist on type 'Task'.
+src/pages/Tasks.tsx(181,41): error TS2339: Property 'rooms' does not exist on type 'Task'.
+src/pages/Tenants.tsx(104,14): error TS2739: Type '{ trigger: Element; }' is missing the following properties from type 'Props': open, onOpenChange, onTenantCreated
+src/services/AccountingDbService.ts(1,77): error TS2307: Cannot find module '@/interfaces/Accounting' or its corresponding type declarations.
+src/services/AccountingDbService.ts(143,16): error TS2339: Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(144,26): error TS2339: Property 'entry_number' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(145,18): error TS2339: Property 'date' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(146,25): error TS2339: Property 'description' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(147,23): error TS2339: Property 'reference' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(148,20): error TS2339: Property 'status' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(149,32): error TS2339: Property 'total_debit' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(150,33): error TS2339: Property 'total_credit' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(151,22): error TS2339: Property 'currency' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(152,24): error TS2339: Property 'created_by' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(153,24): error TS2339: Property 'created_at' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(154,24): error TS2339: Property 'updated_at' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(155,20): error TS2339: Property 'lines' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(200,35): error TS2339: Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(224,35): error TS2339: Property 'id' does not exist on type 'SelectQueryError<"Invalid Relationships cannot infer result type">'.
+src/services/AccountingDbService.ts(239,14): error TS2698: Spread types may only be created from object types.
+src/services/AccountingDbService.ts(319,14): error TS2698: Spread types may only be created from object types.
+src/services/AccountingDbService.ts(412,8): error TS2339: Property 'group' does not exist on type 'PostgrestFilterBuilder<{ PostgrestVersion: "13.0.5"; }, Omit<{ Tables: { access_logs: { Row: { action: string; details: Json; id: string; resource: string; status: string; timestamp: string; user_id: string; }; Insert: { ...; }; Update: { ...; }; Relationships: []; }; ... 12 more ...; user_roles: { ...; }; }; Views:...'.
+src/services/availabilityExportService.ts(53,12): error TS2339: Property 'etage' does not exist on type 'Room'.
+src/services/availabilityExportService.ts(148,30): error TS2339: Property 'etage' does not exist on type 'Room'.
+src/services/availabilityExportService.ts(182,7): error TS2304: Cannot find name 'currentBooking'.

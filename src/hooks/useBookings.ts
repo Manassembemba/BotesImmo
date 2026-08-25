@@ -206,14 +206,20 @@ export function useUpdateBooking() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ id, bypassConflict, ...booking }: Partial<Booking> & { id: string; bypassConflict?: boolean }) => {
+    mutationFn: async ({ id, bypassConflict, ...booking }: Partial<Booking> & { id: string; bypassConflict?: boolean; discount_amount?: number }) => {
       const { data, error } = await supabase.rpc('update_booking_with_invoice_atomic', {
         p_booking_id: id,
-        p_date_debut_prevue: booking.date_debut_prevue,
-        p_date_fin_prevue: booking.date_fin_prevue,
-        p_prix_total: booking.prix_total,
-        p_notes: booking.notes,
-        p_status: booking.status,
+        p_room_id: booking.room_id || null,
+        p_tenant_id: booking.tenant_id || null,
+        p_date_debut_prevue: booking.date_debut_prevue || null,
+        p_date_fin_prevue: booking.date_fin_prevue || null,
+        p_prix_total: booking.prix_total !== undefined ? booking.prix_total : null,
+        p_notes: booking.notes !== undefined ? booking.notes : null,
+        p_status: booking.status || null,
+        p_caution_encaissee: booking.caution_encaissee !== undefined ? booking.caution_encaissee : null,
+        p_check_in_reel: booking.check_in_reel || null,
+        p_check_out_reel: booking.check_out_reel || null,
+        p_discount_amount: booking.discount_amount !== undefined ? booking.discount_amount : null,
         p_bypass_conflict: bypassConflict || false
       });
 
@@ -224,6 +230,7 @@ export function useUpdateBooking() {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       queryClient.invalidateQueries({ queryKey: ['rooms'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['booking-financial-summary'] });
       toast({ title: 'Réservation mise à jour', description: 'Les modifications et la facture associée ont été synchronisées.' });
     },
     onError: (error) => {

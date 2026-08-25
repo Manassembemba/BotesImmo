@@ -14,7 +14,8 @@ import {
   PanelLeftClose,
   PanelRightClose,
   Menu,
-  X
+  X,
+  UserCog
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -40,9 +41,10 @@ const getNavigation = (notificationCount: number, role: string | null) => {
     { name: 'Factures', href: '/invoices', icon: FileText },
     { name: 'Appartements', href: '/rooms', icon: BedDouble },
     { name: 'Calendrier des locations', href: '/planning', icon: Calendar },
+    { name: 'Locataires', href: '/tenants', icon: Users },
+    { name: 'Utilisateurs', href: '/users', icon: UserCog, roles: ['ADMIN'] },
     { name: 'Rapports', href: '/reports', icon: BarChart3, roles: ['ADMIN'] },
     { name: 'Synchronisation', href: '/sync-dashboard', icon: Activity, roles: ['ADMIN'] },
-    { name: 'Locataires', href: '/tenants', icon: Users },
     { name: 'Notifications', href: '/notifications', icon: Bell, badgeCount: notificationCount },
     { name: 'Réglages', href: '/settings', icon: Settings },
   ];
