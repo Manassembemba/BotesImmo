@@ -349,9 +349,9 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-6">
-          <DialogHeader className="pb-2 border-b">
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[92dvh] flex flex-col p-4 sm:p-6 overflow-hidden">
+          <DialogHeader className="pb-2 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold">
               <Edit className="h-5 w-5 text-indigo-600" />
               Modifier la réservation
               {isAdmin && (
@@ -556,24 +556,26 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
 
                 {/* Bannière de Conflit */}
                 {conflictError && (
-                  <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl space-y-3 animate-in fade-in">
+                  <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl space-y-3 animate-in fade-in shadow-sm">
                     <div className="flex items-start gap-2.5 text-amber-900 font-semibold text-sm">
                       <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 mt-0.5" />
                       <span>{conflictError}</span>
                     </div>
-                    <div className="flex items-center gap-2.5 pt-2 border-t border-amber-200">
-                      <Checkbox
-                        id="bypassConflictEdit"
-                        checked={bypassConflict}
-                        onCheckedChange={(checked) => setBypassConflict(!!checked)}
-                        className="data-[state=checked]:bg-amber-600 border-amber-400"
-                      />
-                      <Label
+                    <div className="pt-2 border-t border-amber-200">
+                      <label
                         htmlFor="bypassConflictEdit"
-                        className="text-xs font-bold text-amber-950 cursor-pointer select-none"
+                        className="flex items-center gap-3 p-2 rounded-lg bg-amber-100/70 hover:bg-amber-100 transition-colors cursor-pointer select-none"
                       >
-                        Forcer la réservation (passer outre le conflit de disponibilité)
-                      </Label>
+                        <Checkbox
+                          id="bypassConflictEdit"
+                          checked={bypassConflict}
+                          onCheckedChange={(checked) => setBypassConflict(!!checked)}
+                          className="h-5 w-5 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600 border-amber-400"
+                        />
+                        <span className="text-xs sm:text-sm font-bold text-amber-950">
+                          Forcer la réservation (passer outre le conflit de disponibilité)
+                        </span>
+                      </label>
                     </div>
                   </div>
                 )}

@@ -284,8 +284,8 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogTrigger asChild>{trigger}</DialogTrigger>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[92dvh] flex flex-col p-4 sm:p-6 overflow-hidden">
+          <DialogHeader className="shrink-0 pb-2">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               {isImmediate ? (
                 <span className="flex items-center gap-2 text-emerald-600"><LogIn className="h-5 w-5" /> Check-in Direct</span>
@@ -293,14 +293,14 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                 <span className="flex items-center gap-2 text-indigo-600"><Plus className="h-5 w-5" /> Nouvelle Réservation</span>
               )}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs sm:text-sm">
               {isImmediate
                 ? "Enregistrez une arrivée immédiate. Le locataire sera installé dès la validation."
                 : "Planifiez une réservation future. Le statut sera 'En attente' par défaut."}
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-4 max-h-[75vh] overflow-y-auto pr-6 scrollbar-thin">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 mt-2 overflow-y-auto flex-1 pr-1 sm:pr-3 scrollbar-thin">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                 <FormField
                   control={form.control}
@@ -470,33 +470,36 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                 </div>
               </div>
               {conflictError && (
-                <div className="rounded-md bg-destructive/10 p-3">
-                  <div className="flex items-center gap-2 text-sm text-destructive font-medium">
-                    <AlertCircle className="h-4 w-4" />
-                    <p>{conflictError}</p>
-                  </div>
-                  {conflictingBooking && (
-                    <div className="mt-2 ml-6 text-sm text-destructive/80">
-                      <p>Réservé par : <span className="font-semibold">{conflictingBooking.tenant_name}</span></p>
-                      <p>Du : {format(new Date(conflictingBooking.date_debut_prevue), 'dd/MM/yyyy')} au {format(new Date(conflictingBooking.date_fin_prevue), 'dd/MM/yyyy')}</p>
+                <div className="rounded-xl bg-amber-50 border border-amber-300 p-4 space-y-3 shadow-sm animate-in fade-in">
+                  <div className="flex items-start gap-2.5 text-sm text-amber-900 font-semibold">
+                    <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p>{conflictError}</p>
+                      {conflictingBooking && (
+                        <div className="mt-1 text-xs text-amber-800 font-normal">
+                          <p>Réservé par : <span className="font-semibold">{conflictingBooking.tenant_name}</span></p>
+                          <p>Du {format(new Date(conflictingBooking.date_debut_prevue), 'dd/MM/yyyy')} au {format(new Date(conflictingBooking.date_fin_prevue), 'dd/MM/yyyy')}</p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {role === 'ADMIN' && (
-                    <div className="mt-3 flex items-center space-x-2">
+                  </div>
+                  
+                  <div className="pt-2 border-t border-amber-200">
+                    <label
+                      htmlFor="bypass"
+                      className="flex items-center gap-3 p-2 rounded-lg bg-amber-100/70 hover:bg-amber-100 transition-colors cursor-pointer select-none"
+                    >
                       <Checkbox
                         id="bypass"
                         checked={bypassConflict}
                         onCheckedChange={(checked) => setBypassConflict(checked as boolean)}
-                        className="data-[state=checked]:bg-destructive data-[state=checked]:border-destructive"
+                        className="h-5 w-5 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600 border-amber-400"
                       />
-                      <label
-                        htmlFor="bypass"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-destructive"
-                      >
-                        Forcer la réservation (Ignorer le conflit)
-                      </label>
-                    </div>
-                  )}
+                      <span className="text-xs sm:text-sm font-bold text-amber-950">
+                        Forcer la réservation (Ignorer le conflit de disponibilité)
+                      </span>
+                    </label>
+                  </div>
                 </div>
               )}
 
@@ -602,24 +605,32 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                 )}
               />
 
-              <div className="flex justify-end gap-3 pt-6 border-t">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-6 border-t">
                 <Button
                   type="button"
                   variant="ghost"
-                  className="px-6 h-12 font-bold text-slate-500 hover:text-slate-900"
+                  className="w-full sm:w-auto px-6 h-12 font-bold text-slate-500 hover:text-slate-900"
                   onClick={() => onOpenChange(false)}
                 >
                   Annuler
                 </Button>
                 <Button
                   type="submit"
-                  disabled={createBooking.isPending || (role !== 'ADMIN' && (!isFormValid || !!conflictError)) || (role === 'ADMIN' && !isFormValid) || (role === 'ADMIN' && !!conflictError && !bypassConflict)}
+                  disabled={createBooking.isPending || !isFormValid || (!!conflictError && !bypassConflict)}
                   className={cn(
-                    "px-8 h-12 font-black uppercase tracking-widest shadow-lg transition-all",
-                    isImmediate ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"
+                    "w-full sm:w-auto px-8 h-12 font-black uppercase tracking-wider shadow-lg transition-all",
+                    bypassConflict
+                      ? "bg-amber-600 hover:bg-amber-700 shadow-amber-200 text-white"
+                      : isImmediate
+                      ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
+                      : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200"
                   )}
                 >
-                  {createBooking.isPending ? 'Traitement...' : (isImmediate ? 'Confirmer le Check-in' : 'Valider la réservation')}
+                  {createBooking.isPending
+                    ? 'Traitement...'
+                    : bypassConflict
+                    ? (isImmediate ? 'Forcer & Check-in' : 'Forcer & Réserver')
+                    : (isImmediate ? 'Confirmer le Check-in' : 'Valider la réservation')}
                 </Button>
               </div>
             </form>
