@@ -183,8 +183,8 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
   }, [rooms, watchedRoomId]);
 
   const selectedTenant = useMemo(() => {
-    return tenants.find(t => t.id === watchedTenantId);
-  }, [tenants, watchedTenantId]);
+    return tenants.find(t => t.id === watchedTenantId) || (booking?.tenant_id === watchedTenantId ? booking.tenants : null);
+  }, [tenants, watchedTenantId, booking]);
 
   // Initialisation à l'ouverture
   useEffect(() => {
@@ -246,6 +246,15 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
     const start = new Date(dateDebut);
     if (isValid(start)) {
       const newEndDate = format(addDays(start, validNights), 'yyyy-MM-dd');
+      setValue('date_fin_prevue', newEndDate, { shouldValidate: true });
+    }
+  };
+
+  const handleDateDebutChange = (newDateDebut: string) => {
+    setValue('date_debut_prevue', newDateDebut, { shouldValidate: true });
+    const start = new Date(newDateDebut);
+    if (isValid(start) && nights > 0) {
+      const newEndDate = format(addDays(start, nights), 'yyyy-MM-dd');
       setValue('date_fin_prevue', newEndDate, { shouldValidate: true });
     }
   };
@@ -454,7 +463,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
                                   )}
                                 >
                                   {field.value && selectedTenant
-                                    ? `${selectedTenant.prenom} ${selectedTenant.nom?.toUpperCase()}`
+                                    ? `${selectedTenant.prenom || ''} ${selectedTenant.nom?.toUpperCase() || ''}`.trim() || 'Locataire sans nom'
                                     : "Rechercher un locataire..."}
                                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
@@ -466,23 +475,26 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
                                 <CommandList>
                                   <CommandEmpty>Aucun locataire trouvé.</CommandEmpty>
                                   <CommandGroup>
-                                    {tenants.map(t => (
-                                      <CommandItem
-                                        key={t.id}
-                                        value={`${t.prenom} ${t.nom}`}
-                                        onSelect={() => {
-                                          form.setValue("tenant_id", t.id, { shouldValidate: true });
-                                        }}
-                                      >
-                                        <Check
-                                          className={cn(
-                                            "mr-2 h-4 w-4",
-                                            t.id === field.value ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                        {t.prenom} {t.nom}
-                                      </CommandItem>
-                                    ))}
+                                    {tenants.map(t => {
+                                      const fullName = `${t.prenom || ''} ${t.nom || ''}`.trim() || 'Locataire sans nom';
+                                      return (
+                                        <CommandItem
+                                          key={t.id}
+                                          value={`${fullName} ${t.telephone || ''}`}
+                                          onSelect={() => {
+                                            form.setValue("tenant_id", t.id, { shouldValidate: true });
+                                          }}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              t.id === field.value ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          {fullName}
+                                        </CommandItem>
+                                      );
+                                    })}
                                   </CommandGroup>
                                 </CommandList>
                               </Command>
@@ -518,7 +530,12 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
                         <FormItem>
                           <FormLabel>Date d'arrivée</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} className="h-11" />
+                            <Input
+                              type="date"
+                              {...field}
+                              onChange={(e) => handleDateDebutChange(e.target.value)}
+                              className="h-11 text-base border-slate-200 focus:border-indigo-500"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -532,7 +549,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
                           type="number"
                           min="1"
                           value={nights}
-                          className="h-11 text-center font-bold"
+                          className="h-11 text-center font-bold text-base border-slate-200"
                           onChange={(e) => handleNightsChange(parseInt(e.target.value) || 1)}
                         />
                       </FormControl>
@@ -545,7 +562,11 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
                         <FormItem>
                           <FormLabel>Date de départ</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} className="h-11" />
+                            <Input
+                              type="date"
+                              {...field}
+                              className="h-11 text-base border-slate-200 focus:border-indigo-500"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

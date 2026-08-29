@@ -553,7 +553,7 @@ const Planning = () => {
                                       )}
 
                                       <span className={cn('truncate', getEnhancedStatusColor(reservation.status)?.text)}>
-                                        {(isStart || (days.length <= 14)) && `${reservation.tenants?.prenom} ${reservation.tenants?.nom}`}
+                                        {(isStart || (days.length <= 14)) && `${reservation.tenants?.prenom || ''} ${reservation.tenants?.nom || ''}`.trim()}
                                         {isStart && isOverdue && " (RETARD)"}
                                         {isStart && hasDebt && !isOverdue && ` (${balanceDue.toFixed(2)}$)`}
                                       </span>
@@ -568,7 +568,9 @@ const Planning = () => {
                                   <div className="space-y-2">
                                     <div className="flex items-center gap-2">
                                       <div className={cn('w-3 h-3 rounded-full', getEnhancedStatusColor(reservation.status)?.bg)} />
-                                      <p className="font-bold text-indigo-900 border-b pb-1 mb-1">{reservation.tenants?.prenom} {reservation.tenants?.nom}</p>
+                                      <p className="font-bold text-indigo-900 border-b pb-1 mb-1">
+                                        {`${reservation.tenants?.prenom || ''} ${reservation.tenants?.nom || ''}`.trim() || 'Locataire'}
+                                      </p>
                                     </div>
                                     <p className="text-xs flex justify-between">
                                       <span>Statut:</span>

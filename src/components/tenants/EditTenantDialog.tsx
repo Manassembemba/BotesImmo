@@ -1,7 +1,7 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateTenant } from '@/hooks/useTenants';
-import { useAuth } from '@/hooks/useAuth';
+import { useUpdateTenant, Tenant } from '@/hooks/useTenants';
 import { tenantSchema, TenantFormData } from '@/lib/validationSchemas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import {
   Form,
@@ -23,18 +23,16 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Tenant } from '@/hooks/useTenants';
+import { UserCog, AlertTriangle } from 'lucide-react';
 
 interface Props {
+  tenant: Tenant | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTenantCreated: (tenant: Tenant) => void;
-  trigger?: React.ReactNode;
 }
 
-export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigger }: Props) {
-  const { profile } = useAuth();
-  const createTenant = useCreateTenant();
+export function EditTenantDialog({ tenant, open, onOpenChange }: Props) {
+  const updateTenant = useUpdateTenant();
 
   const form = useForm<TenantFormData>({
     resolver: zodResolver(tenantSchema),
@@ -44,41 +42,60 @@ export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigge
       email: '',
       telephone: '',
       id_document: '',
+      notes: '',
+      liste_noire: false,
     },
   });
 
-  const onSubmit = async (data: TenantFormData) => {
-    try {
+  useEffect(() => {
+    if (tenant && open) {
+      form.reset({
+        nom: tenant.nom || '',
+        prenom: tenant.prenom || '',
+        email: tenant.email || '',
+        telephone: tenant.telephone || '',
+        id_document: tenant.id_document || '',
+        notes: tenant.notes || '',
+        liste_noire: !!tenant.liste_noire,
+      });
+    }
+  }, [tenant, open, form]);
 
-      const newTenant = await createTenant.mutateAsync({
+  const onSubmit = async (data: TenantFormData) => {
+    if (!tenant) return;
+
+    try {
+      await updateTenant.mutateAsync({
+        id: tenant.id,
         nom: data.nom,
         prenom: data.prenom,
         email: data.email || null,
-        telephone: data.telephone || null,
+        telephone: data.telephone,
         id_document: data.id_document || null,
-        notes: null,
-        liste_noire: false,
-        location_id: profile?.location_id,
+        notes: data.notes || null,
+        liste_noire: data.liste_noire,
       });
-
-      if (newTenant) {
-        onTenantCreated(newTenant);
-      }
-      form.reset();
       onOpenChange(false);
     } catch (error) {
-      console.error("Tenant creation failed:", error);
-      // Toast is likely handled in mutation hook onError, checking implementation would confirm
+      console.error("Erreur mise à jour locataire:", error);
     }
   };
 
+  if (!tenant) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="w-[95vw] max-w-md max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="w-[95vw] max-w-lg max-h-[92dvh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader className="pb-2 border-b">
-          <DialogTitle className="text-lg sm:text-xl font-bold">Nouveau locataire</DialogTitle>
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold">
+            <UserCog className="h-5 w-5 text-primary" />
+            Modifier le locataire
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Mettez à jour les coordonnées, pièces justificatives et statut du locataire.
+          </DialogDescription>
         </DialogHeader>
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 mt-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -154,12 +171,64 @@ export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigge
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Remarques / Notes internes</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Préférences du client, antécédents, etc."
+                      className="resize-none text-base"
+                      rows={2}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="liste_noire"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-xl border border-destructive/20 bg-destructive/5 p-3.5 shadow-sm">
+                  <div className="space-y-0.5 pr-2">
+                    <FormLabel className="text-sm font-bold text-destructive flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" />
+                      Inscrire sur la Liste Noire
+                    </FormLabel>
+                    <FormDescription className="text-xs text-muted-foreground">
+                      Empêche la sélection de ce client lors de futures réservations.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => onOpenChange(false)}
+              >
                 Annuler
               </Button>
-              <Button type="submit" disabled={createTenant.isPending} className="w-full sm:w-auto font-bold">
-                {createTenant.isPending ? 'Création...' : 'Créer le locataire'}
+              <Button
+                type="submit"
+                disabled={updateTenant.isPending}
+                className="w-full sm:w-auto font-bold"
+              >
+                {updateTenant.isPending ? 'Enregistrement...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </form>

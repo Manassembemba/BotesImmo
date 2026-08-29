@@ -87,3 +87,28 @@ export function useUpdateTenant() {
     },
   });
 }
+
+export function useDeleteTenant() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('tenants')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants'] });
+      toast({ title: 'Locataire supprimé', description: 'Le locataire a été supprimé avec succès' });
+    },
+    onError: (error) => {
+      toast({ variant: 'destructive', title: 'Erreur lors de la suppression', description: error.message });
+    },
+  });
+}
+

@@ -145,6 +145,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     }
   }, [isImmediate, setValue]);
 
+  // Synchronisation des nuits quand les dates changent
   useEffect(() => {
     const startDate = new Date(dateDebut);
     const endDate = new Date(dateFin);
@@ -155,17 +156,26 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         setNights(numNights);
       }
     }
-  }, [dateDebut, dateFin, nights]);
+  }, [dateDebut, dateFin]);
 
-  useEffect(() => {
+  const handleNightsChange = (newNights: number) => {
+    const validNights = Math.max(1, newNights);
+    setNights(validNights);
     const startDate = new Date(dateDebut);
+    if (isValid(startDate)) {
+      const calculatedEndDate = format(addDays(startDate, validNights), 'yyyy-MM-dd');
+      setValue('date_fin_prevue', calculatedEndDate, { shouldValidate: true });
+    }
+  };
+
+  const handleDateDebutChange = (newDateDebut: string) => {
+    setValue('date_debut_prevue', newDateDebut, { shouldValidate: true });
+    const startDate = new Date(newDateDebut);
     if (isValid(startDate) && nights > 0) {
       const calculatedEndDate = format(addDays(startDate, nights), 'yyyy-MM-dd');
-      if (dateFin !== calculatedEndDate) {
-        setValue('date_fin_prevue', calculatedEndDate, { shouldValidate: true });
-      }
+      setValue('date_fin_prevue', calculatedEndDate, { shouldValidate: true });
     }
-  }, [nights, dateDebut, dateFin, setValue]);
+  };
 
   useEffect(() => {
     if (selectedRoom && nights > 0) {
@@ -232,12 +242,23 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
     return () => clearTimeout(handler);
   }, [roomId, dateDebut, dateFin]);
 
+  const [createdTenant, setCreatedTenant] = useState<Tenant | null>(null);
+
   const bookableRooms = rooms.filter(r => r.status !== 'Maintenance' && r.status !== 'MAINTENANCE');
 
   const handleTenantCreated = async (newTenant: Tenant) => {
+    setCreatedTenant(newTenant);
     await refetchTenants();
     setValue('tenant_id', newTenant.id, { shouldValidate: true });
     setIsCreatingTenant(false);
+  };
+
+  const getTenantDisplayName = (tenantId?: string) => {
+    if (!tenantId) return "Rechercher un locataire...";
+    const tenant = tenants.find((t) => t.id === tenantId) || (createdTenant?.id === tenantId ? createdTenant : null);
+    if (!tenant) return "Rechercher un locataire...";
+    const fullName = `${tenant.prenom || ''} ${tenant.nom || ''}`.trim();
+    return fullName || "Locataire sans nom";
   };
 
   const onSubmit = async (data: BookingFormData) => {
@@ -379,9 +400,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              {field.value
-                                ? tenants.find((tenant) => tenant.id === field.value)?.prenom + ' ' + tenants.find((tenant) => tenant.id === field.value)?.nom
-                                : "Rechercher un locataire..."}
+                              {getTenantDisplayName(field.value)}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </FormControl>
@@ -392,25 +411,28 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                             <CommandList>
                               <CommandEmpty>Aucun locataire trouvé.</CommandEmpty>
                               <CommandGroup>
-                                {tenants.filter(t => !t.liste_noire).map((tenant) => (
-                                  <CommandItem
-                                    value={tenant.prenom + ' ' + tenant.nom}
-                                    key={tenant.id}
-                                    onSelect={() => {
-                                      form.setValue("tenant_id", tenant.id, { shouldValidate: true })
-                                    }}
-                                  >
-                                    <Check
-                                      className={cn(
-                                        "mr-2 h-4 w-4",
-                                        tenant.id === field.value
-                                          ? "opacity-100"
-                                          : "opacity-0"
-                                      )}
-                                    />
-                                    {tenant.prenom} {tenant.nom}
-                                  </CommandItem>
-                                ))}
+                                {tenants.filter(t => !t.liste_noire).map((tenant) => {
+                                  const fullName = `${tenant.prenom || ''} ${tenant.nom || ''}`.trim() || 'Locataire sans nom';
+                                  return (
+                                    <CommandItem
+                                      value={`${fullName} ${tenant.telephone || ''}`}
+                                      key={tenant.id}
+                                      onSelect={() => {
+                                        form.setValue("tenant_id", tenant.id, { shouldValidate: true });
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          tenant.id === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {fullName}
+                                    </CommandItem>
+                                  );
+                                })}
                               </CommandGroup>
                             </CommandList>
                           </Command>
@@ -432,7 +454,8 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                         <Input
                           type="date"
                           {...field}
-                          className="h-11 border-slate-200 focus:border-indigo-500"
+                          onChange={(e) => handleDateDebutChange(e.target.value)}
+                          className="h-11 border-slate-200 focus:border-indigo-500 text-base"
                           min={role === 'ADMIN' ? undefined : format(new Date(), 'yyyy-MM-dd')}
                         />
                       </FormControl>
@@ -447,8 +470,8 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                         type="number"
                         min="1"
                         value={nights}
-                        className="h-11 text-center font-bold border-slate-200"
-                        onChange={(e) => setNights(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="h-11 text-center font-bold border-slate-200 text-base"
+                        onChange={(e) => handleNightsChange(parseInt(e.target.value) || 1)}
                       />
                     </FormControl>
                   </FormItem>
@@ -460,7 +483,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
                         <Input
                           type="date"
                           {...field}
-                          className="h-11 border-slate-200 focus:border-indigo-500"
+                          className="h-11 border-slate-200 focus:border-indigo-500 text-base"
                           min={role === 'ADMIN' ? undefined : (dateDebut ? format(addDays(new Date(dateDebut), 1), 'yyyy-MM-dd') : format(addDays(new Date(), 1), 'yyyy-MM-dd'))}
                         />
                       </FormControl>
