@@ -1,12 +1,14 @@
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateTenant } from '@/hooks/useTenants';
+import { useCreateTenant, useTenants, Tenant } from '@/hooks/useTenants';
 import { useAuth } from '@/hooks/useAuth';
 import { tenantSchema, TenantFormData } from '@/lib/validationSchemas';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { AlertTriangle, UserCheck } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +25,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Tenant } from '@/hooks/useTenants';
 
 interface Props {
   open: boolean;
@@ -35,6 +36,7 @@ interface Props {
 export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigger }: Props) {
   const { profile } = useAuth();
   const createTenant = useCreateTenant();
+  const { data: allTenants = [] } = useTenants();
 
   const form = useForm<TenantFormData>({
     resolver: zodResolver(tenantSchema),
@@ -46,6 +48,28 @@ export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigge
       id_document: '',
     },
   });
+
+  const watchedPhone = form.watch('telephone');
+  const watchedNom = form.watch('nom');
+  const watchedPrenom = form.watch('prenom');
+
+  // Détection en direct des doublons existants
+  const duplicateTenant = useMemo(() => {
+    const cleanPhone = (watchedPhone || '').replace(/\s+/g, '');
+    if (cleanPhone.length >= 6) {
+      const found = allTenants.find(t => (t.telephone || '').replace(/\s+/g, '') === cleanPhone);
+      if (found) return found;
+    }
+    const cleanNom = (watchedNom || '').trim().toLowerCase();
+    const cleanPrenom = (watchedPrenom || '').trim().toLowerCase();
+    if (cleanNom.length >= 2 && cleanPrenom.length >= 2) {
+      const found = allTenants.find(
+        t => t.nom.trim().toLowerCase() === cleanNom && t.prenom.trim().toLowerCase() === cleanPrenom
+      );
+      if (found) return found;
+    }
+    return null;
+  }, [watchedPhone, watchedNom, watchedPrenom, allTenants]);
 
   const onSubmit = async (data: TenantFormData) => {
     try {
@@ -153,6 +177,37 @@ export function CreateTenantDialog({ open, onOpenChange, onTenantCreated, trigge
                 </FormItem>
               )}
             />
+
+            {/* Alerte si le client existe déjà */}
+            {duplicateTenant && (
+              <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-xl space-y-2.5 shadow-sm animate-in fade-in">
+                <div className="flex items-start gap-2 text-amber-900 font-bold text-xs">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                  <span>Un client similaire existe déjà dans le système !</span>
+                </div>
+                <div className="text-xs text-amber-800 bg-white/70 p-2 rounded-lg border border-amber-200">
+                  <p className="font-bold text-sm text-foreground">
+                    {duplicateTenant.prenom} {duplicateTenant.nom}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Tél : {duplicateTenant.telephone || 'Non renseigné'} • {duplicateTenant.booking_count || 0} séjour(s)
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full h-8 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white gap-1.5 shadow-sm"
+                  onClick={() => {
+                    onTenantCreated(duplicateTenant);
+                    form.reset();
+                    onOpenChange(false);
+                  }}
+                >
+                  <UserCheck className="h-3.5 w-3.5" />
+                  Sélectionner ce profil existant (Éviter le doublon)
+                </Button>
+              </div>
+            )}
 
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
               <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>

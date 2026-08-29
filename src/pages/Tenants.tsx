@@ -68,7 +68,7 @@ import { useLocations } from '@/hooks/useLocations';
 import { useLocationFilter } from '@/context/LocationFilterContext';
 import { cn } from '@/lib/utils';
 
-type SortOption = 'recent' | 'bookings_desc' | 'name_asc';
+type SortOption = 'recent' | 'bookings_desc' | 'spent_desc' | 'name_asc';
 
 const Tenants = () => {
   const { role, profile } = useAuth();
@@ -95,8 +95,9 @@ const Tenants = () => {
     const active = tenants.filter(t => (t.booking_count || 0) > 0).length;
     const loyal = tenants.filter(t => (t.booking_count || 0) >= 2).length;
     const blacklisted = tenants.filter(t => t.liste_noire).length;
+    const totalRevenue = tenants.reduce((sum, t) => sum + Number(t.total_spent || 0), 0);
 
-    return { total, active, loyal, blacklisted };
+    return { total, active, loyal, blacklisted, totalRevenue };
   }, [tenants]);
 
   // Filtering and sorting
@@ -129,6 +130,9 @@ const Tenants = () => {
     result.sort((a, b) => {
       if (sortBy === 'bookings_desc') {
         return (b.booking_count || 0) - (a.booking_count || 0);
+      }
+      if (sortBy === 'spent_desc') {
+        return Number(b.total_spent || 0) - Number(a.total_spent || 0);
       }
       if (sortBy === 'name_asc') {
         return `${a.nom} ${a.prenom}`.localeCompare(`${b.nom} ${b.prenom}`);
@@ -274,13 +278,14 @@ const Tenants = () => {
             </Select>
 
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-[155px] h-10 bg-white text-xs sm:text-sm">
+              <SelectTrigger className="w-[165px] h-10 bg-white text-xs sm:text-sm">
                 <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 opacity-60" />
                 <SelectValue placeholder="Trier par" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="recent">Plus récents</SelectItem>
                 <SelectItem value="bookings_desc">Plus de séjours</SelectItem>
+                <SelectItem value="spent_desc">Chiffre d'affaires ($)</SelectItem>
                 <SelectItem value="name_asc">Nom A-Z</SelectItem>
               </SelectContent>
             </Select>
@@ -467,6 +472,13 @@ const Tenants = () => {
                         <Calendar className="h-3.5 w-3.5 shrink-0" />
                         Inscrit en {format(new Date(tenant.created_at), 'MMMM yyyy', { locale: fr })}
                       </p>
+
+                      {Number(tenant.total_spent || 0) > 0 && (
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                          <span className="text-muted-foreground font-medium">Chiffre d'affaires :</span>
+                          <span className="font-extrabold text-emerald-600">${Number(tenant.total_spent || 0).toLocaleString('fr-FR')}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -505,6 +517,7 @@ const Tenants = () => {
                   <TableHead className="font-bold text-xs">CONTACT</TableHead>
                   <TableHead className="font-bold text-xs">PIÈCE D'IDENTITÉ</TableHead>
                   <TableHead className="font-bold text-xs text-center">SÉJOURS</TableHead>
+                  <TableHead className="font-bold text-xs text-right">VOLUME ($)</TableHead>
                   <TableHead className="font-bold text-xs">STATUT</TableHead>
                   <TableHead className="font-bold text-xs text-right">ACTIONS</TableHead>
                 </TableRow>
@@ -512,6 +525,7 @@ const Tenants = () => {
               <TableBody>
                 {filteredTenants.map((tenant) => {
                   const reservationCount = tenant.booking_count || 0;
+                  const totalSpent = Number(tenant.total_spent || 0);
                   return (
                     <TableRow key={tenant.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="font-medium">
@@ -538,6 +552,11 @@ const Tenants = () => {
                         )}>
                           {reservationCount}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={cn("font-bold text-xs", totalSpent > 0 ? "text-emerald-600" : "text-muted-foreground")}>
+                          ${totalSpent.toLocaleString('fr-FR')}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {tenant.liste_noire ? (

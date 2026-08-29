@@ -16,6 +16,7 @@ export interface Tenant {
   created_at: string;
   updated_at: string;
   booking_count?: number; // From RPC
+  total_spent?: number;   // From RPC
 }
 
 export function useTenants() {
