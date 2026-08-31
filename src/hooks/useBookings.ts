@@ -192,10 +192,13 @@ export function useCreateBooking() {
     },
     onError: (error) => {
       console.error('Erreur lors de la création atomique:', error);
+      const isConflict = error.message?.includes('Conflit') || (error as any)?.code === 'P0001';
       toast({
         variant: 'destructive',
-        title: 'Erreur',
-        description: error.message || 'Une erreur est survenue lors de la création de la réservation.'
+        title: isConflict ? 'Conflit de disponibilité' : 'Erreur',
+        description: isConflict
+          ? "Cette chambre est déjà réservée sur cette période. Cochez 'Forcer la réservation' dans le formulaire pour passer outre."
+          : error.message || 'Une erreur est survenue lors de la création de la réservation.'
       });
     },
   });

@@ -215,6 +215,8 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         p_room_id: roomId,
         p_start_date: new Date(dateDebut).toISOString(),
         p_end_date: new Date(dateFin).toISOString(),
+        p_booking_id_to_exclude: null,
+        p_is_immediate_checkin: isImmediate,
       });
 
       if (conflictError) {
@@ -225,6 +227,8 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
           p_room_id: roomId,
           p_start_date: new Date(dateDebut).toISOString(),
           p_end_date: new Date(dateFin).toISOString(),
+          p_booking_id_to_exclude: null,
+          p_is_immediate_checkin: isImmediate,
         });
 
         if (details && details.length > 0) {
@@ -238,9 +242,9 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
         setConflictingBooking(null);
         setBypassConflict(false); // Reset bypass if no conflict
       }
-    }, 500);
+    }, 300);
     return () => clearTimeout(handler);
-  }, [roomId, dateDebut, dateFin]);
+  }, [roomId, dateDebut, dateFin, isImmediate]);
 
   const [createdTenant, setCreatedTenant] = useState<Tenant | null>(null);
 
