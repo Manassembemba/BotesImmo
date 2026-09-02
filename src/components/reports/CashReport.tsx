@@ -13,10 +13,11 @@ import { useMemo } from 'react';
 
 interface CaisseSummary {
     date: string;
-    type: 'RESERVATION' | 'PROLONGATION';
-    total_usd: number;
-    total_cdf: number;
-    total_equivalent_usd: number;
+    location_id?: string;
+    location_name?: string;
+    total_usd: number | string;
+    total_cdf: number | string;
+    total_equivalent_usd: number | string;
     nombre_paiements: number;
     methodes_utilisees: string[];
 }
@@ -55,9 +56,9 @@ export function CashReport({ filters }: CashReportProps) {
     const totals = useMemo(() => {
         if (!cashStatus) return { usd: 0, cdf: 0, total: 0 };
         return cashStatus.reduce((acc, curr) => ({
-            usd: acc.usd + curr.total_usd,
-            cdf: acc.cdf + curr.total_cdf,
-            total: acc.total + curr.total_equivalent_usd
+            usd: acc.usd + (Number(curr.total_usd) || 0),
+            cdf: acc.cdf + (Number(curr.total_cdf) || 0),
+            total: acc.total + (Number(curr.total_equivalent_usd) || 0)
         }), { usd: 0, cdf: 0, total: 0 });
     }, [cashStatus]);
 
@@ -83,7 +84,7 @@ export function CashReport({ filters }: CashReportProps) {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-green-700 dark:text-green-400">
-                            {totals.usd.toLocaleString('en-US', { minimumFractionDigits: 2 })} $
+                            {totals.usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $
                         </div>
                         <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                             Somme des dollars physiques encaissés
@@ -113,7 +114,7 @@ export function CashReport({ filters }: CashReportProps) {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {totals.total.toLocaleString('en-US', { minimumFractionDigits: 2 })} $
+                            {totals.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Valeur totale combinée en USD
@@ -141,7 +142,7 @@ export function CashReport({ filters }: CashReportProps) {
                             <CalendarIcon className="h-5 w-5 text-muted-foreground" />
                             Historique de Caisse Journalier
                         </CardTitle>
-                        <Badge variant="outline">{cashStatus?.length || 0} jours enregistrés</Badge>
+                        <Badge variant="outline">{cashStatus?.length || 0} enregistrement(s)</Badge>
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -150,7 +151,7 @@ export function CashReport({ filters }: CashReportProps) {
                             <thead>
                                 <tr className="border-b text-muted-foreground text-left">
                                     <th className="py-3 px-4 font-medium">Date</th>
-                                    <th className="py-3 px-4 font-medium">Type</th>
+                                    <th className="py-3 px-4 font-medium">Site / Localité</th>
                                     <th className="py-3 px-4 font-medium text-right">USD Physique</th>
                                     <th className="py-3 px-4 font-medium text-right">CDF Physique</th>
                                     <th className="py-3 px-4 font-medium text-right">Total (USD Equiv.)</th>
@@ -160,48 +161,52 @@ export function CashReport({ filters }: CashReportProps) {
                             <tbody>
                                 {cashStatus?.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                                        <td colSpan={6} className="py-8 text-center text-muted-foreground">
                                             Aucune transaction enregistrée
                                         </td>
                                     </tr>
                                 ) : (
-                                    cashStatus?.map((day, index) => (
-                                        <tr key={`${day.date}-${day.type}-${index}`} className="border-b hover:bg-muted/30 transition-colors">
-                                            <td className="py-3 px-4">
-                                                <div className="font-medium">
-                                                    {format(new Date(day.date), 'EEEE dd MMMM yyyy', { locale: fr })}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground md:hidden">
-                                                    {day.nombre_paiements} paiement(s)
-                                                </div>
-                                            </td>
-                                            <td className="py-3 px-4">
-                                                {day.type === 'PROLONGATION' ? (
-                                                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Prolongation</Badge>
-                                                ) : (
-                                                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">Réservation</Badge>
-                                                )}
-                                            </td>
-                                            <td className="py-3 px-4 text-right text-green-600 font-semibold">
-                                                {day.total_usd.toFixed(2)} $
-                                            </td>
-                                            <td className="py-3 px-4 text-right text-blue-600 font-semibold">
-                                                {day.total_cdf.toLocaleString('fr-FR')} FC
-                                            </td>
-                                            <td className="py-3 px-4 text-right font-bold">
-                                                {day.total_equivalent_usd.toFixed(2)} $
-                                            </td>
-                                            <td className="py-3 px-4 hidden md:table-cell">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {day.methodes_utilisees.map(m => (
-                                                        <Badge key={m} variant="secondary" className="text-[10px] uppercase">
-                                                            {m}
-                                                        </Badge>
-                                                    ))}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))
+                                    cashStatus?.map((day, index) => {
+                                        const totalUsd = Number(day.total_usd) || 0;
+                                        const totalCdf = Number(day.total_cdf) || 0;
+                                        const totalEq = Number(day.total_equivalent_usd) || 0;
+
+                                        return (
+                                            <tr key={`${day.date}-${day.location_id || index}`} className="border-b hover:bg-muted/30 transition-colors">
+                                                <td className="py-3 px-4">
+                                                    <div className="font-medium">
+                                                        {format(new Date(day.date), 'EEEE dd MMMM yyyy', { locale: fr })}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground md:hidden">
+                                                        {day.nombre_paiements} paiement(s)
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 hover:bg-indigo-50 border-indigo-200 uppercase font-bold text-[11px]">
+                                                        {day.location_name || 'Site Global'}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-3 px-4 text-right text-green-600 font-semibold">
+                                                    {totalUsd.toFixed(2)} $
+                                                </td>
+                                                <td className="py-3 px-4 text-right text-blue-600 font-semibold">
+                                                    {totalCdf.toLocaleString('fr-FR')} FC
+                                                </td>
+                                                <td className="py-3 px-4 text-right font-bold">
+                                                    {totalEq.toFixed(2)} $
+                                                </td>
+                                                <td className="py-3 px-4 hidden md:table-cell">
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {day.methodes_utilisees?.map((m: string) => (
+                                                            <Badge key={m} variant="secondary" className="text-[10px] uppercase">
+                                                                {m}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
                                 )}
                             </tbody>
                         </table>

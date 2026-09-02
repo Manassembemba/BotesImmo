@@ -26,7 +26,7 @@ const OccupancyReport = () => {
     to: endOfToday(),
   });
 
-  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({}, { pageIndex: 0, pageSize: 9999 });
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
 
   const bookings = bookingsResult?.data || [];

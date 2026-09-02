@@ -55,7 +55,7 @@ export function CreateBookingDialog(props: CreateBookingDialogProps) {
   const [nights, setNights] = useState(1);
 
   const { data: rooms = [] } = useRooms();
-  const { data: bookingsResult } = useBookings();
+  const { data: bookingsResult } = useBookings({}, { pageIndex: 0, pageSize: 2000 });
   const bookings = bookingsResult?.data || [];
   const { data: tenants = [], refetch: refetchTenants } = useTenants();
   const createBooking = useCreateBooking();

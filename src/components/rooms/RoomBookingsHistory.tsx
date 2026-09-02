@@ -37,7 +37,7 @@ const getBookingStatusBadge = (booking: Booking) => {
 
 
 export function RoomBookingsHistory({ roomId }: RoomBookingsHistoryProps) {
-  const { data: bookingsData, isLoading } = useBookings();
+  const { data: bookingsData, isLoading } = useBookings({ roomId }, { pageIndex: 0, pageSize: 500 });
   const bookings = bookingsData?.data || [];
 
   const roomBookings = useMemo(() => {

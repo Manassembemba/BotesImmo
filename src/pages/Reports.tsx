@@ -36,7 +36,7 @@ const Reports = () => {
 
   // --- DATA FETCHING (must be before any conditional returns) ---
   const { data: payments = [], isLoading: paymentsLoading } = useAllPayments();
-  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({}, { pageIndex: 0, pageSize: 9999 });
   const bookings = bookingsResult?.data || [];
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
   const { data: invoicesResult, isLoading: invoicesLoading } = useInvoices({ pagination: { pageIndex: 0, pageSize: 9999 } });

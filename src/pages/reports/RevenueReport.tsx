@@ -21,7 +21,7 @@ const RevenueReport = () => {
 
   // Fetch all necessary data
   const { data: invoicesResult, isLoading: invoicesLoading } = useInvoices({ pagination: { pageIndex: 0, pageSize: 9999 }});
-  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+  const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({}, { pageIndex: 0, pageSize: 9999 });
   const { data: rooms = [], isLoading: roomsLoading } = useRooms();
 
   const invoices = invoicesResult?.data || [];

@@ -56,7 +56,7 @@ export function EditBookingDialog({ booking, open, onOpenChange }: EditBookingDi
   const updateBooking = useUpdateBooking();
 
   const { data: rooms = [] } = useRooms();
-  const { data: allBookingsData } = useBookings();
+  const { data: allBookingsData } = useBookings({}, { pageIndex: 0, pageSize: 2000 });
   const allBookings = allBookingsData?.data || [];
   const { data: tenants = [], refetch: refetchTenants } = useTenants();
   const { data: exchangeRateData } = useExchangeRate();

@@ -118,16 +118,17 @@ export const exportFinancialReportToPdf = (invoices: Invoice[], filters: any) =>
 // Export Cash Report to CSV
 export const exportCashReportToCsv = (data: any[], filters: any) => {
   const headers = [
-    "Date", "USD Physique", "CDF Physique", "Total (USD Equiv.)", "Nombre Paiements", "Méthodes"
+    "Date", "Site / Localite", "USD Physique", "CDF Physique", "Total (USD Equiv.)", "Nombre Paiements", "Methodes"
   ];
 
   const rows = data.map(day => [
     format(new Date(day.date), 'dd/MM/yyyy', { locale: fr }),
-    day.total_usd.toFixed(2),
-    day.total_cdf.toFixed(2),
-    day.total_equivalent_usd.toFixed(2),
-    day.nombre_paiements,
-    day.methodes_utilisees.join(', ')
+    day.location_name || 'Global',
+    (Number(day.total_usd) || 0).toFixed(2),
+    (Number(day.total_cdf) || 0).toFixed(2),
+    (Number(day.total_equivalent_usd) || 0).toFixed(2),
+    day.nombre_paiements || 0,
+    Array.isArray(day.methodes_utilisees) ? day.methodes_utilisees.join(', ') : ''
   ]);
 
   const csvContent = [
@@ -178,9 +179,9 @@ export const exportCashReportToPdf = (data: any[], filters: any, totals: any) =>
         
         <h2>Résumé de la période</h2>
         <div class="summary-card">
-            <div class="summary-item"><span>Total USD Physique:</span> <strong class="text-green">${totals.usd.toLocaleString('en-US', { minimumFractionDigits: 2 })} $</strong></div>
-            <div class="summary-item"><span>Total CDF Physique:</span> <strong class="text-blue">${totals.cdf.toLocaleString('fr-FR')} FC</strong></div>
-            <div class="summary-item summary-total"><span>Total Équivalent USD:</span> <strong>${totals.total.toLocaleString('en-US', { minimumFractionDigits: 2 })} $</strong></div>
+            <div class="summary-item"><span>Total USD Physique:</span> <strong class="text-green">${(Number(totals?.usd) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $</strong></div>
+            <div class="summary-item"><span>Total CDF Physique:</span> <strong class="text-blue">${(Number(totals?.cdf) || 0).toLocaleString('fr-FR')} FC</strong></div>
+            <div class="summary-item summary-total"><span>Total Équivalent USD:</span> <strong>${(Number(totals?.total) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $</strong></div>
         </div>
 
         <h2>Détails Journaliers</h2>
@@ -188,6 +189,7 @@ export const exportCashReportToPdf = (data: any[], filters: any, totals: any) =>
             <thead>
                 <tr>
                     <th>Date</th>
+                    <th>Site / Localité</th>
                     <th class="text-right">USD Physique</th>
                     <th class="text-right">CDF Physique</th>
                     <th class="text-right">Total (USD Equiv.)</th>
@@ -198,10 +200,11 @@ export const exportCashReportToPdf = (data: any[], filters: any, totals: any) =>
                 ${data.map(day => `
                     <tr>
                         <td>${format(new Date(day.date), 'EEEE dd MMMM yyyy', { locale: fr })}</td>
-                        <td class="text-right text-green">${day.total_usd.toFixed(2)} $</td>
-                        <td class="text-right text-blue">${day.total_cdf.toLocaleString('fr-FR')} FC</td>
-                        <td class="text-right font-bold">${day.total_equivalent_usd.toFixed(2)} $</td>
-                        <td>${day.methodes_utilisees.join(', ')}</td>
+                        <td>${day.location_name || 'Global'}</td>
+                        <td class="text-right text-green">${(Number(day.total_usd) || 0).toFixed(2)} $</td>
+                        <td class="text-right text-blue">${(Number(day.total_cdf) || 0).toLocaleString('fr-FR')} FC</td>
+                        <td class="text-right font-bold">${(Number(day.total_equivalent_usd) || 0).toFixed(2)} $</td>
+                        <td>${Array.isArray(day.methodes_utilisees) ? day.methodes_utilisees.join(', ') : ''}</td>
                     </tr>
                 `).join('')}
             </tbody>

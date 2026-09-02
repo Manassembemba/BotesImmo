@@ -16,7 +16,7 @@ export interface NotificationItem {
 }
 
 export function useAppNotifications() {
-    const { data: bookingsResult, isLoading: bookingsLoading } = useBookings();
+    const { data: bookingsResult, isLoading: bookingsLoading } = useBookings({}, { pageIndex: 0, pageSize: 2000 });
     const bookings = bookingsResult?.data || [];
     const { data: rooms = [], isLoading: roomsLoading } = useRooms();
     const { data: tasks = [], isLoading: tasksLoading } = useTasks();

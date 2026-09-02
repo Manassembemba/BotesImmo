@@ -99,28 +99,62 @@ const Dashboard = () => {
   const todayArrivals = bookings.filter(b => isToday(new Date(b.date_debut_prevue)) && b.status !== 'CANCELLED');
   const todayDepartures = bookings.filter(b => isToday(new Date(b.date_fin_prevue)) && b.status !== 'CANCELLED');
 
-  // Calcul des revenus réels perçus (basés sur les paiements)
-  const actualPayments = payments.filter(p => {
-    const paymentDate = new Date(p.date_paiement);
-    return isToday(paymentDate);
-  });
-  const todayRevenueUsd = actualPayments.reduce((sum, p) => sum + (p.montant_usd || 0), 0);
-  const todayRevenueCdf = actualPayments.reduce((sum, p) => sum + (p.montant_cdf || 0), 0);
+  // Calcul des revenus réels perçus (basés sur les paiements du jour civil)
+  const actualPayments = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    return payments.filter(p => {
+      const paymentDateStr = p.date_paiement 
+        ? (p.date_paiement.includes('T') ? format(new Date(p.date_paiement), 'yyyy-MM-dd') : p.date_paiement.substring(0, 10))
+        : '';
+      const createdAtStr = p.created_at ? format(new Date(p.created_at), 'yyyy-MM-dd') : '';
+      return paymentDateStr === todayStr || createdAtStr === todayStr || isToday(new Date(p.date_paiement)) || (p.created_at && isToday(new Date(p.created_at)));
+    });
+  }, [payments]);
+
+  const todayRevenueUsd = useMemo(() => {
+    return actualPayments.reduce((sum, p) => {
+      const val = (p.montant_usd !== undefined && p.montant_usd !== null) ? Number(p.montant_usd) : Number(p.montant);
+      return sum + (isNaN(val) ? 0 : val);
+    }, 0);
+  }, [actualPayments]);
+
+  const todayRevenueCdf = useMemo(() => {
+    return actualPayments.reduce((sum, p) => sum + (Number(p.montant_cdf) || 0), 0);
+  }, [actualPayments]);
 
   // Calcul des revenus du jour groupés par localité (pour l'ADMIN)
   const revenueByLocation = useMemo(() => {
     if (!locations) return [];
+    const bookingMap = new Map(bookings.map(b => [b.id, b]));
+    const roomMap = new Map(rooms.map(r => [r.id, r]));
+
     return locations.map(location => {
-      const locationPayments = actualPayments.filter(p => p.location_id === location.id);
+      const locationPayments = actualPayments.filter(p => {
+        // 1. Localité directe sur le paiement
+        if (p.location_id === location.id) return true;
+
+        // 2. Localité via la réservation / chambre associée
+        const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
+        if (booking) {
+          const room = booking.room_id ? roomMap.get(booking.room_id) : (booking.rooms || null);
+          if (room && room.location_id === location.id) return true;
+        }
+
+        return false;
+      });
+
       return {
         location_id: location.id,
         nom: location.nom,
-        usd: locationPayments.reduce((sum, p) => sum + (p.montant_usd || 0), 0),
-        cdf: locationPayments.reduce((sum, p) => sum + (p.montant_cdf || 0), 0),
+        usd: locationPayments.reduce((sum, p) => {
+          const val = (p.montant_usd !== undefined && p.montant_usd !== null) ? Number(p.montant_usd) : Number(p.montant);
+          return sum + (isNaN(val) ? 0 : val);
+        }, 0),
+        cdf: locationPayments.reduce((sum, p) => sum + (Number(p.montant_cdf) || 0), 0),
         count: locationPayments.length,
       };
     });
-  }, [actualPayments, locations]);
+  }, [actualPayments, locations, bookings, rooms]);
 
   // Calcul des revenus par mois
   const monthlyData = useMemo(() => {
@@ -392,8 +426,13 @@ const Dashboard = () => {
                         <div className="font-bold text-sm">
                           {booking.tenants?.prenom} {booking.tenants?.nom}
                         </div>
-                        <div className="text-[10px] text-muted-foreground">
-                          App. {booking.rooms?.numero} ({booking.rooms?.type})
+                        <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                          <span>App. {booking.rooms?.numero} ({booking.rooms?.type})</span>
+                          {(!selectedLocationId || role === 'ADMIN') && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 uppercase">
+                              {locations?.find(l => l.id === getRoomForBooking(booking)?.location_id)?.nom || booking.location_name || 'Site'}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[9px] text-muted-foreground italic mt-1">
                           Enregistré le {format(new Date(booking.created_at), 'dd/MM/yyyy')}
@@ -440,25 +479,36 @@ const Dashboard = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-xs sm:text-xs font-semibold">LOCATAIRE</TableHead>
-                  <TableHead className="text-xs sm:text-xs font-semibold">CHAMBRE</TableHead>
+                  <TableHead className="text-xs sm:text-xs font-semibold">CHAMBRE & SITE</TableHead>
                   {role === 'ADMIN' && <TableHead className="text-xs sm:text-xs font-semibold">PRIX (USD)</TableHead>}
                   <TableHead className="text-xs sm:text-xs font-semibold text-right">ACTIONS</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {todayArrivals.map((booking) => (
-                  <TableRow key={booking.id} className="hover:bg-muted/30">
-                    <TableCell className="text-xs sm:text-sm">
-                      <div className="font-medium">{booking.tenants?.prenom} {booking.tenants?.nom}</div>
-                      <div className="text-[10px] text-muted-foreground flex flex-col">
-                        <span>{booking.tenants?.telephone || 'Pas de tel.'}</span>
-                        <span className="mt-1 italic">Enregistré le {format(new Date(booking.created_at), 'dd/MM/yyyy')}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs sm:text-sm">
-                      <div className="font-bold">App. {booking.rooms?.numero}</div>
-                      <div className="text-[10px] uppercase text-muted-foreground">{booking.rooms?.type}</div>
-                    </TableCell>
+                {todayArrivals.map((booking) => {
+                  const room = getRoomForBooking(booking);
+                  const locName = locations?.find(l => l.id === room?.location_id)?.nom || booking.location_name;
+
+                  return (
+                    <TableRow key={booking.id} className="hover:bg-muted/30">
+                      <TableCell className="text-xs sm:text-sm">
+                        <div className="font-medium">{booking.tenants?.prenom} {booking.tenants?.nom}</div>
+                        <div className="text-[10px] text-muted-foreground flex flex-col">
+                          <span>{booking.tenants?.telephone || 'Pas de tel.'}</span>
+                          <span className="mt-1 italic">Enregistré le {format(new Date(booking.created_at), 'dd/MM/yyyy')}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>App. {booking.rooms?.numero}</span>
+                          {locName && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 uppercase">
+                              {locName}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] uppercase text-muted-foreground">{booking.rooms?.type}</div>
+                      </TableCell>
                     {role === 'ADMIN' && <TableCell className="text-xs sm:text-sm font-medium text-emerald-600">${booking.prix_total}</TableCell>}
                     <TableCell className="text-right">
                       {!booking.check_in_reel ? (
