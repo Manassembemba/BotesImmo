@@ -4,6 +4,7 @@ import { useRooms } from '@/hooks/useRooms';
 import { useBookings } from '@/hooks/useBookings';
 import { useExchangeRate } from '@/hooks/useExchangeRate';
 import { useAllPayments } from '@/hooks/usePayments';
+import { useTodaysCashSummary } from '@/hooks/useDailyCashSummary';
 import { formatCurrency } from '@/components/CurrencyDisplay';
 import { useAuth } from '@/hooks/useAuth';
 import { useMemo, useState } from 'react';
@@ -99,62 +100,47 @@ const Dashboard = () => {
   const todayArrivals = bookings.filter(b => isToday(new Date(b.date_debut_prevue)) && b.status !== 'CANCELLED');
   const todayDepartures = bookings.filter(b => isToday(new Date(b.date_fin_prevue)) && b.status !== 'CANCELLED');
 
-  // Calcul des revenus réels perçus (basés sur les paiements du jour civil)
-  const actualPayments = useMemo(() => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
-    return payments.filter(p => {
-      const paymentDateStr = p.date_paiement 
-        ? (p.date_paiement.includes('T') ? format(new Date(p.date_paiement), 'yyyy-MM-dd') : p.date_paiement.substring(0, 10))
-        : '';
-      const createdAtStr = p.created_at ? format(new Date(p.created_at), 'yyyy-MM-dd') : '';
-      return paymentDateStr === todayStr || createdAtStr === todayStr || isToday(new Date(p.date_paiement)) || (p.created_at && isToday(new Date(p.created_at)));
-    });
-  }, [payments]);
+  // ─── Revenus du jour : source fiable = caisse_daily_summary (vue DB) ───
+  // On interroge TOUJOURS tous les sites (pas de filtre de localité)
+  // pour que le total ADMIN soit toujours exact.
+  const { data: todaysCashByLocation = [] } = useTodaysCashSummary();
 
-  const todayRevenueUsd = useMemo(() => {
-    return actualPayments.reduce((sum, p) => {
-      const val = (p.montant_usd !== undefined && p.montant_usd !== null) ? Number(p.montant_usd) : Number(p.montant);
-      return sum + (isNaN(val) ? 0 : val);
-    }, 0);
-  }, [actualPayments]);
+  const todayRevenueUsd = useMemo(() =>
+    todaysCashByLocation.reduce((sum, row) => sum + row.total_usd, 0),
+    [todaysCashByLocation]
+  );
 
-  const todayRevenueCdf = useMemo(() => {
-    return actualPayments.reduce((sum, p) => sum + (Number(p.montant_cdf) || 0), 0);
-  }, [actualPayments]);
+  const todayRevenueCdf = useMemo(() =>
+    todaysCashByLocation.reduce((sum, row) => sum + row.total_cdf, 0),
+    [todaysCashByLocation]
+  );
 
-  // Calcul des revenus du jour groupés par localité (pour l'ADMIN)
+  // Revenus du jour groupés par localité — directement depuis la DB
   const revenueByLocation = useMemo(() => {
     if (!locations) return [];
-    const bookingMap = new Map(bookings.map(b => [b.id, b]));
-    const roomMap = new Map(rooms.map(r => [r.id, r]));
-
     return locations.map(location => {
-      const locationPayments = actualPayments.filter(p => {
-        // 1. Localité directe sur le paiement
-        if (p.location_id === location.id) return true;
-
-        // 2. Localité via la réservation / chambre associée
-        const booking = p.booking_id ? bookingMap.get(p.booking_id) : null;
-        if (booking) {
-          const room = booking.room_id ? roomMap.get(booking.room_id) : (booking.rooms || null);
-          if (room && room.location_id === location.id) return true;
-        }
-
-        return false;
-      });
-
+      const row = todaysCashByLocation.find(r => r.location_id === location.id);
       return {
         location_id: location.id,
         nom: location.nom,
-        usd: locationPayments.reduce((sum, p) => {
-          const val = (p.montant_usd !== undefined && p.montant_usd !== null) ? Number(p.montant_usd) : Number(p.montant);
-          return sum + (isNaN(val) ? 0 : val);
-        }, 0),
-        cdf: locationPayments.reduce((sum, p) => sum + (Number(p.montant_cdf) || 0), 0),
-        count: locationPayments.length,
+        usd: row ? row.total_usd : 0,
+        cdf: row ? row.total_cdf : 0,
+        count: row ? row.nombre_paiements : 0,
       };
     });
-  }, [actualPayments, locations, bookings, rooms]);
+  }, [todaysCashByLocation, locations]);
+
+  // Paiements du jour filtrés (pour les autres calculs client-side comme avgRevenuePerRoom)
+  const actualPayments = useMemo(() => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    return payments.filter(p => {
+      const paymentDateStr = p.date_paiement
+        ? (p.date_paiement.includes('T') ? format(new Date(p.date_paiement), 'yyyy-MM-dd') : p.date_paiement.substring(0, 10))
+        : '';
+      const createdAtStr = p.created_at ? format(new Date(p.created_at), 'yyyy-MM-dd') : '';
+      return paymentDateStr === todayStr || createdAtStr === todayStr;
+    });
+  }, [payments]);
 
   // Calcul des revenus par mois
   const monthlyData = useMemo(() => {
@@ -529,7 +515,8 @@ const Dashboard = () => {
                       )}
                     </TableCell>
                   </TableRow>
-                ))}
+                  );
+                })}
               </TableBody>
             </Table>
           )}
