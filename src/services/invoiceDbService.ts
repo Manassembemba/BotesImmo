@@ -20,7 +20,12 @@ export const invoiceDbService = {
           date_debut_prevue,
           date_fin_prevue,
           rooms!inner (
-            location_id
+            numero,
+            type,
+            location_id,
+            locations (
+              nom
+            )
           )
         )
       `, { count: 'exact' });
@@ -81,8 +86,9 @@ export const invoiceDbService = {
       tenant_name: row.tenant_name,
       tenant_email: row.tenant_email,
       tenant_phone: row.tenant_phone,
-      room_number: row.room_number,
-      room_type: row.room_type,
+      room_number: row.room_number || row.bookings?.rooms?.numero || undefined,
+      room_type: row.room_type || row.bookings?.rooms?.type || undefined,
+      location_name: row.bookings?.rooms?.locations?.nom || undefined,
       amount_paid: Number(row.amount_paid || 0),
       balance_due: Number(row.balance_due || (Number(row.net_total || row.total) - Number(row.amount_paid || 0))),
       booking_dates: row.bookings ? {
@@ -95,14 +101,38 @@ export const invoiceDbService = {
   },
 
   getById: async (id: string): Promise<Invoice | null> => {
-    const { data, error } = await supabase.from('invoices').select('*').eq('id', id).single();
+    const { data, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        bookings (
+          date_debut_prevue,
+          date_fin_prevue,
+          rooms (
+            numero,
+            type,
+            location_id,
+            locations (
+              nom
+            )
+          )
+        )
+      `)
+      .eq('id', id)
+      .single();
+
     if (error) {
       if (error.code === 'PGRST116') return null;
       throw error;
     }
+
+    const row = data as any;
     return {
-      ...data,
-      items: ((data as any).items as any) || []
+      ...row,
+      items: ((row.items as any) || []),
+      room_number: row.room_number || row.bookings?.rooms?.numero || undefined,
+      room_type: row.room_type || row.bookings?.rooms?.type || undefined,
+      location_name: row.bookings?.rooms?.locations?.nom || undefined,
     } as Invoice;
   },
 

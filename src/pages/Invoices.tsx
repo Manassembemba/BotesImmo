@@ -160,6 +160,7 @@ const Invoices = () => {
               <TableRow>
                 <TableHead>N° FACTURE</TableHead>
                 <TableHead>CLIENT</TableHead>
+                <TableHead>APPARTEMENT</TableHead>
                 <TableHead>DATE</TableHead>
                 <TableHead>MONTANT</TableHead>
                 <TableHead>STATUT</TableHead>
@@ -168,14 +169,30 @@ const Invoices = () => {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="h-24 text-center">Chargement...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="h-24 text-center">Chargement...</TableCell></TableRow>
               ) : invoices.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="h-24 text-center">Aucune facture trouvée.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="h-24 text-center">Aucune facture trouvée.</TableCell></TableRow>
               ) : (
                 invoices.map((invoice) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                    <TableCell>{invoice.tenant_name}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{invoice.tenant_name}</div>
+                      {invoice.tenant_phone && <div className="text-[10px] text-muted-foreground">{invoice.tenant_phone}</div>}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-bold flex items-center gap-1.5">
+                        <span>App. {invoice.room_number || 'N/A'}</span>
+                        {invoice.location_name && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200 uppercase">
+                            {invoice.location_name}
+                          </span>
+                        )}
+                      </div>
+                      {invoice.room_type && (
+                        <div className="text-[10px] uppercase text-muted-foreground">{invoice.room_type}</div>
+                      )}
+                    </TableCell>
                     <TableCell>{format(new Date(invoice.date), 'dd/MM/yyyy', { locale: fr })}</TableCell>
                     <TableCell>{invoice.total.toFixed(2)} {invoice.currency}</TableCell>
                     <TableCell>{getStatusBadge(invoice.status)}</TableCell>

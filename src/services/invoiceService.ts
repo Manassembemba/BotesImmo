@@ -24,8 +24,10 @@ export const calculateInvoiceItems = (booking: Booking, room: Room): InvoiceLine
   const nights = differenceInCalendarDays(startOfDay(endDate), startOfDay(startDate));
 
   if (nights > 0) {
+    const roomLabel = room?.numero ? ` (App. ${room.numero})` : '';
+    const roomType = room?.type || 'Appartement';
     items.push({
-      description: `Location ${room.type} - ${nights} nuits du ${format(startDate, 'dd/MM/yyyy')} au ${format(endDate, 'dd/MM/yyyy')}`,
+      description: `Location ${roomType}${roomLabel} - ${nights} nuit${nights > 1 ? 's' : ''} du ${format(startDate, 'dd/MM/yyyy')} au ${format(endDate, 'dd/MM/yyyy')}`,
       quantity: nights,
       unit_price: room.prix_base_nuit // Utiliser directement le prix de base de la chambre
     });

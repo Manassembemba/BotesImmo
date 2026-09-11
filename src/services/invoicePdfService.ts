@@ -45,6 +45,9 @@ export const generateInvoiceHTML = (
             .badge-number-thermal { display: block; font-size: 12pt; margin-top: 2mm; }
             .client-info-thermal { margin-bottom: 4mm; border: 2pt solid #000; padding: 2mm; }
             .client-name-thermal { font-weight: 900; font-size: 13pt; margin: 0 0 1mm 0; text-transform: uppercase; }
+            .room-highlight-thermal { margin-top: 2mm; padding-top: 2mm; border-top: 1pt dashed #000; font-size: 10pt; }
+            .room-highlight-thermal strong { font-size: 12pt; display: block; margin-top: 1mm; text-transform: uppercase; }
+            .location-badge-thermal { display: inline-block; background-color: #000; color: #fff; padding: 2pt 5pt; font-size: 8.5pt; margin-top: 1.5mm; text-transform: uppercase; font-weight: bold; border-radius: 2px; }
             .date-table-thermal { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
             .date-table-thermal td { border: 1pt solid #000; padding: 4pt; text-align: center; font-weight: 900; font-size: 10pt; }
             .items-table-thermal { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
@@ -69,6 +72,11 @@ export const generateInvoiceHTML = (
             <div class="client-info-thermal">
                 <p class="client-name-thermal">CLIENT: ${invoice.tenant_name || 'N/A'}</p>
                 <p class="client-phone-thermal">TEL: ${invoice.tenant_phone || 'N/A'}</p>
+                <div class="room-highlight-thermal">
+                    <span>APPARTEMENT:</span>
+                    <strong>App. ${invoice.room_number || 'N/A'} ${invoice.room_type ? `(${invoice.room_type})` : ''}</strong>
+                    ${invoice.location_name ? `<span class="location-badge-thermal">SITE: ${invoice.location_name}</span>` : ''}
+                </div>
             </div>
             <table class="date-table-thermal">
                 <tr><td>ARRIVÉE</td><td>${startDate}</td><td>${startTime}</td></tr>
@@ -107,30 +115,56 @@ export const downloadInvoicePDF = async (invoice: Invoice) => {
         return;
     }
 
-    const { data: payments, error } = await supabase
-        .from('payments')
-        .select('montant, montant_usd, montant_cdf')
-        .eq('booking_id', invoice.booking_id);
+    // Récupérer les paiements et compléter les informations de chambre/site si nécessaire
+    let enrichedInvoice = { ...invoice };
+    const [paymentsRes, bookingRes] = await Promise.all([
+        supabase
+            .from('payments')
+            .select('montant, montant_usd, montant_cdf')
+            .eq('booking_id', invoice.booking_id),
+        (!enrichedInvoice.room_number || !enrichedInvoice.location_name)
+            ? supabase
+                .from('bookings')
+                .select(`
+                    rooms (
+                        numero,
+                        type,
+                        locations (
+                            nom
+                        )
+                    )
+                `)
+                .eq('id', invoice.booking_id)
+                .single()
+            : Promise.resolve({ data: null, error: null })
+    ]);
 
-    if (error) {
-        console.error("Erreur paiements:", error);
+    if (paymentsRes.error) {
+        console.error("Erreur paiements:", paymentsRes.error);
         alert("Erreur lors de la récupération des paiements.");
         return;
     }
 
+    if (bookingRes.data?.rooms) {
+        const r: any = bookingRes.data.rooms;
+        enrichedInvoice.room_number = enrichedInvoice.room_number || r.numero;
+        enrichedInvoice.room_type = enrichedInvoice.room_type || r.type;
+        enrichedInvoice.location_name = enrichedInvoice.location_name || r.locations?.nom;
+    }
+
     let totalPaid = 0, paidUSD = 0, paidCDF = 0;
-    (payments || []).forEach(p => {
+    (paymentsRes.data || []).forEach(p => {
         totalPaid += p.montant;
         paidUSD += (p.montant_usd || 0);
         paidCDF += (p.montant_cdf || 0);
     });
 
-    const htmlContent = generateInvoiceHTML(invoice, totalPaid, paidUSD, paidCDF);
+    const htmlContent = generateInvoiceHTML(enrichedInvoice, totalPaid, paidUSD, paidCDF);
     const newWindow = window.open('', '_blank');
     if (newWindow) {
         newWindow.document.write(`
             <html>
-                <head><title>Facture ${invoice.invoice_number}</title></head>
+                <head><title>Facture ${enrichedInvoice.invoice_number}</title></head>
                 <body style="margin:0; padding:0;">${htmlContent}</body>
             </html>
         `);
@@ -144,12 +178,14 @@ export const downloadInvoicePDF = async (invoice: Invoice) => {
 export const shareInvoice = async (invoice: Invoice, totalPaid: number) => {
     const netTotal = invoice.net_total || invoice.total;
     const remainingBalance = netTotal - totalPaid;
+    const roomInfo = invoice.room_number ? `App. ${invoice.room_number} (${invoice.room_type || 'Studio'})` : 'N/A';
+    const siteInfo = invoice.location_name ? `\nSite: ${invoice.location_name}` : '';
 
     const text = `*FACTURE BOTES IMMO*\n` +
         `---------------------------\n` +
         `Ref: ${invoice.invoice_number}\n` +
         `Client: ${invoice.tenant_name}\n` +
-        `Chambre: ${invoice.room_number} (${invoice.room_type})\n` +
+        `Appartement: ${roomInfo}${siteInfo}\n` +
         `Période: ${invoice.booking_dates ? format(new Date(invoice.booking_dates.start), 'dd/MM/yyyy') : ''} au ${invoice.booking_dates ? format(new Date(invoice.booking_dates.end), 'dd/MM/yyyy') : ''}\n` +
         `---------------------------\n` +
         `TOTAL: ${netTotal.toFixed(2)}$\n` +
@@ -180,20 +216,44 @@ export const shareInvoice = async (invoice: Invoice, totalPaid: number) => {
 export const shareInvoiceAsPDF = async (invoice: Invoice) => {
     if (!invoice.booking_id) return;
 
-    // Récupérer les paiements
-    const { data: payments } = await supabase
-        .from('payments')
-        .select('montant, montant_usd, montant_cdf')
-        .eq('booking_id', invoice.booking_id);
+    let enrichedInvoice = { ...invoice };
+    const [paymentsRes, bookingRes] = await Promise.all([
+        supabase
+            .from('payments')
+            .select('montant, montant_usd, montant_cdf')
+            .eq('booking_id', invoice.booking_id),
+        (!enrichedInvoice.room_number || !enrichedInvoice.location_name)
+            ? supabase
+                .from('bookings')
+                .select(`
+                    rooms (
+                        numero,
+                        type,
+                        locations (
+                            nom
+                        )
+                    )
+                `)
+                .eq('id', invoice.booking_id)
+                .single()
+            : Promise.resolve({ data: null, error: null })
+    ]);
+
+    if (bookingRes.data?.rooms) {
+        const r: any = bookingRes.data.rooms;
+        enrichedInvoice.room_number = enrichedInvoice.room_number || r.numero;
+        enrichedInvoice.room_type = enrichedInvoice.room_type || r.type;
+        enrichedInvoice.location_name = enrichedInvoice.location_name || r.locations?.nom;
+    }
 
     let totalPaid = 0, paidUSD = 0, paidCDF = 0;
-    (payments || []).forEach(p => {
+    (paymentsRes.data || []).forEach(p => {
         totalPaid += p.montant;
         paidUSD += (p.montant_usd || 0);
         paidCDF += (p.montant_cdf || 0);
     });
 
-    const htmlContent = generateInvoiceHTML(invoice, totalPaid, paidUSD, paidCDF);
+    const htmlContent = generateInvoiceHTML(enrichedInvoice, totalPaid, paidUSD, paidCDF);
 
     // Créer un élément invisible pour le rendu
     const container = document.createElement('div');

@@ -34,6 +34,7 @@ export interface Invoice {
   booking_dates?: { start: string; end: string };
   room_number?: string;
   room_type?: string;
+  location_name?: string;
   amount_paid?: number;
   balance_due?: number;
 }

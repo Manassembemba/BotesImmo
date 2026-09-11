@@ -122,8 +122,15 @@ export function InvoiceView({ invoice }: InvoiceViewProps) {
             <p>{format(new Date(invoice.booking_dates!.end), 'dd/MM/yyyy', { locale: fr })} à 11:00</p>
           </div>
           <div>
-            <p className="text-gray-600">Chambre:</p>
-            <p>{invoice.room_number} ({invoice.room_type})</p>
+            <p className="text-gray-600 font-medium">Appartement:</p>
+            <p className="font-bold text-foreground">
+              App. {invoice.room_number || 'N/A'} {invoice.room_type ? `(${invoice.room_type})` : ''}
+            </p>
+            {invoice.location_name && (
+              <Badge variant="outline" className="mt-1 text-[10px] uppercase font-bold bg-muted">
+                {invoice.location_name}
+              </Badge>
+            )}
           </div>
         </div>
       </div>

@@ -55,9 +55,14 @@ function InvoiceSummaryDialog({ bookingId, invoices, isOpen, onClose }: {
             return (
               <div key={invoice.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between border rounded-md p-3 hover:bg-muted/50 transition-colors">
                 <div className="flex-1 text-sm bg-transparent">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <p className="font-medium">{invoice.invoice_number}</p>
                     {isExtension && <Badge variant="secondary" className="text-[10px] h-5">Prolongation</Badge>}
+                    {invoice.room_number && (
+                      <Badge variant="outline" className="text-[10px] h-5 font-bold">
+                        App. {invoice.room_number} {invoice.location_name ? `(${invoice.location_name})` : ''}
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-muted-foreground text-xs">
                     {format(new Date(invoice.date), 'dd/MM/yyyy', { locale: fr })} - {invoice.net_total?.toFixed(2) || invoice.total.toFixed(2)} {invoice.currency}
