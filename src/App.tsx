@@ -41,10 +41,10 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Index /></ProtectedRoute>} />
+                <Route path="/" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT']}><Index /></ProtectedRoute>} />
                 <Route path="/rooms" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT']}><Rooms /></ProtectedRoute>} />
                 <Route path="/planning" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT']}><Planning /></ProtectedRoute>} />
-                <Route path="/reservations" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Reservations /></ProtectedRoute>} />
+                <Route path="/reservations" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT']}><Reservations /></ProtectedRoute>} />
                 <Route path="/tenants" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Tenants /></ProtectedRoute>} />
                 <Route path="/incidents" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Incidents /></ProtectedRoute>} />
                 <Route path="/tasks" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Tasks /></ProtectedRoute>} />

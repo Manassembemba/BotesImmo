@@ -217,7 +217,7 @@ const Reservations = () => {
   }, [bookingsData, rooms]);
 
   const subtitle = useMemo(() => {
-    if (role === 'ADMIN') {
+    if (role === 'ADMIN' || role === 'SERVICE_CLIENT') {
       if (selectedLocationId && locations) {
         const locationName = locations.find(l => l.id === selectedLocationId)?.nom;
         return `Gérez les réservations pour le site : ${locationName || 'Inconnu'}`;
@@ -428,11 +428,11 @@ const Reservations = () => {
                     <TableHead className="text-primary-foreground font-semibold">CLIENT</TableHead>
                     <TableHead className="text-primary-foreground font-semibold">APPARTEMENT</TableHead>
                     <TableHead className="text-primary-foreground font-semibold">STATUT</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold">MONTANTS</TableHead>
+                    {role !== 'SERVICE_CLIENT' && <TableHead className="text-primary-foreground font-semibold">MONTANTS</TableHead>}
                     <TableHead className="text-primary-foreground font-semibold">DATES</TableHead>
                     <TableHead className="text-primary-foreground font-semibold">NUITS</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold">FACTURE</TableHead>
-                    <TableHead className="text-primary-foreground font-semibold text-center">ACTIONS</TableHead>
+                    {role !== 'SERVICE_CLIENT' && <TableHead className="text-primary-foreground font-semibold">FACTURE</TableHead>}
+                    {role !== 'SERVICE_CLIENT' && <TableHead className="text-primary-foreground font-semibold text-center">ACTIONS</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -493,91 +493,95 @@ const Reservations = () => {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="p-0">
-                          <div
-                            className="p-4 cursor-pointer hover:bg-slate-50 transition-colors group relative border-l-4 border-transparent hover:border-indigo-500"
-                            onClick={() => setManagePaymentBooking(booking)}
-                            title="Gérer les paiements"
-                          >
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <BadgeCent className="h-4 w-4 text-indigo-500" />
-                            </div>
-                            <div className="space-y-1">
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground group-hover:text-indigo-600 transition-colors">Prévu:</span>
-                                <span className="font-bold">${Number(booking.prix_total).toLocaleString('fr-FR')}</span>
+                        {role !== 'SERVICE_CLIENT' && (
+                          <TableCell className="p-0">
+                            <div
+                              className="p-4 cursor-pointer hover:bg-slate-50 transition-colors group relative border-l-4 border-transparent hover:border-indigo-500"
+                              onClick={() => setManagePaymentBooking(booking)}
+                              title="Gérer les paiements"
+                            >
+                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <BadgeCent className="h-4 w-4 text-indigo-500" />
                               </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground group-hover:text-indigo-600 transition-colors">Prévu:</span>
+                                  <span className="font-bold">${Number(booking.prix_total).toLocaleString('fr-FR')}</span>
+                                </div>
 
-                              {booking.isOverdue && (
-                                <div className="flex justify-between text-sm bg-red-50 p-1 rounded border border-red-100 animate-pulse">
-                                  <span className="text-red-600 font-bold text-[10px] flex items-center gap-1">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    DETTE ({booking.lateNights}j):
+                                {booking.isOverdue && (
+                                  <div className="flex justify-between text-sm bg-red-50 p-1 rounded border border-red-100 animate-pulse">
+                                    <span className="text-red-600 font-bold text-[10px] flex items-center gap-1">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      DETTE ({booking.lateNights}j):
+                                    </span>
+                                    <span className="font-bold text-red-700">${Number(booking.lateStayDebt).toFixed(2)}</span>
+                                  </div>
+                                )}
+
+                                <div className="flex justify-between text-sm pt-1 border-t border-slate-100">
+                                  <span className="text-muted-foreground">Total dû:</span>
+                                  <span className="font-extrabold text-indigo-900">${Number(booking.currentTotalDue).toLocaleString('fr-FR')}</span>
+                                </div>
+
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground group-hover:text-indigo-600 transition-colors">Payé:</span>
+                                  <span className={cn("font-bold", paymentStatusConfig.className)}>
+                                    ${(Number(booking.totalPaid) || 0).toLocaleString('fr-FR')}
                                   </span>
-                                  <span className="font-bold text-red-700">${Number(booking.lateStayDebt).toFixed(2)}</span>
                                 </div>
-                              )}
 
-                              <div className="flex justify-between text-sm pt-1 border-t border-slate-100">
-                                <span className="text-muted-foreground">Total dû:</span>
-                                <span className="font-extrabold text-indigo-900">${Number(booking.currentTotalDue).toLocaleString('fr-FR')}</span>
-                              </div>
-
-                              <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground group-hover:text-indigo-600 transition-colors">Payé:</span>
-                                <span className={cn("font-bold", paymentStatusConfig.className)}>
-                                  ${(Number(booking.totalPaid) || 0).toLocaleString('fr-FR')}
-                                </span>
-                              </div>
-
-                              {booking.balanceDue > 0.01 && (
-                                <div className="text-xs pt-1 border-t border-slate-100 mt-1">
-                                  <div className="flex justify-between font-bold text-red-600 bg-red-50/50 px-1 rounded">
-                                    <span>Reste:</span>
-                                    <span>${(booking.balanceDue).toLocaleString('fr-FR')}</span>
+                                {booking.balanceDue > 0.01 && (
+                                  <div className="text-xs pt-1 border-t border-slate-100 mt-1">
+                                    <div className="flex justify-between font-bold text-red-600 bg-red-50/50 px-1 rounded">
+                                      <span>Reste:</span>
+                                      <span>${(booking.balanceDue).toLocaleString('fr-FR')}</span>
+                                    </div>
+                                    <div className="text-right text-muted-foreground italic scale-90 origin-right mt-0.5">
+                                      ~ {(booking.balanceDue * rate).toLocaleString('fr-FR')} FC
+                                    </div>
                                   </div>
-                                  <div className="text-right text-muted-foreground italic scale-90 origin-right mt-0.5">
-                                    ~ {(booking.balanceDue * rate).toLocaleString('fr-FR')} FC
-                                  </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
+                          </TableCell>
+                        )}
                         <TableCell><p>Du {format(new Date(booking.date_debut_prevue), 'dd/MM/yyyy')}</p><p>Au {format(new Date(booking.date_fin_prevue), 'dd/MM/yyyy')}</p></TableCell>
                         <TableCell className="text-center font-medium">{numberOfNights}</TableCell>
-                        <TableCell><InvoiceListForBooking bookingId={booking.id} /></TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            {actions.canCheckIn && (
-                              <Button
-                                size="sm"
-                                onClick={() => setCheckInBooking(booking)}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                                title="Check-in"
-                              >
-                                <LogIn className="h-4 w-4 mr-1" />
-                                Check-in
-                              </Button>
-                            )}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
+                        {role !== 'SERVICE_CLIENT' && <TableCell><InvoiceListForBooking bookingId={booking.id} /></TableCell>}
+                        {role !== 'SERVICE_CLIENT' && (
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              {actions.canCheckIn && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => setCheckInBooking(booking)}
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  title="Check-in"
+                                >
+                                  <LogIn className="h-4 w-4 mr-1" />
+                                  Check-in
                                 </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {actions.canCheckIn && <DropdownMenuItem onClick={() => setCheckInBooking(booking)}><LogIn className="h-4 w-4 mr-2" />Check-in</DropdownMenuItem>}
-                                {actions.canCheckOut && <DropdownMenuItem onClick={() => setCheckOutBooking(booking)}><LogOut className="h-4 w-4 mr-2" />Check-out</DropdownMenuItem>}
-                                {(actions.canCheckIn || actions.canCheckOut) && <DropdownMenuSeparator />}
-                                {actions.canEdit && <DropdownMenuItem onClick={() => setEditBooking(booking)}><Edit className="h-4 w-4 mr-2" />Modifier</DropdownMenuItem>}
-                                {actions.canEdit && <DropdownMenuItem onClick={() => setManagePaymentBooking(booking)}><BadgeCent className="h-4 w-4 mr-2" />Gérer les paiements</DropdownMenuItem>}
-                                {actions.canCancel && <DropdownMenuItem onClick={() => setCancelBooking(booking)} className="text-orange-600"><XCircle className="h-4 w-4 mr-2" />Annuler</DropdownMenuItem>}
-                                {actions.canDelete && role === 'ADMIN' && (<><DropdownMenuSeparator /><DropdownMenuItem onClick={() => setDeleteBookingId(booking.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem></>)}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  {actions.canCheckIn && <DropdownMenuItem onClick={() => setCheckInBooking(booking)}><LogIn className="h-4 w-4 mr-2" />Check-in</DropdownMenuItem>}
+                                  {actions.canCheckOut && <DropdownMenuItem onClick={() => setCheckOutBooking(booking)}><LogOut className="h-4 w-4 mr-2" />Check-out</DropdownMenuItem>}
+                                  {(actions.canCheckIn || actions.canCheckOut) && <DropdownMenuSeparator />}
+                                  {actions.canEdit && <DropdownMenuItem onClick={() => setEditBooking(booking)}><Edit className="h-4 w-4 mr-2" />Modifier</DropdownMenuItem>}
+                                  {actions.canEdit && <DropdownMenuItem onClick={() => setManagePaymentBooking(booking)}><BadgeCent className="h-4 w-4 mr-2" />Gérer les paiements</DropdownMenuItem>}
+                                  {actions.canCancel && <DropdownMenuItem onClick={() => setCancelBooking(booking)} className="text-orange-600"><XCircle className="h-4 w-4 mr-2" />Annuler</DropdownMenuItem>}
+                                  {actions.canDelete && role === 'ADMIN' && (<><DropdownMenuSeparator /><DropdownMenuItem onClick={() => setDeleteBookingId(booking.id)} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem></>)}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })}

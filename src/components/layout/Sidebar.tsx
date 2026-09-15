@@ -36,8 +36,8 @@ import { MapPin, Activity } from 'lucide-react';
 
 const getNavigation = (notificationCount: number, role: string | null) => {
   const items = [
-    { name: 'Accueil', href: '/', icon: Home, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
-    { name: 'Réservation', href: '/reservations', icon: ClipboardList, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+    { name: 'Accueil', href: '/', icon: Home, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
+    { name: 'Réservation', href: '/reservations', icon: ClipboardList, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
     { name: 'Factures', href: '/invoices', icon: FileText, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
     { name: 'Appartements', href: '/rooms', icon: BedDouble, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
     { name: 'Calendrier des locations', href: '/planning', icon: Calendar, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },

@@ -187,7 +187,7 @@ const Dashboard = () => {
       timestamp: b.created_at,
     }));
 
-    const paymentActivities = payments.slice(0, 10).map(p => ({
+    const paymentActivities = role === 'SERVICE_CLIENT' ? [] : payments.slice(0, 10).map(p => ({
       id: `payment-${p.id}`,
       type: 'payment' as const,
       message: `Paiement reçu: ${formatCurrency(p.montant, rate).usd}`,
@@ -197,10 +197,10 @@ const Dashboard = () => {
     return [...bookingActivities, ...paymentActivities]
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
       .slice(0, 5);
-  }, [bookings, payments, rate]);
+  }, [bookings, payments, rate, role]);
 
   const dashboardSubtitle = useMemo(() => {
-    if (role === 'ADMIN') {
+    if (role === 'ADMIN' || role === 'SERVICE_CLIENT') {
       if (selectedLocationId && locations) {
         const locationName = locations.find(l => l.id === selectedLocationId)?.nom;
         return `Données pour la localité : ${locationName || 'Inconnue'}`;
@@ -425,14 +425,18 @@ const Dashboard = () => {
                         </div>
                       </div>
                       {!booking.check_in_reel ? (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-8 w-8 p-0 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200"
-                          onClick={() => setCheckInBooking(booking)}
-                        >
-                          <LogIn className="h-4 w-4" />
-                        </Button>
+                        role === 'SERVICE_CLIENT' ? (
+                          <span className="text-[10px] text-muted-foreground italic">En attente</span>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-8 w-8 p-0 rounded-full bg-emerald-50 text-emerald-700 border-emerald-200"
+                            onClick={() => setCheckInBooking(booking)}
+                          >
+                            <LogIn className="h-4 w-4" />
+                          </Button>
+                        )
                       ) : (
                         <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                       )}
@@ -498,15 +502,19 @@ const Dashboard = () => {
                     {role === 'ADMIN' && <TableCell className="text-xs sm:text-sm font-medium text-emerald-600">${booking.prix_total}</TableCell>}
                     <TableCell className="text-right">
                       {!booking.check_in_reel ? (
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="h-8 gap-1.5 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
-                          onClick={() => setCheckInBooking(booking)}
-                        >
-                          <LogIn className="h-3.5 w-3.5" />
-                          Check-in
-                        </Button>
+                        role === 'SERVICE_CLIENT' ? (
+                          <span className="text-xs text-muted-foreground italic">Non arrivé</span>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="h-8 gap-1.5 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:text-emerald-800"
+                            onClick={() => setCheckInBooking(booking)}
+                          >
+                            <LogIn className="h-3.5 w-3.5" />
+                            Check-in
+                          </Button>
+                        )
                       ) : (
                         <div className="flex items-center justify-end gap-1 text-emerald-600 text-[10px] font-bold uppercase">
                           <CheckCircle2 className="h-3 w-3" />

@@ -5,6 +5,7 @@ import { getRoomTypeLabel } from '@/lib/roomUtils';
 import { Room } from '@/hooks/useRooms';
 import { Booking } from '@/hooks/useBookings';
 import { CheckoutDecisionDialog } from '@/components/checkout/CheckoutDecisionDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 interface PendingCheckoutsProps {
   rooms: Room[];
@@ -12,6 +13,7 @@ interface PendingCheckoutsProps {
 }
 
 export function PendingCheckouts({ rooms, bookings }: PendingCheckoutsProps) {
+  const { role } = useAuth();
   const [selectedCheckout, setSelectedCheckout] = useState<{ room: Room; booking: Booking } | null>(null);
   
   const pendingRooms = rooms.filter(room => room.status === 'PENDING_CHECKOUT');
@@ -70,15 +72,17 @@ export function PendingCheckouts({ rooms, bookings }: PendingCheckoutsProps) {
                     Départ prévu : {booking ? new Date(booking.date_fin_prevue).toLocaleDateString('fr-FR') : 'Non défini'}
                   </p>
                 </div>
-                <Button 
-                  size="sm" 
-                  className="gap-1"
-                  onClick={() => booking && setSelectedCheckout({ room, booking })}
-                  disabled={!booking}
-                >
-                  Action
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
+                {role !== 'SERVICE_CLIENT' && (
+                  <Button 
+                    size="sm" 
+                    className="gap-1"
+                    onClick={() => booking && setSelectedCheckout({ room, booking })}
+                    disabled={!booking}
+                  >
+                    Action
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             );
           })}

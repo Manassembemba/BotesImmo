@@ -8,8 +8,8 @@ import { isToday, isTomorrow, isPast, parseISO, differenceInDays } from 'date-fn
 import { useMemo, useState } from 'react';
 
 const navItems = [
-  { name: 'Accueil', href: '/', icon: Home, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
-  { name: 'Réservations', href: '/reservations', icon: ClipboardList, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+  { name: 'Accueil', href: '/', icon: Home, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
+  { name: 'Réservations', href: '/reservations', icon: ClipboardList, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
   { name: 'Appartements', href: '/rooms', icon: BedDouble, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
   { name: 'Calendrier', href: '/planning', icon: Calendar, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
   { name: 'Locataires', href: '/tenants', icon: Users, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
