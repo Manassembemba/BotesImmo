@@ -163,7 +163,7 @@ BEGIN
     fb.statut_paiement,
     fb.full_count
   FROM filtered_bookings fb
-  ORDER BY fb.date_debut_prevue DESC
+  ORDER BY fb.created_at DESC
   OFFSET p_offset
   LIMIT p_limit;
 END;
