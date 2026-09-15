@@ -90,14 +90,16 @@ Deno.serve(async (req) => {
                     throw profileError;
                 }
 
-                // 3. Upsert role (trigger assigns AGENT_RES by default — overwrite with desired role)
-                console.log(`Upserting role for user ${newUserId}...`);
+                // 3. Overwrite role (trigger assigns AGENT_RES — delete then insert desired role)
+                // Note: unique constraint on user_roles is (user_id, role) — use delete+insert
+                console.log(`Setting role for user ${newUserId}...`);
+                await adminClient.from('user_roles').delete().eq('user_id', newUserId);
                 const { error: roleError } = await adminClient
                     .from('user_roles')
-                    .upsert({ user_id: newUserId, role }, { onConflict: 'user_id' });
+                    .insert({ user_id: newUserId, role });
 
                 if (roleError) {
-                    console.error('Role Upsert Error:', roleError);
+                    console.error('Role Insert Error:', roleError);
                     await adminClient.auth.admin.deleteUser(newUserId);
                     throw roleError;
                 }
