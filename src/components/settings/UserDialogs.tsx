@@ -151,6 +151,7 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
                                 <SelectItem value="ADMIN">Administrateur (Accès global)</SelectItem>
                                 <SelectItem value="AGENT_RES">Agent Réservations</SelectItem>
                                 <SelectItem value="AGENT_OP">Agent Opérations / Terrain</SelectItem>
+                                <SelectItem value="SERVICE_CLIENT">Service Client (Disponibilités & Calendrier)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -306,6 +307,7 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
                                 <SelectItem value="ADMIN">Administrateur (Accès global)</SelectItem>
                                 <SelectItem value="AGENT_RES">Agent Réservations</SelectItem>
                                 <SelectItem value="AGENT_OP">Agent Opérations / Terrain</SelectItem>
+                                <SelectItem value="SERVICE_CLIENT">Service Client (Disponibilités & Calendrier)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

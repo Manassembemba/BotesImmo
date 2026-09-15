@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { CreateUserDialog, EditUserDialog } from './UserDialogs';
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Shield, User as UserIcon, Building2, UserCheck, Users, MapPin, RefreshCw, KeyRound, UserCog } from 'lucide-react';
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Shield, User as UserIcon, Building2, UserCheck, Users, MapPin, RefreshCw, KeyRound, UserCog, Headphones } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -30,12 +30,13 @@ export function UserManagement() {
 
   // Statistiques calculées
   const stats = useMemo(() => {
-    if (!users) return { total: 0, admins: 0, resAgents: 0, opAgents: 0, locationsCount: 0 };
+    if (!users) return { total: 0, admins: 0, resAgents: 0, opAgents: 0, serviceClients: 0, locationsCount: 0 };
     return {
       total: users.length,
       admins: users.filter((u) => u.role === 'ADMIN').length,
       resAgents: users.filter((u) => u.role === 'AGENT_RES').length,
       opAgents: users.filter((u) => u.role === 'AGENT_OP').length,
+      serviceClients: users.filter((u) => u.role === 'SERVICE_CLIENT').length,
       locationsCount: locations ? locations.length : 0,
     };
   }, [users, locations]);
@@ -116,6 +117,12 @@ export function UserManagement() {
         return (
           <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300 gap-1 px-2.5 py-0.5 font-medium">
             <Building2 className="h-3 w-3" /> Agent Opérations
+          </Badge>
+        );
+      case 'SERVICE_CLIENT':
+        return (
+          <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-300 gap-1 px-2.5 py-0.5 font-medium">
+            <Headphones className="h-3 w-3" /> Service Client
           </Badge>
         );
       default:
@@ -238,6 +245,7 @@ export function UserManagement() {
               <SelectItem value="ADMIN">Administrateurs</SelectItem>
               <SelectItem value="AGENT_RES">Agents Réservations</SelectItem>
               <SelectItem value="AGENT_OP">Agents Opérations</SelectItem>
+              <SelectItem value="SERVICE_CLIENT">Service Client</SelectItem>
             </SelectContent>
           </Select>
 

@@ -8,15 +8,15 @@ import { isToday, isTomorrow, isPast, parseISO, differenceInDays } from 'date-fn
 import { useMemo, useState } from 'react';
 
 const navItems = [
-  { name: 'Accueil', href: '/', icon: Home },
-  { name: 'Réservations', href: '/reservations', icon: ClipboardList },
-  { name: 'Appartements', href: '/rooms', icon: BedDouble },
-  { name: 'Calendrier', href: '/planning', icon: Calendar },
-  { name: 'Locataires', href: '/tenants', icon: Users },
-  { name: 'Factures', href: '/invoices', icon: FileText },
+  { name: 'Accueil', href: '/', icon: Home, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+  { name: 'Réservations', href: '/reservations', icon: ClipboardList, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+  { name: 'Appartements', href: '/rooms', icon: BedDouble, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
+  { name: 'Calendrier', href: '/planning', icon: Calendar, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
+  { name: 'Locataires', href: '/tenants', icon: Users, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+  { name: 'Factures', href: '/invoices', icon: FileText, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
   { name: 'Rapports', href: '/reports', icon: BarChart3, roles: ['ADMIN'] },
-  { name: 'Notifications', href: '/notifications', icon: Bell },
-  { name: 'Réglages', href: '/settings', icon: Settings },
+  { name: 'Notifications', href: '/notifications', icon: Bell, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+  { name: 'Réglages', href: '/settings', icon: Settings, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
 ];
 
 export function MobileNavBar() {

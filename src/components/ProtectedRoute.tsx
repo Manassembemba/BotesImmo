@@ -24,7 +24,13 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   // If roles are specified, check if the user's role is allowed
   if (allowedRoles && role && !allowedRoles.includes(role)) {
     console.warn(`Access denied for role: ${role}. Required: ${allowedRoles.join(', ')}`);
-    return <Navigate to="/" replace />;
+    // SERVICE_CLIENT is redirected to /planning instead of /
+    return <Navigate to={role === 'SERVICE_CLIENT' ? '/planning' : '/'} replace />;
+  }
+
+  // If role is SERVICE_CLIENT and route is root '/', redirect to /planning
+  if (role === 'SERVICE_CLIENT' && window.location.pathname === '/') {
+    return <Navigate to="/planning" replace />;
   }
 
   return <>{children}</>;

@@ -233,6 +233,7 @@ const Planning = () => {
   };
 
   const handleCellClick = (room: Room, day: Date) => {
+    if (role === 'SERVICE_CLIENT') return;
     const today = startOfToday();
 
     if (!selection.start || selection.roomId !== room.id) {

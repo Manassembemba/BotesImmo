@@ -36,17 +36,17 @@ import { MapPin, Activity } from 'lucide-react';
 
 const getNavigation = (notificationCount: number, role: string | null) => {
   const items = [
-    { name: 'Accueil', href: '/', icon: Home },
-    { name: 'Réservation', href: '/reservations', icon: ClipboardList },
-    { name: 'Factures', href: '/invoices', icon: FileText },
-    { name: 'Appartements', href: '/rooms', icon: BedDouble },
-    { name: 'Calendrier des locations', href: '/planning', icon: Calendar },
-    { name: 'Locataires', href: '/tenants', icon: Users },
+    { name: 'Accueil', href: '/', icon: Home, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+    { name: 'Réservation', href: '/reservations', icon: ClipboardList, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+    { name: 'Factures', href: '/invoices', icon: FileText, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+    { name: 'Appartements', href: '/rooms', icon: BedDouble, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
+    { name: 'Calendrier des locations', href: '/planning', icon: Calendar, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
+    { name: 'Locataires', href: '/tenants', icon: Users, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
     { name: 'Utilisateurs', href: '/users', icon: UserCog, roles: ['ADMIN'] },
     { name: 'Rapports', href: '/reports', icon: BarChart3, roles: ['ADMIN'] },
     { name: 'Synchronisation', href: '/sync-dashboard', icon: Activity, roles: ['ADMIN'] },
-    { name: 'Notifications', href: '/notifications', icon: Bell, badgeCount: notificationCount },
-    { name: 'Réglages', href: '/settings', icon: Settings },
+    { name: 'Notifications', href: '/notifications', icon: Bell, badgeCount: notificationCount, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP'] },
+    { name: 'Réglages', href: '/settings', icon: Settings, roles: ['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT'] },
   ];
 
   return items.filter(item => !item.roles || (role && item.roles.includes(role)));
@@ -57,7 +57,7 @@ const LocationSelector = () => {
   const { selectedLocationId, setSelectedLocationId, userLocationId } = useLocationFilter();
   const { role } = useAuth();
 
-  // For non-ADMIN users, show their assigned location as disabled
+  // For non-ADMIN users with assigned location, show their assigned location as disabled
   if (locations && userLocationId && !locations.some(loc => loc.id === userLocationId)) {
     // If user's location is not in the list, show a message
     return (
@@ -67,11 +67,13 @@ const LocationSelector = () => {
     );
   }
 
+  const canSwitchLocation = role === 'ADMIN' || (role === 'SERVICE_CLIENT' && !userLocationId);
+
   return (
     <Select
       value={selectedLocationId || "all"}
       onValueChange={(value) => setSelectedLocationId(value === "all" ? null : value)}
-      disabled={role !== 'ADMIN'}
+      disabled={!canSwitchLocation}
     >
       <SelectTrigger className="w-full h-8 text-xs">
         <SelectValue placeholder="Toutes les localités" />
@@ -169,11 +171,11 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto p-2 space-y-2">
-        {(role === 'ADMIN' || (role && role !== 'ADMIN' && userLocationId)) && !isCollapsed && (
+        {(role === 'ADMIN' || role === 'SERVICE_CLIENT' || (role && role !== 'ADMIN' && userLocationId)) && !isCollapsed && (
           <div className="px-3 mb-2">
             <div className="flex items-center gap-2 mb-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
               <MapPin className="h-3 w-3" />
-              <span>{role === 'ADMIN' ? 'Filtrer par localité' : 'Ma localité'}</span>
+              <span>{role === 'ADMIN' || role === 'SERVICE_CLIENT' ? 'Filtrer par localité' : 'Ma localité'}</span>
             </div>
             <LocationSelector />
           </div>

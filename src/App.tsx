@@ -41,13 +41,13 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
-                <Route path="/rooms" element={<ProtectedRoute><Rooms /></ProtectedRoute>} />
-                <Route path="/planning" element={<ProtectedRoute><Planning /></ProtectedRoute>} />
-                <Route path="/reservations" element={<ProtectedRoute><Reservations /></ProtectedRoute>} />
-                <Route path="/tenants" element={<ProtectedRoute><Tenants /></ProtectedRoute>} />
-                <Route path="/incidents" element={<ProtectedRoute><Incidents /></ProtectedRoute>} />
-                <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
+                <Route path="/" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Index /></ProtectedRoute>} />
+                <Route path="/rooms" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT']}><Rooms /></ProtectedRoute>} />
+                <Route path="/planning" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP', 'SERVICE_CLIENT']}><Planning /></ProtectedRoute>} />
+                <Route path="/reservations" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Reservations /></ProtectedRoute>} />
+                <Route path="/tenants" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Tenants /></ProtectedRoute>} />
+                <Route path="/incidents" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Incidents /></ProtectedRoute>} />
+                <Route path="/tasks" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Tasks /></ProtectedRoute>} />
                 <Route path="/users" element={<ProtectedRoute allowedRoles={['ADMIN']}><Users /></ProtectedRoute>} />
                 <Route path="/reports" element={<ProtectedRoute allowedRoles={['ADMIN']}><Reports /></ProtectedRoute>} />
                 <Route path="/reports/revenue" element={<ProtectedRoute allowedRoles={['ADMIN']}><RevenueReport /></ProtectedRoute>} />
@@ -58,8 +58,8 @@ const App = () => (
                 {/* New accounting routes */}
                 <Route path="/reports/general-ledger" element={<ProtectedRoute allowedRoles={['ADMIN']}><GeneralLedger /></ProtectedRoute>} />
                 <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-                <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+                <Route path="/invoices" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Invoices /></ProtectedRoute>} />
+                <Route path="/notifications" element={<ProtectedRoute allowedRoles={['ADMIN', 'AGENT_RES', 'AGENT_OP']}><Notifications /></ProtectedRoute>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
