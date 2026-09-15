@@ -46,6 +46,10 @@ Deno.serve(async (req) => {
             case 'CREATE': {
                 const { email, password, role, nom, prenom, location_id, username } = payload;
                 
+                if (!email) {
+                    throw new Error("L'adresse email est requise.");
+                }
+                
                 if (!username) {
                     throw new Error("Le nom d'utilisateur est requis.");
                 }
@@ -70,33 +74,31 @@ Deno.serve(async (req) => {
                 const newUserId = newUser.user.id;
                 console.log(`User created in Auth: ${newUserId}.`);
 
-                // 2. Create user profile
-                console.log(`Creating profile for user ${newUserId}...`);
-                const { error: profileError } = await adminClient.from('profiles').insert({
+                // 2. Upsert user profile (trigger may have already created it)
+                console.log(`Upserting profile for user ${newUserId}...`);
+                const { error: profileError } = await adminClient.from('profiles').upsert({
                     user_id: newUserId,
                     nom,
                     prenom,
+                    email,
                     username,
                     location_id: isGlobalRole ? null : location_id
-                });
+                }, { onConflict: 'user_id' });
                 if (profileError) {
-                    console.error('Profile Creation Error:', profileError);
-                    // Attempt to clean up the created auth user
+                    console.error('Profile Upsert Error:', profileError);
                     await adminClient.auth.admin.deleteUser(newUserId);
                     throw profileError;
                 }
-                
-                // 3. Assign role
-                console.log(`Assigning role for user ${newUserId}...`);
+
+                // 3. Upsert role (trigger assigns AGENT_RES by default — overwrite with desired role)
+                console.log(`Upserting role for user ${newUserId}...`);
                 const { error: roleError } = await adminClient
                     .from('user_roles')
-                    .insert({ user_id: newUserId, role });
+                    .upsert({ user_id: newUserId, role }, { onConflict: 'user_id' });
 
                 if (roleError) {
-                    console.error('Role Assign Error:', roleError);
-                    // Attempt to clean up
+                    console.error('Role Upsert Error:', roleError);
                     await adminClient.auth.admin.deleteUser(newUserId);
-                    // The profile will be cascaded
                     throw roleError;
                 }
 
