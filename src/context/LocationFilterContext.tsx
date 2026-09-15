@@ -14,37 +14,38 @@ export const LocationFilterProvider: React.FC<{ children: React.ReactNode }> = (
     const { role, profile } = useAuth();
     const userLocationId = profile?.location_id || null;
 
-    // This state ONLY tracks the selection made by an ADMIN.
-    const [adminSelectedLocationId, setAdminSelectedLocationId] = useState<string | null>(() => {
+    const isGlobalRole = role === 'ADMIN' || role === 'SERVICE_CLIENT';
+
+    // This state tracks the selection made by global multi-site users (ADMIN or SERVICE_CLIENT).
+    const [globalSelectedLocationId, setGlobalSelectedLocationId] = useState<string | null>(() => {
         return localStorage.getItem('selected_location_id');
     });
 
     // Determine the final, effective location ID based on role.
-    const effectiveLocationId = role === 'ADMIN' ? adminSelectedLocationId : userLocationId;
+    const effectiveLocationId = isGlobalRole ? globalSelectedLocationId : userLocationId;
 
-    // Effect to persist ADMIN's selection to localStorage, and clean up for non-admins.
+    // Effect to persist global user's selection to localStorage, and clean up for site-restricted agents.
     useEffect(() => {
-        if (role === 'ADMIN') {
-            if (adminSelectedLocationId) {
-                localStorage.setItem('selected_location_id', adminSelectedLocationId);
+        if (isGlobalRole) {
+            if (globalSelectedLocationId) {
+                localStorage.setItem('selected_location_id', globalSelectedLocationId);
             } else {
                 localStorage.removeItem('selected_location_id');
             }
         } else {
-            // For non-admins, clear the local storage to prevent future conflicts.
+            // For site-restricted agents, clear the local storage to prevent future conflicts.
             localStorage.removeItem('selected_location_id');
         }
-    }, [adminSelectedLocationId, role]);
+    }, [globalSelectedLocationId, isGlobalRole]);
 
-    const isFilterActive = role === 'ADMIN'
-        ? !!adminSelectedLocationId
+    const isFilterActive = isGlobalRole
+        ? !!globalSelectedLocationId
         : !!userLocationId;
 
     const setLocation = (id: string | null) => {
-        if (role === 'ADMIN') {
-            setAdminSelectedLocationId(id);
+        if (isGlobalRole) {
+            setGlobalSelectedLocationId(id);
         }
-        // For non-admins, this function does nothing.
     };
 
     return (

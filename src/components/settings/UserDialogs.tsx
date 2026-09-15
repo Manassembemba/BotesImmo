@@ -43,15 +43,17 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
     const { data: locations = [], isLoading: isLoadingLocations } = useLocations();
     const [formData, setFormData] = useState<UserCreationPayload>(initialCreateState);
 
+    const isGlobalRole = formData.role === 'ADMIN' || formData.role === 'SERVICE_CLIENT';
+
     useEffect(() => {
-        if (formData.role === 'ADMIN') {
+        if (isGlobalRole) {
             setFormData(f => ({ ...f, location_id: "" }));
         }
-    }, [formData.role]);
+    }, [formData.role, isGlobalRole]);
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (formData.role !== 'ADMIN' && !formData.location_id) {
+        if (!isGlobalRole && !formData.location_id) {
             toast.error("Veuillez assigner une localité / site à cet utilisateur.");
             return;
         }
@@ -156,7 +158,7 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
                         </Select>
                     </div>
 
-                    {formData.role !== 'ADMIN' && (
+                    {!isGlobalRole ? (
                         <div className="space-y-1.5">
                             <Label htmlFor="location" className="text-xs font-bold text-slate-700">Site / Localité assigné(e)</Label>
                             <Select value={formData.location_id || ""} onValueChange={(value) => setFormData({ ...formData, location_id: value })}>
@@ -169,6 +171,10 @@ export function CreateUserDialog({ open, onOpenChange }: CreateUserDialogProps) 
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                    ) : (
+                        <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-lg text-xs text-indigo-700 font-medium">
+                            ℹ️ Accès multi-sites global : cet utilisateur supervise la totalité des sites en simultané.
                         </div>
                     )}
 
@@ -215,15 +221,17 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
         }
     }, [user, open]);
     
+    const isGlobalRole = formData.role === 'ADMIN' || formData.role === 'SERVICE_CLIENT';
+
     useEffect(() => {
-        if (formData.role === 'ADMIN') {
+        if (isGlobalRole) {
             setFormData(f => ({ ...f, location_id: "" }));
         }
-    }, [formData.role]);
+    }, [formData.role, isGlobalRole]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (formData.role !== 'ADMIN' && !formData.location_id) {
+        if (!isGlobalRole && !formData.location_id) {
             toast.error("Veuillez assigner une localité / site à cet utilisateur.");
             return;
         }
@@ -312,7 +320,7 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
                         </Select>
                     </div>
 
-                    {formData.role !== 'ADMIN' && (
+                    {!isGlobalRole ? (
                         <div className="space-y-1.5">
                             <Label htmlFor="edit-location" className="text-xs font-bold text-slate-700">Site / Localité assigné(e)</Label>
                             <Select value={formData.location_id || ""} onValueChange={(value) => setFormData({ ...formData, location_id: value })}>
@@ -325,6 +333,10 @@ export function EditUserDialog({ user, open, onOpenChange }: EditUserDialogProps
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                    ) : (
+                        <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-lg text-xs text-indigo-700 font-medium">
+                            ℹ️ Accès multi-sites global : cet utilisateur supervise la totalité des sites en simultané.
                         </div>
                     )}
 

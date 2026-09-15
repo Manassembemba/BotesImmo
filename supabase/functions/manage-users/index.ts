@@ -49,8 +49,9 @@ Deno.serve(async (req) => {
                 if (!username) {
                     throw new Error("Le nom d'utilisateur est requis.");
                 }
-                if (role !== 'ADMIN' && !location_id) {
-                    throw new Error("Une localité est requise pour les rôles non-administrateurs.");
+                const isGlobalRole = role === 'ADMIN' || role === 'SERVICE_CLIENT';
+                if (!isGlobalRole && !location_id) {
+                    throw new Error("Une localité est requise pour les agents assignés à un site.");
                 }
 
                 console.log(`Creating user: ${email} with role: ${role}`);
@@ -76,7 +77,7 @@ Deno.serve(async (req) => {
                     nom,
                     prenom,
                     username,
-                    location_id: role === 'ADMIN' ? null : location_id
+                    location_id: isGlobalRole ? null : location_id
                 });
                 if (profileError) {
                     console.error('Profile Creation Error:', profileError);
@@ -107,8 +108,9 @@ Deno.serve(async (req) => {
             case 'UPDATE': {
                 const { userId, role, nom, prenom, location_id, username, password } = payload;
 
-                if (role !== 'ADMIN' && !location_id) {
-                    throw new Error("Une localité est requise pour les rôles non-administrateurs.");
+                const isGlobalRole = role === 'ADMIN' || role === 'SERVICE_CLIENT';
+                if (!isGlobalRole && !location_id) {
+                    throw new Error("Une localité est requise pour les agents assignés à un site.");
                 }
                 
                 console.log(`Updating user: ${userId}`);
@@ -122,7 +124,7 @@ Deno.serve(async (req) => {
                 } = {
                     nom,
                     prenom,
-                    location_id: role === 'ADMIN' ? null : location_id
+                    location_id: isGlobalRole ? null : location_id
                 };
 
                 if (username) {
