@@ -25,8 +25,13 @@ import {
   ShieldAlert,
   ShieldCheck,
   ArrowUpDown,
+  Download,
 } from 'lucide-react';
 import { useTenants, useUpdateTenant, useDeleteTenant, Tenant } from '@/hooks/useTenants';
+import {
+  exportTenantsToCsv,
+  exportTenantsToPdf,
+} from '@/services/tenantReportExportService';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -183,6 +188,30 @@ const Tenants = () => {
     }
   };
 
+  const exportFilters = useMemo(() => {
+    const locationName =
+      role === 'ADMIN' && selectedLocationId && locations
+        ? locations.find((l) => l.id === selectedLocationId)?.nom
+        : profile?.location_id && locations
+        ? locations.find((l) => l.id === profile.location_id)?.nom
+        : undefined;
+    return {
+      search,
+      blacklistFilter,
+      loyaltyFilter,
+      sortBy,
+      locationName,
+    };
+  }, [role, selectedLocationId, profile, locations, search, blacklistFilter, loyaltyFilter, sortBy]);
+
+  const handleExportCsv = () => {
+    exportTenantsToCsv(filteredTenants, exportFilters);
+  };
+
+  const handleExportPdf = () => {
+    exportTenantsToPdf(filteredTenants, exportFilters, stats);
+  };
+
   if (isLoading) {
     return (
       <MainLayout title="Locataires" subtitle="Chargement...">
@@ -313,6 +342,39 @@ const Tenants = () => {
                 <List className="h-4 w-4" />
               </Button>
             </div>
+
+            {/* Export Button */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-10 gap-2 font-semibold bg-white"
+                  disabled={filteredTenants.length === 0}
+                  title={filteredTenants.length === 0 ? 'Aucun locataire à exporter' : `Exporter ${filteredTenants.length} locataire(s)`}
+                >
+                  <Download className="h-4 w-4 text-indigo-600" />
+                  Exporter
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer font-medium"
+                  onClick={handleExportCsv}
+                >
+                  <FileText className="h-4 w-4 text-emerald-600" />
+                  Exporter en CSV
+                  <span className="ml-auto text-[10px] text-muted-foreground">Excel</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="gap-2 cursor-pointer font-medium"
+                  onClick={handleExportPdf}
+                >
+                  <FileText className="h-4 w-4 text-rose-600" />
+                  Exporter en PDF
+                  <span className="ml-auto text-[10px] text-muted-foreground">Impression</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {(role === 'ADMIN' || role === 'AGENT_RES') && (
               <CreateTenantDialog
